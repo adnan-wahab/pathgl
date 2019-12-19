@@ -1,11 +1,9 @@
 let _ = require('underscore')
+let nodes = require('./nodes')
 
 let edges = require('./edges')
 
-let data = _.range(100).map(() => {
-  return [
-    (Math.random() - .5 ) * 2, (Math.random() - .5) * 2]
-})
+
 
 let c = [
   './data/eastwestcommute.json',
@@ -13,22 +11,22 @@ let c = [
   './data/sfcommute.json',
   './data/world.json'
 ]
-let url = c[2]
+let url = c[3]
 console.log('fetching url '+ url)
 fetch(url)
   .then((body)=>{ return body.json() })
   .then((json)=>{
     init(json.map(
-      (d) => { return d.data.coords.map((d, i) => { return 2* d / (i % 2 ? innerHeight: innerWidth) - 1.})
+      (d) => { return d.data.coords.map((d, i) => { return d / (i % 2 ? innerWidth: innerHeight )})
              })
         )
   })
 
-window.d = data
+
 
 let init = (data) => {
   let width = innerWidth, height = innerHeight
-  window.data = data
+
   return edges(data, {
     width: width,
     height: height,

@@ -32,18 +32,19 @@ function Graph(positions, opts) {
     attribute vec2 position;
     uniform mat4 projection, view;
     //attribute vec3 color;
-    //varying vec3 vcolor;
+    varying vec3 vcolor;
     void main() {
       //projection * view *  vec4(position.x, position.y , position.z, 1.);
+        vcolor = vec3(position, 1.);
         gl_Position  = vec4(position.x, position.y, 0., 1.);
       //vcolor = color;
     }
     `,
     frag: `
     precision mediump float;
-    //varying vec3 vcolor;
+    varying vec3 vcolor;
     void main() {
-      gl_FragColor = vec4(1, 0, 1, .01);
+      gl_FragColor = vec4(1, 1, 1., .81);
     }
     `,
     attributes: {

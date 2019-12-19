@@ -3192,8 +3192,9 @@ let c = [
   './data/sfcommute.json',
   './data/world.json'
 ]
-
-fetch(c[c.length - 2])
+let url = c[2]
+console.log('fetching url '+ url)
+fetch(url)
   .then((body)=>{ return body.json() })
   .then((json)=>{
     init(json.map(

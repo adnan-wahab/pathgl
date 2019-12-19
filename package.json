@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "budo ./src/test.js:static/bundle.js",
+    "build": "browserify ./src/test.js>static/bundle.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "adnan wahab",

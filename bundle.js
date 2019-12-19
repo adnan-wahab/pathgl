@@ -3187,10 +3187,10 @@ let data = _.range(100).map(() => {
 })
 
 let c = [
-  '/data/eastwestcommute.json',
-  '/data/philippines.json',
-  '/data/sfcommute.json',
-  '/data/world.json'
+  './data/eastwestcommute.json',
+  './data/philippines.json',
+  './data/sfcommute.json',
+  './data/world.json'
 ]
 
 fetch(c[c.length - 2])
@@ -3213,7 +3213,5 @@ let init = (data) => {
     root: document.querySelector('body')
   })
 }
-
-
 
 },{"./edges":35,"underscore":34}]},{},[36]);

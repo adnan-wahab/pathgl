@@ -69,7 +69,8 @@ function Graph(data, opts) {
       p *= scale;
 
       // rotate
-      float phi = tick * freq + phase;
+      float phi = //tick *
+      freq + phase;
       p = vec2(
         dot(vec2(+cos(phi), -sin(phi)), p),
         dot(vec2(+sin(phi), +cos(phi)), p)
@@ -77,7 +78,7 @@ function Graph(data, opts) {
 
       // translate
       p += offset;
-
+      gl_PointSize = 10.0;
       gl_Position = projection * view * vec4(p, 0, 1);
     }`
   })
@@ -113,7 +114,7 @@ function Graph(data, opts) {
         offset: props.offset,
         phase: props.phase,
         freq: props.freq,
-        opacity: props.opa || .2
+        opacity: props.opa || .5
       },
 
       lineWidth: lineWidth,
@@ -128,14 +129,27 @@ function Graph(data, opts) {
   drawCalls.push(createDrawCall({
     color: [1, 1, 0.3],
     primitive: 'lines',
-    scale: 0.5,
-    offset: [.7, 0.0],
+    scale: 1,
+    offset: [0, 0.0],
     phase: 0.0,
     freq: 0.01,
     position: data,
     count: data.length / 4,
     opa: 0
   }))
+
+  drawCalls.push(createDrawCall({
+    color: [1, 1, 0.3],
+    primitive: 'points',
+    scale: 1,
+    offset: [0, 0.0],
+    phase: 0.0,
+    freq: 0.01,
+    position: data,
+    count: data.length / 4,
+    opa: 0
+  }))
+
 
 
   regl.frame(({tick}) => {

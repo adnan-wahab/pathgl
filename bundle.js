@@ -3121,18 +3121,19 @@ function Graph(positions, opts) {
     attribute vec2 position;
     uniform mat4 projection, view;
     //attribute vec3 color;
-    //varying vec3 vcolor;
+    varying vec3 vcolor;
     void main() {
       //projection * view *  vec4(position.x, position.y , position.z, 1.);
+        vcolor = vec3(position, 1.);
         gl_Position  = vec4(position.x, position.y, 0., 1.);
       //vcolor = color;
     }
     `,
     frag: `
     precision mediump float;
-    //varying vec3 vcolor;
+    varying vec3 vcolor;
     void main() {
-      gl_FragColor = vec4(1, 0, 1, .01);
+      gl_FragColor = vec4(1, 1, 1., .81);
     }
     `,
     attributes: {
@@ -3177,14 +3178,129 @@ Graph.prototype.update = function (positions, colors) {}
 module.exports = Graph
 
 },{"bunny":1,"gl-mat4":17,"isnumber":32,"regl":33}],36:[function(require,module,exports){
+var isnumber = require('isnumber')
+
+var Regl = require('regl')
+
+let stub = () => {
+  return [
+    Math.random() * 2 - 1., Math.random() * 2 -1
+  ]
+}
+var layout = function layout(data) {
+  return data.map((item)=> {
+    return item.pos || stub()
+  })
+}
+
+function randomColor () {
+  return [ .7, .2, .9 ]
+}
+
+function convertToRGB(data) {
+  return data.map(randomColor)
+}
+
+function Graph(data, opts) {
+  if (!(this instanceof Graph)) return new Graph(data, opts)
+
+  var self = this
+
+  opts = opts || {}
+
+  window.d = data
+
+  opts.background = opts.background || [0.9, 0.9, 0.9]
+  opts.size = isnumber(opts.size) ? opts.size : 10
+
+  var canvas = document.createElement('canvas')
+  canvas.width = opts.width || 960
+  canvas.height = opts.height || 500
+
+  if (opts.root) opts.root.appendChild(canvas)
+  var regl = Regl(canvas);
+
+  var colors = convertToRGB(data);
+  var positions = layout(data)
+
+  var squares = regl({
+    vert: `
+    precision mediump float;
+    attribute vec2 position;
+    attribute vec3 color;
+    varying vec3 vcolor;
+    void main() {
+      gl_PointSize = float(${opts.size});
+      gl_Position = vec4(position.x, position.y, 0.0, 1.0);
+      vcolor = color;
+      if (distance(gl_PointCoord, gl_Position) > .1) discard;
+    }
+    `,
+
+    frag: `
+    precision mediump float;
+    varying vec3 vcolor;
+    void main() {
+      gl_FragColor = vec4(vcolor, 1.0);
+    }
+    `,
+
+    attributes: {
+      position: regl.prop('position'),
+      color: regl.prop('color')
+    },
+
+    primitive: 'points',
+
+    count: colors.length
+  })
+
+  var buffer = {
+    position: regl.buffer(positions),
+    color: regl.buffer(colors)
+  }
+
+  var draw = function (positions, colors) {
+    regl.clear({
+      color: opts.background.concat([1])
+    })
+    squares({
+      position: positions,
+      color: colors
+    })
+
+    lines({
+      position: positions,
+      color: colors
+    })
+
+  }
+
+  draw(buffer.position, buffer.color)
+
+  self._buffer = buffer
+  self._draw = draw
+  self._formatted = opts.formatted
+  self.canvas = canvas
+  self.frame = regl.frame
+}
+
+Graph.prototype.update = function (data) {
+  let self = this;
+  console.log(50)
+  let color = convertToRGB(data)
+  self._draw(self._buffer.position, self._buffer.color(color))
+}
+
+module.exports = Graph
+
+},{"isnumber":32,"regl":33}],37:[function(require,module,exports){
 let _ = require('underscore')
+let nodes = require('./nodes')
 
 let edges = require('./edges')
 
-let data = _.range(100).map(() => {
-  return [
-    (Math.random() - .5 ) * 2, (Math.random() - .5) * 2]
-})
+
 
 let c = [
   './data/eastwestcommute.json',
@@ -3192,22 +3308,22 @@ let c = [
   './data/sfcommute.json',
   './data/world.json'
 ]
-let url = c[2]
+let url = c[3]
 console.log('fetching url '+ url)
 fetch(url)
   .then((body)=>{ return body.json() })
   .then((json)=>{
     init(json.map(
-      (d) => { return d.data.coords.map((d, i) => { return 2* d / (i % 2 ? innerHeight: innerWidth) - 1.})
+      (d) => { return d.data.coords.map((d, i) => { return d / (i % 2 ? innerWidth: innerHeight )})
              })
         )
   })
 
-window.d = data
+
 
 let init = (data) => {
   let width = innerWidth, height = innerHeight
-  window.data = data
+
   return edges(data, {
     width: width,
     height: height,
@@ -3215,4 +3331,4 @@ let init = (data) => {
   })
 }
 
-},{"./edges":35,"underscore":34}]},{},[36]);
+},{"./edges":35,"./nodes":36,"underscore":34}]},{},[37]);

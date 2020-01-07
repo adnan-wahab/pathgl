@@ -1,87 +1,198 @@
 var isnumber = require('isnumber')
 
-var Regl = require('regl')
+var regl = require('regl')()
 
 const mat4 = require('gl-mat4')
 
-let bunny = require('bunny')
-
+const camera = require('./camera')(regl, {
+  center: [0,0,0],
+  phi: .1,
+  distance:2,
+  theta: -1.6
+})
+let magic = [
+ -0.9961216449737549,
+ 0.012064366601407528,
+ -0.08715581148862839
+]
 function convertToRGB(data) { return [255, 0, 255] }
 
-function Graph(positions, opts) {
-  if (!(this instanceof Graph)) return new Graph(positions, opts)
+function makeCircle (N) { // where N is tesselation degree.
+  return Array(N).fill().map((_, i) => {
+    var phi = 2 * Math.PI * (i / N)
+    return [Math.cos(phi), Math.sin(phi)]
+  })
+}
 
-  var self = this
 
-  opts = opts || {}
+function Graph(data, opts) {
 
-  opts.background = opts.background || [0,0,0,1]
-  opts.size = isnumber(opts.size) ? opts.size : 10
+  var mat4 = require('gl-mat4')
 
-  var canvas = document.createElement('canvas')
-  canvas.width = opts.width || 960
-  canvas.height = opts.height || 500
-
-  if (opts.root) opts.root.appendChild(canvas)
-
-  var regl = Regl(canvas);
-
-  var lines = regl({
-    vert: `
-    precision mediump float;
-    attribute vec2 position;
-    uniform mat4 projection, view;
-    //attribute vec3 color;
-    varying vec3 vcolor;
-    void main() {
-      //projection * view *  vec4(position.x, position.y , position.z, 1.);
-        vcolor = vec3(position, 1.);
-        gl_Position  = vec4(position.x, position.y, 0., 1.);
-      //vcolor = color;
-    }
-    `,
+  var globalState = regl({
+    uniforms: {
+      tick: ({tick}) => tick,
+      projection: ({viewportWidth, viewportHeight}) =>
+        mat4.perspective([],
+                         Math.PI / 2,
+                         viewportWidth / viewportHeight,
+                         0.01,
+                         1000),
+      //view: mat4.lookAt([], [2.1, 0, 1.3], [0, 0.0, 0], [0, 0, 1])
+    },
     frag: `
     precision mediump float;
-    varying vec3 vcolor;
+    uniform vec3 color;
+    uniform float opacity;
+
     void main() {
-      gl_FragColor = vec4(1, 1, 1., .81);
-    }
-    `,
-    attributes: {
-      position: regl.prop('position')
-    },
-    primitive: 'lines',
-    count: positions.length,
-    uniforms: {}
+      gl_FragColor = vec4(color, opacity);
+    }`,
+
+    vert: `
+
+    precision mediump float;
+    attribute vec2 position;
+
+    uniform mat4 projection, view;
+
+    uniform float scale;
+    uniform vec2 offset;
+    uniform float tick;
+    uniform float phase;
+    uniform float freq;
+
+    void main() {
+      vec2 p  = position;
+
+      // scale
+      p *= scale;
+
+      // rotate
+      float phi = tick * freq + phase;
+      p = vec2(
+        dot(vec2(+cos(phi), -sin(phi)), p),
+        dot(vec2(+sin(phi), +cos(phi)), p)
+      );
+
+      // translate
+      p += offset;
+
+      gl_Position = projection * view * vec4(p, 0, 1);
+    }`
   })
 
-  var buffer = { position: regl.buffer(positions) }
-  regl({
-    blend: {
-      enable: true,
-      func: {
-        srcRGB: 'src alpha',
-        srcAlpha: 1,
-        dstRGB: 'one minus src alpha',
-        dstAlpha: 1
-      },
-      equation: {
-        rgb: 'add',
-        alpha: 'add'
-      },
-      color: [0, 0, 0, 0]
-    }
-  })
-
-  var draw = function (positions, colors) {
-    regl.clear({
-      color: opts.background.concat([1])
-    })
-
-    lines({ position: positions })
+  // make sure to respect system limitations.
+  var lineWidth = 3
+  if (lineWidth > regl.limits.lineWidthDims[1]) {
+    lineWidth = regl.limits.lineWidthDims[1]
   }
 
-  draw(buffer.position, buffer.color)
+  // this creates a drawCall that allows you to do draw single line primitive.
+  function createDrawCall (props) {
+    console.log(props.opa)
+    return regl({
+      blend: {
+        enable: true,
+        func: {
+          srcRGB: 'src alpha',
+          srcAlpha: 'src color',
+          dstRGB: 'one',
+          dstAlpha: 'one',
+          equation: 'add',
+          color: [0, 0, 0, 0]
+        },
+      },
+      attributes: {
+        position: props.position
+      },
+
+      uniforms: {
+        color: props.color,
+        scale: props.scale,
+        offset: props.offset,
+        phase: props.phase,
+        freq: props.freq,
+        opacity: props.opa || .2
+      },
+
+      lineWidth: lineWidth,
+      count: props.count || props.position.length,
+      primitive: props.primitive
+    })
+  }
+
+  var drawCalls = []
+  var i
+
+  drawCalls.push(createDrawCall({
+    color: [1, 1, 0.3],
+    primitive: 'lines',
+    scale: 0.5,
+    offset: [.7, 0.0],
+    phase: 0.0,
+    freq: 0.01,
+    position: data,
+    count: data.length / 4,
+    opa: 0
+  }))
+  //
+  // square
+  //
+  drawCalls.push(createDrawCall({
+    color: [1, 0.1, 0.3],
+    primitive: 'line loop',
+    scale: 0.25,
+    offset: [-0.7, 0.0],
+    phase: 0.0,
+    freq: 0.01,
+    position: [[-1, -1], [+1, -1], [+1, +1], [-1, +1]]
+  }))
+
+
+  //
+  // triangle
+  //
+  drawCalls.push(createDrawCall({
+    color: [0.2, 0.8, 0.3],
+    primitive: 'line loop',
+    scale: 0.25,
+    offset: [-0.7, 0.7],
+    phase: 0.8,
+    freq: -0.014,
+    position: makeCircle(3)
+  }))
+
+  //
+  // hexagon
+  //
+  drawCalls.push(createDrawCall({
+    color: [0.7, 0.3, 0.9],
+    primitive: 'line loop',
+    scale: 0.25,
+    offset: [0.0, 0.7],
+    phase: 0.6,
+    freq: 0.009,
+    position: makeCircle(6)
+  }))
+
+
+  regl.frame(({tick}) => {
+    camera((state)=> {
+      //if (!state.dirty) return;
+      window.state = state
+      regl.clear({
+        color: [0, 0, 0, 1],
+        depth: 1
+      })
+
+      globalState(() => {
+        for (i = 0; i < drawCalls.length; i++) {
+          drawCalls[i]()
+        }
+      })
+    })
+  })
 }
 
 Graph.prototype.update = function (positions, colors) {}

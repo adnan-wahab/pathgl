@@ -17,6 +17,7 @@ function createCamera (regl, props) {
     eye: new Float32Array(3),
     up: new Float32Array(props.up || [0, 1, 0])
   }
+  window.cameraState = cameraState
 
   var right = new Float32Array([1, 0, 0])
   var front = new Float32Array([0, 0, 1])
@@ -119,4 +120,4 @@ function createCamera (regl, props) {
   })
 
   return setupCamera
-} 
+}

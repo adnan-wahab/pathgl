@@ -17,7 +17,6 @@ function createCamera (regl, props) {
     eye: new Float32Array(3),
     up: new Float32Array(props.up || [0, 1, 0])
   }
-  window.cameraState = cameraState
 
   var right = new Float32Array([1, 0, 0])
   var front = new Float32Array([0, 0, 1])
@@ -31,6 +30,21 @@ function createCamera (regl, props) {
 
   var prevX = 0
   var prevY = 0
+
+  document.body.addEventListener('keydown', (e) =>{
+
+    let translate = {
+      37: [1, 0],
+      38: [0, 1],
+      39: [-1, 0],
+      40: [0, -1]
+    }
+    let dir = translate[e.which] || [0,0]
+    cameraState.center[0] += dir[0] * .1
+    cameraState.center[1] += dir[1] * .1
+    //left up right down
+  })
+
   mouseChange(function (buttons, x, y) {
     if (buttons & 1) {
       var dx = (x - prevX) / window.innerWidth
@@ -64,7 +78,6 @@ function createCamera (regl, props) {
     var center = cameraState.center
     var eye = cameraState.eye
     var up = cameraState.up
-
     cameraState.theta += dtheta
     cameraState.phi = clamp(
       cameraState.phi + dphi,

@@ -136,45 +136,6 @@ function Graph(data, opts) {
     count: data.length / 4,
     opa: 0
   }))
-  //
-  // square
-  //
-  drawCalls.push(createDrawCall({
-    color: [1, 0.1, 0.3],
-    primitive: 'line loop',
-    scale: 0.25,
-    offset: [-0.7, 0.0],
-    phase: 0.0,
-    freq: 0.01,
-    position: [[-1, -1], [+1, -1], [+1, +1], [-1, +1]]
-  }))
-
-
-  //
-  // triangle
-  //
-  drawCalls.push(createDrawCall({
-    color: [0.2, 0.8, 0.3],
-    primitive: 'line loop',
-    scale: 0.25,
-    offset: [-0.7, 0.7],
-    phase: 0.8,
-    freq: -0.014,
-    position: makeCircle(3)
-  }))
-
-  //
-  // hexagon
-  //
-  drawCalls.push(createDrawCall({
-    color: [0.7, 0.3, 0.9],
-    primitive: 'line loop',
-    scale: 0.25,
-    offset: [0.0, 0.7],
-    phase: 0.6,
-    freq: 0.009,
-    position: makeCircle(6)
-  }))
 
 
   regl.frame(({tick}) => {

@@ -5,19 +5,15 @@ const createCamera = require('regl-camera')
 
 let d3 = require('d3')
 
-let h = (regl, attributes) => {
-  const camera = createCamera(regl, {
-  minDistance: 0.01,
-  distance: 20,
-  maxDistance: 30,
-})
+let h = (regl, attributes, camera) => {
+
   let canvas = document.getElementsByTagName('canvas')[0]
   let fbo = regl.framebuffer({
     width: canvas.width,
     height: canvas.height,
     colorFormat: 'rgba',
   })
-//
+
   const drawFboQuad = regl({
     vert: `
     precision mediump float;
@@ -70,170 +66,37 @@ let h = (regl, attributes) => {
   // ----------------------------------------------------------------------------------------- bunny
 
   const createBunny = function (regl) {
-    const mesh = bunny
 
     const common = {
       vert: `
-        precision mediump float;
 
-        uniform mat4 projection, view;
-        uniform vec3 translate;
-        uniform float scale;
+      precision mediump float;
+      attribute vec2 position;
 
-        attribute vec3 position, normal;
+      uniform mat4 projection, view;
 
-        varying vec3 vPosition;
-        varying vec3 vNormal;
+      uniform vec2 offset;
 
-        void main() {
-          vNormal = normal;
-          vec3 model = (position * scale + translate);
-          gl_Position = projection * view * vec4(model, 1);
-        }
-      `,
+      varying vec3 vColor;
+      attribute vec3 color;
+      attribute vec3 fboColor;
+      uniform bool isFbo;
 
-      attributes: {
-        position: mesh.positions,
-        normal: normals(bunny.cells, bunny.positions),
-      },
-      elements: mesh.cells,
 
-      uniforms: {
-        translate: regl.prop('translate'),
-        scale: regl.prop('scale'),
-        color: regl.prop('color'),
-      },
+      void main() {
+        vec2 p  = position;
+        vColor = isFbo ? fboColor : color;
+        gl_PointSize = 10.0;
+        gl_Position = projection * view * vec4(p, -.5, 1);
+      }`,
+
+      attributes: attributes,
+      primitive: 'points',
+      count: attributes.position.length / 4,
     }
 
     const draw = regl({
       ...common,
-      frag: `
-        precision mediump float;
-
-        uniform vec3 color;
-
-        varying vec3 vNormal;
-        varying vec3 vPosition;
-
-        void main () {
-          gl_FragColor = vec4(max(vNormal, color), 1.0);
-        }
-      `,
-      cull: {enable: true},
-      depth: { enable: true, mask: true },
-    })
-
-    const drawFbo = regl({
-      ...common,
-      framebuffer: fbo,
-      frag: `
-        precision mediump float;
-        uniform vec3 colorFbo;
-        void main() {
-          gl_FragColor = vec4(colorFbo, 1);
-        }
-      `,
-
-      uniforms: {
-        translate: regl.prop('translate'),
-        scale: regl.prop('scale'),
-        colorFbo: regl.prop('colorFbo'),
-      },
-    })
-
-    return {
-      draw,
-      drawFbo,
-    }
-  }
-
-  // ----------------------------------------------------------------------------------------- raf
-
-  const drawBunny = createBunny(regl)
-
-  const randomIntFromInterval = (min, max) => Math.floor(Math.random() * (max - min + 1) + min)
-  const randomTranslate = () => [
-    randomIntFromInterval(-20, 20),
-    randomIntFromInterval(-20, 20),
-    randomIntFromInterval(-20, 20),
-  ]
-
-  const numSource = 30
-  const bunnies = Array(numSource).fill().map((item, i) => ({
-    translate: randomTranslate(),
-    scale: Math.random() / 2,
-
-    color: [-1, -1, -1],
-    colorFbo: [0.0, (i + 1) / numSource, 0.0],
-  }))
-
-  let pickX = 0
-  let pickY = 0
-  document.onmousemove = function (e) {
-    pickX = e.clientX
-    pickY = e.clientY
-  }
-
-  window.onresize = function () {
-    canvas = document.getElementsByTagName('canvas')[0]
-    fbo.resize(canvas.width, canvas.height)
-  }
-
-  function f(t) {
-    regl.clear({
-      color: [0.1, 0.1, 0.1, 1],
-      depth: true,
-    })
-
-    camera(() => {
-      fbo.use(() => {
-        regl.clear({
-          color: [1, 0, 0, 1],
-          depth: true,
-        })
-        drawBunny.drawFbo(bunnies)
-      })
-
-      let index = -1
-      const stayInWidth = (pickX > 30 && pickX < canvas.width - 30)
-      const stayInHeight = (pickY > 30 && pickY < canvas.height - 30)
-      const compHeight = canvas.height - pickY
-      const stayInComputerHeight = (compHeight > 30 && compHeight < canvas.height - 30)
-      if (stayInWidth && stayInHeight && stayInComputerHeight) {
-        try {
-          const pixels = regl.read({
-            x: pickX,
-            y: canvas.height - pickY,
-            width: 1,
-            height: 1,
-            data: new Uint8Array(6),
-            framebuffer: fbo,
-          })
-
-          const greenValue = pixels[1]
-          if (greenValue !== 0) {
-            const value = (greenValue / 255) * (numSource)
-            index = Math.round(value) - 1
-          }
-        } catch (e) {
-          console.error(e)
-        }
-      }
-
-      bunnies.forEach(b => { b.color = [-1, -1, -1] })
-      if (index !== -1) {
-        bunnies[index].color = [1, 1, 1]
-      }
-
-      drawBunny.draw(bunnies)
-
-      drawFboQuad()
-    })
-  }
-
-  //return f
-
-    return regl({
       frag: `
       #extension GL_OES_standard_derivatives : enable
       precision mediump float;
@@ -262,52 +125,91 @@ let h = (regl, attributes) => {
         gl_FragColor = vec4(vColor * alpha, alpha);
 
       }`,
+      uniforms: {isFbo:false},
+      cull: {enable: true},
+      depth: { enable: true, mask: true },
+    })
 
-      vert: `
+    const drawFbo = regl({
+      ...common,
+      framebuffer: fbo,
+      uniforms: {isFbo:true},
 
-      precision mediump float;
-      attribute vec2 position;
+      frag: `
+        precision mediump float;
+        varying vec3 vColor;
+        void main() {
+          gl_FragColor = vec4(vColor, 1);
+        }
+      `
+    })
+    return {
+      draw,
+      drawFbo,
+    }
+  }
+  // ----------------------------------------------------------------------------------------- raf
 
-      uniform mat4 projection, view;
+  const drawBunny = createBunny(regl)
 
-      uniform float scale;
-      uniform vec2 offset;
-      uniform float tick;
-      uniform float phase;
-      uniform float freq;
-      varying vec3 vColor;
-      attribute vec3 color;
+  let pickX = 0
+  let pickY = 0
+  document.onmousemove = function (e) {
+    pickX = e.clientX
+    pickY = e.clientY
+  }
 
-      void main() {
-        vec2 p  = position;
-        vColor = color;
+  window.onresize = function () {
+    canvas = document.getElementsByTagName('canvas')[0]
+    fbo.resize(canvas.width, canvas.height)
+  }
 
-        // scale
-        p *= scale;
+  let f = function (nodes, callback) {
+    regl.clear({
+      color: [0.1, 0.1, 0.1, 1],
+      depth: true,
+    })
 
-        // rotate
-        float phi = //tick *
-        freq + phase;
-        p = vec2(
-          dot(vec2(+cos(phi), -sin(phi)), p),
-          dot(vec2(+sin(phi), +cos(phi)), p)
-        );
+    fbo.use(() => {
+      regl.clear({
+        color: [1, 0, 0, 1],
+        depth: true,
+      })
+      drawBunny.drawFbo()
+    })
 
-        // translate
-        p += offset;
-        gl_PointSize = 10.0;
-        gl_Position = projection * view * vec4(p, -.5, 1);
-      }`,
-          uniforms: {
-            scale: 1,
-            offset: [0, 0.0],
-            phase: 0.0,
-            freq: 0.01,
-            opacity: .5
-          },
-          attributes: attributes,
-          count: attributes.position.length / 4,
-          primitive: 'points'
-        });
+      let index = -1
+      const stayInWidth = (pickX > 30 && pickX < canvas.width - 30)
+      const stayInHeight = (pickY > 30 && pickY < canvas.height - 30)
+      const compHeight = canvas.height - pickY
+      const stayInComputerHeight = (compHeight > 30 && compHeight < canvas.height - 30)
+      if (stayInWidth && stayInHeight && stayInComputerHeight) {
+        try {
+          const pixels = regl.read({
+            x: pickX,
+            y: canvas.height - pickY,
+            width: 1,
+            height: 1,
+            data: new Uint8Array(6),
+            framebuffer: fbo,
+          })
+
+          const greenValue = pixels[1]
+          if (greenValue !== 0) {
+            const value = (greenValue / 255) * (nodes.length)
+            index = Math.round(value) - 1
+            callback(nodes[index])
+          }
+        } catch (e) {
+          console.error(e)
+        }
+      }
+
+    drawBunny.draw()
+    //drawFboQuad()
+
+  }
+
+return f
 }
 module.exports = h;

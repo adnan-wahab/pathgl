@@ -19,7 +19,7 @@ module.exports = (attributes, options) => {
   })
 
   let drawLines = createDrawLines(regl, attributes)
-  let drawNodes = createDrawNodes(regl, attributes)
+  let drawNodes = createDrawNodes(regl, attributes, camera)
   var globalState = regl({
     uniforms: {
       tick: ({tick}) => tick,
@@ -40,8 +40,9 @@ module.exports = (attributes, options) => {
         depth: 1
       })
       globalState(() => {
-        drawNodes(tick)
+        drawNodes(options.data, options.onHover)
         drawLines()
+        //drawPickBuffer
       })
     })
   })

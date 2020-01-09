@@ -1,6 +1,9 @@
+document.body.innerHTML = '<div>The label is :<span class="adnan"></span> </div>'
+
 let _ = require('lodash')
 let GraphRenderer = require('./index')
 let d3 = require('d3')
+
 
 let c = [
   './data/eastwestcommute.json',
@@ -38,14 +41,18 @@ fetch(url)
       let c = d3.color(data.nodes[e.source].color);
       return [c.r /255 , c.g /255 , c.b /255];
     }));
+
+    let fboColor = color.map((d, i) => {
+      return i / color.length
+    })
     return {
       position: edges,
       color,
+      fboColor,
     }
   }
 
-  let pos = [[-.5, -.5], [+.5, -.5], [+.5, +.5], [-.5, +.5]]
-
+let pos = [[-.5, -.5], [+.5, -.5], [+.5, +.5], [-.5, +.5]]
 
 let init = (data) => {
   let width = innerWidth, height = innerHeight
@@ -53,6 +60,11 @@ let init = (data) => {
   return GraphRenderer(pos, {
     width: width,
     height: height,
-    root: document.querySelector('body')
+    root: document.querySelector('body'),
+    data: data.nodes,
+    onHover: (node) => {
+      console.log(node)
+      document.querySelector('.adnan').innerHTML = (node.label)
+    }
   })
 }

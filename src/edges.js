@@ -4,7 +4,6 @@ var regl = require('regl')({
   extensions: ['OES_standard_derivatives']
 })
 
-
 function createDrawLines(regl, attributes) {
 
 
@@ -45,18 +44,7 @@ function createDrawLines(regl, attributes) {
         vec2 p  = position;
 
         v_color = color;
-
-        // scale
-        p *= scale;
-
-        // rotate
-        float phi = //tick *
-        freq + phase;
-        p = vec2(
-          dot(vec2(+cos(phi), -sin(phi)), p),
-          dot(vec2(+sin(phi), +cos(phi)), p)
-        );
-
+  
         // translate
         p += offset;
         gl_PointSize = 10.0;

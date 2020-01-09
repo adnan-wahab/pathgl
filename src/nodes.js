@@ -87,7 +87,7 @@ let h = (regl, attributes, camera) => {
         vec2 p  = position;
         vColor = isFbo ? fboColor : color;
         gl_PointSize = 10.0;
-        gl_Position = projection * view * vec4(p, -.5, 1);
+        gl_Position = projection * view * vec4(p, -.001, 1);
       }`,
 
       attributes: attributes,

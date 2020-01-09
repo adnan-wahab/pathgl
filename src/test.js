@@ -1,9 +1,6 @@
 let _ = require('lodash')
-let nodes = require('./nodes')
-
-let edges = require('./edges')
-
-
+let GraphRenderer = require('./index')
+let d3 = require('d3')
 
 let c = [
   './data/eastwestcommute.json',
@@ -30,15 +27,21 @@ fetch(url)
   })
 
   let processKMeans = (data) => {
-    let edges = new Array(data.edges.length * 4).fill(0)
+    let edges = new Array(data.edges.length * 4).fill(0);
     data.edges.forEach((edge, idx) => {
       edges[idx*4] = clip(data.nodes[edge.source].x)
       edges[idx*4+1] = clip(data.nodes[edge.source].y)
       edges[idx*4+2] = clip(data.nodes[edge.target].x)
       edges[idx*4+3] = clip(data.nodes[edge.target].y)
-    })
-    window.e = edges
-    return edges
+    });
+    let color = _.flatten(data.edges.map((e) => {
+      let c = d3.color(data.nodes[e.source].color);
+      return [c.r /255 , c.g /255 , c.b /255];
+    }));
+    return {
+      position: edges,
+      color,
+    }
   }
 
   let pos = [[-.5, -.5], [+.5, -.5], [+.5, +.5], [-.5, +.5]]
@@ -47,7 +50,7 @@ fetch(url)
 let init = (data) => {
   let width = innerWidth, height = innerHeight
   let pos = processKMeans(data)
-  return edges(pos, {
+  return GraphRenderer(pos, {
     width: width,
     height: height,
     root: document.querySelector('body')

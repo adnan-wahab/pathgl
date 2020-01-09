@@ -1,75 +1,12 @@
 var isnumber = require('isnumber')
 
-var regl = require('regl')()
-
-const mat4 = require('gl-mat4')
-
-
-const camera = require('./camera')(regl, {
-  center: [0,0,0],
-  phi: .1,
-  distance:2,
-  theta: -1.6
+var regl = require('regl')({
+  extensions: ['OES_standard_derivatives']
 })
 
-function convertToRGB(data) { return [255, 0, 255] }
 
+function createDrawLines(regl, attributes) {
 
-function Graph(data, opts) {
-  let drawNodes = require('./nodes')(regl, data)
-
-  var globalState = regl({
-    uniforms: {
-      tick: ({tick}) => tick,
-      projection: ({viewportWidth, viewportHeight}) =>
-        mat4.perspective([],
-                         Math.PI / 2,
-                         viewportWidth / viewportHeight,
-                         0.01,
-                         1000),
-    },
-    frag: `
-    precision mediump float;
-    uniform vec3 color;
-    uniform float opacity;
-
-    void main() {
-      gl_FragColor = vec4(color, opacity);
-    }`,
-
-    vert: `
-
-    precision mediump float;
-    attribute vec2 position;
-
-    uniform mat4 projection, view;
-
-    uniform float scale;
-    uniform vec2 offset;
-    uniform float tick;
-    uniform float phase;
-    uniform float freq;
-
-    void main() {
-      vec2 p  = position;
-
-      // scale
-      p *= scale;
-
-      // rotate
-      float phi = //tick *
-      freq + phase;
-      p = vec2(
-        dot(vec2(+cos(phi), -sin(phi)), p),
-        dot(vec2(+sin(phi), +cos(phi)), p)
-      );
-
-      // translate
-      p += offset;
-      gl_PointSize = 10.0;
-      gl_Position = projection * view * vec4(p, 0, 1);
-    }`
-  })
 
   // make sure to respect system limitations.
   var lineWidth = 3
@@ -80,6 +17,51 @@ function Graph(data, opts) {
   // this creates a drawCall that allows you to do draw single line primitive.
   let drawLines =
     regl({
+      frag: `
+      precision mediump float;
+      varying vec3 v_color;
+      uniform float opacity;
+
+      void main() {
+        gl_FragColor = vec4(v_color, 1.);
+      }`,
+
+      vert: `
+      varying vec3 v_color;
+
+      precision mediump float;
+      attribute vec2 position;
+      attribute vec3 color;
+
+      uniform mat4 projection, view;
+
+      uniform float scale;
+      uniform vec2 offset;
+      uniform float tick;
+      uniform float phase;
+      uniform float freq;
+
+      void main() {
+        vec2 p  = position;
+
+        v_color = color;
+
+        // scale
+        p *= scale;
+
+        // rotate
+        float phi = //tick *
+        freq + phase;
+        p = vec2(
+          dot(vec2(+cos(phi), -sin(phi)), p),
+          dot(vec2(+sin(phi), +cos(phi)), p)
+        );
+
+        // translate
+        p += offset;
+        gl_PointSize = 10.0;
+        gl_Position = projection * view * vec4(p, 0, 1);
+      }`,
       blend: {
         enable: true,
         func: {
@@ -91,12 +73,9 @@ function Graph(data, opts) {
           color: [0, 0, 0, 0]
         },
       },
-      attributes: {
-        position: data
-      },
+      attributes: attributes,
 
       uniforms: {
-        color: [1, 0, 1],
         scale: 1,
         offset: [0, 0.0],
         phase: 0.0,
@@ -105,26 +84,10 @@ function Graph(data, opts) {
       },
 
       lineWidth: lineWidth,
-      count: data.length / 4,
+      count: attributes.position.length / 4,
       primitive: 'lines'
     })
-
-
-  regl.frame(({tick}) => {
-    camera((state)=> {
-      regl.clear({
-        color: [0, 0, 0, 1],
-        depth: 1
-      })
-
-      globalState(() => {
-        //drawLines()
-        drawNodes()
-      })
-    })
-  })
+    return drawLines;
 }
 
-Graph.prototype.update = function (positions, colors) {}
-
-module.exports = Graph
+module.exports = createDrawLines

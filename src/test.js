@@ -1,4 +1,3 @@
-document.body.innerHTML = '<div>The label is :<span class="adnan"></span> </div>'
 
 let _ = require('lodash')
 let GraphRenderer = require('./index')
@@ -53,7 +52,14 @@ fetch(url)
   }
 
 let pos = [[-.5, -.5], [+.5, -.5], [+.5, +.5], [-.5, +.5]]
-
+let adnan = d3.select('body')
+.append('div')
+.attr('class','adnan');
+adnan.text('hello');
+adnan.style('position', 'absolute')
+adnan.style('color', 'white')
+    .style('z-index', 1231232)
+window.adnan = adnan
 let init = (data) => {
   let width = innerWidth, height = innerHeight
   let pos = processKMeans(data)
@@ -64,7 +70,7 @@ let init = (data) => {
     data: data.nodes,
     onHover: (node) => {
       console.log(node)
-      document.querySelector('.adnan').innerHTML = (node.label)
+      adnan.text(node.label)
     }
   })
 }

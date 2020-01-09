@@ -1,115 +1,82 @@
-var isnumber = require('isnumber')
-
-var Regl = require('regl')
-
-let stub = () => {
-  return [
-    Math.random() * 2 - 1., Math.random() * 2 -1
-  ]
-}
-var layout = function layout(data) {
-  return data.map((item)=> {
-    return item.pos || stub()
-  })
-}
-
-function randomColor () {
-  return [ .7, .2, .9 ]
-}
-
-function convertToRGB(data) {
-  return data.map(randomColor)
-}
-
-function Graph(data, opts) {
-  if (!(this instanceof Graph)) return new Graph(data, opts)
-
-  var self = this
-
-  opts = opts || {}
-
-  window.d = data
-
-  opts.background = opts.background || [0.9, 0.9, 0.9]
-  opts.size = isnumber(opts.size) ? opts.size : 10
-
-  var canvas = document.createElement('canvas')
-  canvas.width = opts.width || 960
-  canvas.height = opts.height || 500
-
-  if (opts.root) opts.root.appendChild(canvas)
-  var regl = Regl(canvas);
-
-  var colors = convertToRGB(data);
-  var positions = layout(data)
-
-  var squares = regl({
-    vert: `
-    precision mediump float;
-    attribute vec2 position;
-    attribute vec3 color;
-    varying vec3 vcolor;
-    void main() {
-      gl_PointSize = float(${opts.size});
-      gl_Position = vec4(position.x, position.y, 0.0, 1.0);
-      vcolor = color;
-      if (distance(gl_PointCoord, gl_Position) > .1) discard;
-    }
-    `,
-
+module.exports = (regl, data) => {
+  var globalState = regl({
+    uniforms: {
+      tick: ({tick}) => tick,
+      projection: ({viewportWidth, viewportHeight}) =>
+        mat4.perspective([],
+                         Math.PI / 2,
+                         viewportWidth / viewportHeight,
+                         0.01,
+                         1000),
+    },
     frag: `
     precision mediump float;
-    varying vec3 vcolor;
+    uniform vec3 color;
+    uniform float opacity;
+
     void main() {
-      gl_FragColor = vec4(vcolor, 1.0);
-    }
-    `,
+      gl_FragColor = vec4(color, opacity);
+    }`,
 
-    attributes: {
-      position: regl.prop('position'),
-      color: regl.prop('color')
-    },
+    vert: `
 
-    primitive: 'points',
+    precision mediump float;
+    attribute vec2 position;
 
-    count: colors.length
+    uniform mat4 projection, view;
+
+    uniform float scale;
+    uniform vec2 offset;
+    uniform float tick;
+    uniform float phase;
+    uniform float freq;
+
+    void main() {
+      vec2 p  = position;
+
+      // scale
+      p *= scale;
+
+      // rotate
+      float phi = //tick *
+      freq + phase;
+      p = vec2(
+        dot(vec2(+cos(phi), -sin(phi)), p),
+        dot(vec2(+sin(phi), +cos(phi)), p)
+      );
+
+      // translate
+      p += offset;
+      gl_PointSize = 10.0;
+      gl_Position = projection * view * vec4(p, 0, 1);
+    }`
   })
+  return     regl({
+        blend: {
+          enable: true,
+          func: {
+            srcRGB: 'src alpha',
+            srcAlpha: 'src color',
+            dstRGB: 'one',
+            dstAlpha: 'one',
+            equation: 'add',
+            color: [0, 0, 0, 0]
+          },
+        },
+        attributes: {
+          position: data
+        },
 
-  var buffer = {
-    position: regl.buffer(positions),
-    color: regl.buffer(colors)
-  }
+        uniforms: {
+          color: [1, 0, 1],
+          scale: 1,
+          offset: [0, 0.0],
+          phase: 0.0,
+          freq: 0.01,
+          opacity: .5
+        },
 
-  var draw = function (positions, colors) {
-    regl.clear({
-      color: opts.background.concat([1])
-    })
-    squares({
-      position: positions,
-      color: colors
-    })
-
-    lines({
-      position: positions,
-      color: colors
-    })
-
-  }
-
-  draw(buffer.position, buffer.color)
-
-  self._buffer = buffer
-  self._draw = draw
-  self._formatted = opts.formatted
-  self.canvas = canvas
-  self.frame = regl.frame
+        count: data.length / 4,
+        primitive: 'points'
+      })
 }
-
-Graph.prototype.update = function (data) {
-  let self = this;
-  console.log(50)
-  let color = convertToRGB(data)
-  self._draw(self._buffer.position, self._buffer.color(color))
-}
-
-module.exports = Graph

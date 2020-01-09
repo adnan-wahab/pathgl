@@ -4,30 +4,19 @@ var regl = require('regl')()
 
 const mat4 = require('gl-mat4')
 
+
 const camera = require('./camera')(regl, {
   center: [0,0,0],
   phi: .1,
   distance:2,
   theta: -1.6
 })
-let magic = [
- -0.9961216449737549,
- 0.012064366601407528,
- -0.08715581148862839
-]
-function convertToRGB(data) { return [255, 0, 255] }
 
-function makeCircle (N) { // where N is tesselation degree.
-  return Array(N).fill().map((_, i) => {
-    var phi = 2 * Math.PI * (i / N)
-    return [Math.cos(phi), Math.sin(phi)]
-  })
-}
+function convertToRGB(data) { return [255, 0, 255] }
 
 
 function Graph(data, opts) {
-
-  var mat4 = require('gl-mat4')
+  let drawNodes = require('./nodes')(regl, data)
 
   var globalState = regl({
     uniforms: {
@@ -38,7 +27,6 @@ function Graph(data, opts) {
                          viewportWidth / viewportHeight,
                          0.01,
                          1000),
-      //view: mat4.lookAt([], [2.1, 0, 1.3], [0, 0.0, 0], [0, 0, 1])
     },
     frag: `
     precision mediump float;
@@ -90,9 +78,8 @@ function Graph(data, opts) {
   }
 
   // this creates a drawCall that allows you to do draw single line primitive.
-  function createDrawCall (props) {
-    console.log(props.opa)
-    return regl({
+  let drawLines =
+    regl({
       blend: {
         enable: true,
         func: {
@@ -105,66 +92,34 @@ function Graph(data, opts) {
         },
       },
       attributes: {
-        position: props.position
+        position: data
       },
 
       uniforms: {
-        color: props.color,
-        scale: props.scale,
-        offset: props.offset,
-        phase: props.phase,
-        freq: props.freq,
-        opacity: props.opa || .5
+        color: [1, 0, 1],
+        scale: 1,
+        offset: [0, 0.0],
+        phase: 0.0,
+        freq: 0.01,
+        opacity: .5
       },
 
       lineWidth: lineWidth,
-      count: props.count || props.position.length,
-      primitive: props.primitive
+      count: data.length / 4,
+      primitive: 'lines'
     })
-  }
-
-  var drawCalls = []
-  var i
-
-  drawCalls.push(createDrawCall({
-    color: [1, 1, 0.3],
-    primitive: 'lines',
-    scale: 1,
-    offset: [0, 0.0],
-    phase: 0.0,
-    freq: 0.01,
-    position: data,
-    count: data.length / 4,
-    opa: 0
-  }))
-
-  drawCalls.push(createDrawCall({
-    color: [1, 1, 0.3],
-    primitive: 'points',
-    scale: 1,
-    offset: [0, 0.0],
-    phase: 0.0,
-    freq: 0.01,
-    position: data,
-    count: data.length / 4,
-    opa: 0
-  }))
-
 
 
   regl.frame(({tick}) => {
     camera((state)=> {
-      //if (!state.dirty) return;
-      window.state = state
       regl.clear({
         color: [0, 0, 0, 1],
         depth: 1
       })
 
       globalState(() => {
-        for (i = 0; i < drawCalls.length; i++) {
-          drawCalls[i]()
-        }
+        //drawLines()
+        drawNodes()
       })
     })
   })

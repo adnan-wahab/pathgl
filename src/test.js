@@ -58,8 +58,8 @@ let adnan = d3.select('body')
 adnan.text('hello');
 adnan.style('position', 'absolute')
 adnan.style('color', 'white')
-    .style('z-index', 1231232)
-window.adnan = adnan
+    .style('z-index', 1231232);
+
 let init = (data) => {
   let width = innerWidth, height = innerHeight
   let pos = processKMeans(data)

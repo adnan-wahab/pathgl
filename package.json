@@ -3,6 +3,11 @@
   "version": "0.0.1",
   "description": "draw dots and lines",
   "main": "index.js",
+  "files": [
+    "dist/**/*.js",
+    "index.js"
+  ],
+  "module": "index.js",
   "scripts": {
     "start": "budo ./src/test.js:static/bundle.js",
     "build": "browserify ./src/test.js>bundle.js",

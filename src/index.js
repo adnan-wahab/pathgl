@@ -5,10 +5,10 @@ let createCamera = require('./camera')
 const mat4 = require('gl-mat4')
 let createRegl = require('regl')
 
-
-
-module.exports = (attributes, options) => {
+module.exports = (options) => {
+  let attributes = options.attributes;
   let regl = createRegl({
+    canvas: options.canvas,
     extensions: ['OES_standard_derivatives']
   })
 
@@ -20,7 +20,7 @@ module.exports = (attributes, options) => {
   })
 
   let drawLines = createDrawLines(regl, attributes)
-  let drawNodes = createDrawNodes(regl, attributes, camera)
+  let drawNodes = createDrawNodes(regl, attributes, camera, options.canvas)
   var globalState = regl({
     uniforms: {
       tick: ({tick}) => tick,
@@ -42,6 +42,7 @@ module.exports = (attributes, options) => {
       })
       globalState(() => {
         drawLines()
+        console.log('DRAWING WOW!!')
 
         drawNodes(options.data, options.onHover)
 

@@ -1,13 +1,10 @@
 
 let bunny = require('bunny');
 let normals = require('angle-normals');
-const createCamera = require('regl-camera')
 
 let d3 = require('d3')
 
-let h = (regl, attributes, camera) => {
-
-  let canvas = document.getElementsByTagName('canvas')[0]
+let h = (regl, attributes, camera, canvas) => {
   let fbo = regl.framebuffer({
     width: canvas.width,
     height: canvas.height,

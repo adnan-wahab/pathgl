@@ -1,9 +1,4 @@
 var isnumber = require('isnumber')
-
-var regl = require('regl')({
-  extensions: ['OES_standard_derivatives']
-})
-
 function createDrawLines(regl, attributes) {
 
 

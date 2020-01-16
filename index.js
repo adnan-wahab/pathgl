@@ -1,9 +1,8 @@
-import init from './src/test';
+import adnan from './src/test';
 
-const GraphRenderer = () => {
+export default (jason) => {
   let canvas = document.createElement('canvas')
-  init(canvas)
+  canvas.style.pointerEvents = 'none';
+  GraphRenderer(jason, canvas)
   return canvas;
-}
-
-export default GraphRenderer;
+};

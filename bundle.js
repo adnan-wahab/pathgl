@@ -52299,7 +52299,7 @@ function createDrawLines(regl, attributes) {
       uniform float opacity;
 
       void main() {
-        gl_FragColor = vec4(v_color, 1.);
+        gl_FragColor = vec4(v_color, .05);
       }`,
 
       vert: `
@@ -52321,23 +52321,23 @@ function createDrawLines(regl, attributes) {
         vec2 p  = position;
 
         v_color = color;
-  
+
         // translate
         p += offset;
-        gl_PointSize = 10.0;
+        gl_PointSize = .5;
         gl_Position = projection * view * vec4(p, 0, 1);
       }`,
       blend: {
         enable: true,
         func: {
           srcRGB: 'src alpha',
-          srcAlpha: 'src color',
-          dstRGB: 'one',
-          dstAlpha: 'one',
-          equation: 'add',
-          color: [0, 0, 0, 0]
+          srcAlpha: 'src alpha',
+          dstRGB: 'one minus src alpha',
+          dstAlpha: 'one minus src alpha',
         },
       },
+      depth: { enable: false },
+
       attributes: attributes,
 
       uniforms: {
@@ -52364,6 +52364,7 @@ let createCamera = require('./camera')
 
 const mat4 = require('gl-mat4')
 let createRegl = require('regl')
+
 
 
 module.exports = (attributes, options) => {
@@ -52400,8 +52401,10 @@ module.exports = (attributes, options) => {
         depth: 1
       })
       globalState(() => {
-        drawNodes(options.data, options.onHover)
         drawLines()
+
+        drawNodes(options.data, options.onHover)
+
         //drawPickBuffer
       })
     })
@@ -52498,7 +52501,7 @@ let h = (regl, attributes, camera) => {
         vec2 p  = position;
         vColor = isFbo ? fboColor : color;
         gl_PointSize = 10.0;
-        gl_Position = projection * view * vec4(p, -.5, 1);
+        gl_Position = projection * view * vec4(p, -.001, 1);
       }`,
 
       attributes: attributes,
@@ -52539,6 +52542,15 @@ let h = (regl, attributes, camera) => {
       uniforms: {isFbo:false},
       cull: {enable: true},
       depth: { enable: true, mask: true },
+      blend: {
+        enable: false,
+        func: {
+          srcRGB: 'src alpha',
+          srcAlpha: 'src alpha',
+          dstRGB: 'one minus src alpha',
+          dstAlpha: 'one minus src alpha',
+        },
+      },
     })
 
     const drawFbo = regl({
@@ -52576,10 +52588,10 @@ let h = (regl, attributes, camera) => {
   }
 
   let f = function (nodes, callback) {
-    regl.clear({
-      color: [0.1, 0.1, 0.1, 1],
-      depth: true,
-    })
+    // regl.clear({
+    //   color: [0.1, 0.1, 0.1, 1],
+    //   depth: true,
+    // })
 
     fbo.use(() => {
       regl.clear({
@@ -52655,6 +52667,13 @@ fetch(url)
     //          })
     //     )
   })
+  let colors = [
+      [237, 248, 251],
+       [191, 211, 230],
+       [158, 188, 218],
+    [136, 86, 167],
+      [129, 15, 124]
+  ]
 
   let processKMeans = (data) => {
     let edges = new Array(data.edges.length * 4).fill(0);
@@ -52664,8 +52683,11 @@ fetch(url)
       edges[idx*4+2] = clip(data.nodes[edge.target].x)
       edges[idx*4+3] = clip(data.nodes[edge.target].y)
     });
-    let color = _.flatten(data.edges.map((e) => {
-      let c = d3.color(data.nodes[e.source].color);
+    let color = _.flatten(data.edges.map((e, i) => {
+      let c =  colors[i%4]
+
+      return c.map(d => d / 255)
+      //let c = d3.color(data.nodes[e.source].color);
       return [c.r /255 , c.g /255 , c.b /255];
     }));
 
@@ -52686,8 +52708,8 @@ let adnan = d3.select('body')
 adnan.text('hello');
 adnan.style('position', 'absolute')
 adnan.style('color', 'white')
-    .style('z-index', 1231232)
-window.adnan = adnan
+    .style('z-index', 1231232);
+
 let init = (data) => {
   let width = innerWidth, height = innerHeight
   let pos = processKMeans(data)

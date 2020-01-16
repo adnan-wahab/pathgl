@@ -84,3 +84,5 @@ let init = (data) => {
     }
   })
 }
+
+export default init;

@@ -6,6 +6,7 @@ const mat4 = require('gl-mat4')
 let createRegl = require('regl')
 
 
+
 module.exports = (attributes, options) => {
   let regl = createRegl({
     extensions: ['OES_standard_derivatives']
@@ -40,8 +41,10 @@ module.exports = (attributes, options) => {
         depth: 1
       })
       globalState(() => {
-        drawNodes(options.data, options.onHover)
         drawLines()
+
+        drawNodes(options.data, options.onHover)
+
         //drawPickBuffer
       })
     })

@@ -22,7 +22,7 @@ function createDrawLines(regl, attributes) {
       uniform float opacity;
 
       void main() {
-        gl_FragColor = vec4(v_color, 1.);
+        gl_FragColor = vec4(v_color, .05);
       }`,
 
       vert: `
@@ -44,23 +44,23 @@ function createDrawLines(regl, attributes) {
         vec2 p  = position;
 
         v_color = color;
-  
+
         // translate
         p += offset;
-        gl_PointSize = 10.0;
+        gl_PointSize = .5;
         gl_Position = projection * view * vec4(p, 0, 1);
       }`,
       blend: {
         enable: true,
         func: {
           srcRGB: 'src alpha',
-          srcAlpha: 'src color',
-          dstRGB: 'one',
-          dstAlpha: 'one',
-          equation: 'add',
-          color: [0, 0, 0, 0]
+          srcAlpha: 'src alpha',
+          dstRGB: 'one minus src alpha',
+          dstAlpha: 'one minus src alpha',
         },
       },
+      depth: { enable: false },
+
       attributes: attributes,
 
       uniforms: {

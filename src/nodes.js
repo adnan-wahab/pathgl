@@ -128,6 +128,15 @@ let h = (regl, attributes, camera) => {
       uniforms: {isFbo:false},
       cull: {enable: true},
       depth: { enable: true, mask: true },
+      blend: {
+        enable: false,
+        func: {
+          srcRGB: 'src alpha',
+          srcAlpha: 'src alpha',
+          dstRGB: 'one minus src alpha',
+          dstAlpha: 'one minus src alpha',
+        },
+      },
     })
 
     const drawFbo = regl({
@@ -165,10 +174,10 @@ let h = (regl, attributes, camera) => {
   }
 
   let f = function (nodes, callback) {
-    regl.clear({
-      color: [0.1, 0.1, 0.1, 1],
-      depth: true,
-    })
+    // regl.clear({
+    //   color: [0.1, 0.1, 0.1, 1],
+    //   depth: true,
+    // })
 
     fbo.use(() => {
       regl.clear({

@@ -27,6 +27,13 @@ fetch(url)
     //          })
     //     )
   })
+  let colors = [
+      [237, 248, 251],
+       [191, 211, 230],
+       [158, 188, 218],
+    [136, 86, 167],
+      [129, 15, 124]
+  ]
 
   let processKMeans = (data) => {
     let edges = new Array(data.edges.length * 4).fill(0);
@@ -36,8 +43,11 @@ fetch(url)
       edges[idx*4+2] = clip(data.nodes[edge.target].x)
       edges[idx*4+3] = clip(data.nodes[edge.target].y)
     });
-    let color = _.flatten(data.edges.map((e) => {
-      let c = d3.color(data.nodes[e.source].color);
+    let color = _.flatten(data.edges.map((e, i) => {
+      let c =  colors[i%4]
+
+      return c.map(d => d / 255)
+      //let c = d3.color(data.nodes[e.source].color);
       return [c.r /255 , c.g /255 , c.b /255];
     }));
 

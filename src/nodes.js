@@ -4,7 +4,12 @@ let normals = require('angle-normals');
 
 let d3 = require('d3')
 
-let h = (regl, attributes, camera, canvas) => {
+let h = (regl, options) => {
+  let attributes = options.attributes,
+      canvas = options.canvas,
+      nodes = options.data.nodes;
+
+
   let fbo = regl.framebuffer({
     width: canvas.width,
     height: canvas.height,
@@ -166,11 +171,10 @@ let h = (regl, attributes, camera, canvas) => {
   }
 
   window.onresize = function () {
-    canvas = document.getElementsByTagName('canvas')[0]
     fbo.resize(canvas.width, canvas.height)
   }
 
-  let f = function (nodes, callback) {
+  return function () {
     // regl.clear({
     //   color: [0.1, 0.1, 0.1, 1],
     //   depth: true,
@@ -204,7 +208,7 @@ let h = (regl, attributes, camera, canvas) => {
           if (greenValue !== 0) {
             const value = (greenValue / 255) * (nodes.length)
             index = Math.round(value) - 1
-            callback(nodes[index])
+            options.onHover(nodes[index])
           }
         } catch (e) {
           console.error(e)
@@ -215,7 +219,5 @@ let h = (regl, attributes, camera, canvas) => {
     //drawFboQuad()
 
   }
-
-return f
 }
 module.exports = h;

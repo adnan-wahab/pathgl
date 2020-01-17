@@ -12392,7 +12392,7 @@ exports.xml = xml;
 exports.csv = csv;
 exports.tsv = tsv;
 
-},{"d3-collection":13,"d3-dispatch":15,"d3-dsv":17,"xmlhttprequest":111}],30:[function(require,module,exports){
+},{"d3-collection":13,"d3-dispatch":15,"d3-dsv":17,"xmlhttprequest":110}],30:[function(require,module,exports){
 // https://d3js.org/d3-scale/ Version 1.0.7. Copyright 2017 Mike Bostock.
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('d3-array'), require('d3-collection'), require('d3-interpolate'), require('d3-format'), require('d3-time'), require('d3-time-format'), require('d3-color')) :
@@ -21390,7 +21390,7 @@ https.request = function (params, cb) {
     return http.request.call(this, params, cb);
 }
 
-},{"http":101}],72:[function(require,module,exports){
+},{"http":100}],72:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = (nBytes * 8) - mLen - 1
@@ -38973,7 +38973,7 @@ function mouseWheelListen(element, callback, noScroll) {
   return listener
 }
 
-},{"to-px":107}],81:[function(require,module,exports){
+},{"to-px":106}],81:[function(require,module,exports){
 module.exports = function parseUnit(str, out) {
     if (!out)
         out = [ 0, '' ]
@@ -42042,7 +42042,7 @@ Writable.prototype._destroy = function (err, cb) {
   cb(err);
 };
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("timers").setImmediate)
-},{"./_stream_duplex":88,"./internal/streams/destroy":94,"./internal/streams/stream":95,"_process":83,"core-util-is":8,"inherits":73,"process-nextick-args":82,"safe-buffer":96,"timers":105,"util-deprecate":110}],93:[function(require,module,exports){
+},{"./_stream_duplex":88,"./internal/streams/destroy":94,"./internal/streams/stream":95,"_process":83,"core-util-is":8,"inherits":73,"process-nextick-args":82,"safe-buffer":96,"timers":104,"util-deprecate":109}],93:[function(require,module,exports){
 'use strict';
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -42571,195 +42571,6 @@ exports.Transform = require('./lib/_stream_transform.js');
 exports.PassThrough = require('./lib/_stream_passthrough.js');
 
 },{"./lib/_stream_duplex.js":88,"./lib/_stream_passthrough.js":89,"./lib/_stream_readable.js":90,"./lib/_stream_transform.js":91,"./lib/_stream_writable.js":92}],99:[function(require,module,exports){
-var mouseChange = require('mouse-change')
-var mouseWheel = require('mouse-wheel')
-var identity = require('gl-mat4/identity')
-var perspective = require('gl-mat4/perspective')
-var lookAt = require('gl-mat4/lookAt')
-
-module.exports = createCamera
-
-var isBrowser = typeof window !== 'undefined'
-
-function createCamera (regl, props_) {
-  var props = props_ || {}
-
-  // Preserve backward-compatibilty while renaming preventDefault -> noScroll
-  if (typeof props.noScroll === 'undefined') {
-    props.noScroll = props.preventDefault;
-  }
-
-  var cameraState = {
-    view: identity(new Float32Array(16)),
-    projection: identity(new Float32Array(16)),
-    center: new Float32Array(props.center || 3),
-    theta: props.theta || 0,
-    phi: props.phi || 0,
-    distance: Math.log(props.distance || 10.0),
-    eye: new Float32Array(3),
-    up: new Float32Array(props.up || [0, 1, 0]),
-    fovy: props.fovy || Math.PI / 4.0,
-    near: typeof props.near !== 'undefined' ? props.near : 0.01,
-    far: typeof props.far !== 'undefined' ? props.far : 1000.0,
-    noScroll: typeof props.noScroll !== 'undefined' ? props.noScroll : false,
-    flipY: !!props.flipY,
-    dtheta: 0,
-    dphi: 0,
-    rotationSpeed: typeof props.rotationSpeed !== 'undefined' ? props.rotationSpeed : 1,
-    zoomSpeed: typeof props.zoomSpeed !== 'undefined' ? props.zoomSpeed : 1,
-    renderOnDirty: typeof props.renderOnDirty !== undefined ? !!props.renderOnDirty : false
-  }
-
-  var element = props.element
-  var damping = typeof props.damping !== 'undefined' ? props.damping : 0.9
-
-  var right = new Float32Array([1, 0, 0])
-  var front = new Float32Array([0, 0, 1])
-
-  var minDistance = Math.log('minDistance' in props ? props.minDistance : 0.1)
-  var maxDistance = Math.log('maxDistance' in props ? props.maxDistance : 1000)
-
-  var ddistance = 0
-
-  var prevX = 0
-  var prevY = 0
-
-  if (isBrowser && props.mouse !== false) {
-    var source = element || regl._gl.canvas
-
-    function getWidth () {
-      return element ? element.offsetWidth : window.innerWidth
-    }
-
-    function getHeight () {
-      return element ? element.offsetHeight : window.innerHeight
-    }
-
-    mouseChange(source, function (buttons, x, y) {
-      if (buttons & 1) {
-        var dx = (x - prevX) / getWidth()
-        var dy = (y - prevY) / getHeight()
-
-        cameraState.dtheta += cameraState.rotationSpeed * 4.0 * dx
-        cameraState.dphi += cameraState.rotationSpeed * 4.0 * dy
-        cameraState.dirty = true;
-      }
-      prevX = x
-      prevY = y
-    })
-
-    mouseWheel(source, function (dx, dy) {
-      ddistance += dy / getHeight() * cameraState.zoomSpeed
-      cameraState.dirty = true;
-    }, props.noScroll)
-  }
-
-  function damp (x) {
-    var xd = x * damping
-    if (Math.abs(xd) < 0.1) {
-      return 0
-    }
-    cameraState.dirty = true;
-    return xd
-  }
-
-  function clamp (x, lo, hi) {
-    return Math.min(Math.max(x, lo), hi)
-  }
-
-  function updateCamera (props) {
-    Object.keys(props).forEach(function (prop) {
-      cameraState[prop] = props[prop]
-    })
-
-    var center = cameraState.center
-    var eye = cameraState.eye
-    var up = cameraState.up
-    var dtheta = cameraState.dtheta
-    var dphi = cameraState.dphi
-
-    cameraState.theta += dtheta
-    cameraState.phi = clamp(
-      cameraState.phi + dphi,
-      -Math.PI / 2.0,
-      Math.PI / 2.0)
-    cameraState.distance = clamp(
-      cameraState.distance + ddistance,
-      minDistance,
-      maxDistance)
-
-    cameraState.dtheta = damp(dtheta)
-    cameraState.dphi = damp(dphi)
-    ddistance = damp(ddistance)
-
-    var theta = cameraState.theta
-    var phi = cameraState.phi
-    var r = Math.exp(cameraState.distance)
-
-    var vf = r * Math.sin(theta) * Math.cos(phi)
-    var vr = r * Math.cos(theta) * Math.cos(phi)
-    var vu = r * Math.sin(phi)
-
-    for (var i = 0; i < 3; ++i) {
-      eye[i] = center[i] + vf * front[i] + vr * right[i] + vu * up[i]
-    }
-
-    lookAt(cameraState.view, eye, center, up)
-  }
-
-  cameraState.dirty = true;
-
-  var injectContext = regl({
-    context: Object.assign({}, cameraState, {
-      dirty: function () {
-        return cameraState.dirty;
-      },
-      projection: function (context) {
-        perspective(cameraState.projection,
-          cameraState.fovy,
-          context.viewportWidth / context.viewportHeight,
-          cameraState.near,
-          cameraState.far)
-        if (cameraState.flipY) { cameraState.projection[5] *= -1 }
-        return cameraState.projection
-      }
-    }),
-    uniforms: Object.keys(cameraState).reduce(function (uniforms, name) {
-      uniforms[name] = regl.context(name)
-      return uniforms
-    }, {})
-  })
-
-  function setupCamera (props, block) {
-    if (typeof setupCamera.dirty !== 'undefined') {
-      cameraState.dirty = setupCamera.dirty || cameraState.dirty
-      setupCamera.dirty = undefined;
-    }
-
-    if (props && block) {
-      cameraState.dirty = true;
-    }
-
-    if (cameraState.renderOnDirty && !cameraState.dirty) return;
-
-    if (!block) {
-      block = props
-      props = {}
-    }
-
-    updateCamera(props)
-    injectContext(block)
-    cameraState.dirty = false;
-  }
-
-  Object.keys(cameraState).forEach(function (name) {
-    setupCamera[name] = cameraState[name]
-  })
-
-  return setupCamera
-}
-
-},{"gl-mat4/identity":55,"gl-mat4/lookAt":58,"gl-mat4/perspective":61,"mouse-change":78,"mouse-wheel":80}],100:[function(require,module,exports){
 (function(aa,ia){"object"===typeof exports&&"undefined"!==typeof module?module.exports=ia():"function"===typeof define&&define.amd?define(ia):aa.createREGL=ia()})(this,function(){function aa(a,b){this.id=Ab++;this.type=a;this.data=b}function ia(a){if(0===a.length)return[];var b=a.charAt(0),c=a.charAt(a.length-1);if(1<a.length&&b===c&&('"'===b||"'"===b))return['"'+a.substr(1,a.length-2).replace(/\\/g,"\\\\").replace(/"/g,'\\"')+'"'];if(b=/\[(false|true|null|\d+|'[^']*'|"[^"]*")\]/.exec(a))return ia(a.substr(0,
 b.index)).concat(ia(b[1])).concat(ia(a.substr(b.index+b[0].length)));b=a.split(".");if(1===b.length)return['"'+a.replace(/\\/g,"\\\\").replace(/"/g,'\\"')+'"'];a=[];for(c=0;c<b.length;++c)a=a.concat(ia(b[c]));return a}function Za(a){return"["+ia(a).join("][")+"]"}function Bb(){var a={"":0},b=[""];return{id:function(c){var e=a[c];if(e)return e;e=a[c]=b.length;b.push(c);return e},str:function(a){return b[a]}}}function Cb(a,b,c){function e(){var b=window.innerWidth,e=window.innerHeight;a!==document.body&&
 (e=a.getBoundingClientRect(),b=e.right-e.left,e=e.bottom-e.top);g.width=c*b;g.height=c*e;E(g.style,{width:b+"px",height:e+"px"})}var g=document.createElement("canvas");E(g.style,{border:0,margin:0,padding:0,top:0,left:0});a.appendChild(g);a===document.body&&(g.style.position="absolute",E(a.style,{margin:0,padding:0}));window.addEventListener("resize",e,!1);e();return{canvas:g,onDestroy:function(){window.removeEventListener("resize",e);a.removeChild(g)}}}function Db(a,b){function c(c){try{return a.getContext(c,
@@ -42912,7 +42723,7 @@ d,!1));var aa=K.setFBO=p({framebuffer:la.define.call(null,1,"framebuffer")});m()
 renderbuffer:M.create,framebuffer:K.create,framebufferCube:K.createCube,attributes:h,frame:r,on:function(a,b){var c;switch(a){case "frame":return r(b);case "lost":c=U;break;case "restore":c=W;break;case "destroy":c=Z}c.push(b);return{cancel:function(){for(var a=0;a<c.length;++a)if(c[a]===b){c[a]=c[c.length-1];c.pop();break}}}},limits:R,hasExtension:function(a){return 0<=R.extensions.indexOf(a.toLowerCase())},read:u,destroy:function(){G.length=0;e();L&&(L.removeEventListener("webglcontextlost",g),
 L.removeEventListener("webglcontextrestored",d));Q.clear();K.clear();M.clear();A.clear();T.clear();F.clear();B&&B.clear();Z.forEach(function(a){a()})},_gl:k,_refresh:m,poll:function(){t();B&&B.update()},now:z,stats:v});a.onDone(null,h);return h}});
 
-},{}],101:[function(require,module,exports){
+},{}],100:[function(require,module,exports){
 (function (global){
 var ClientRequest = require('./lib/request')
 var response = require('./lib/response')
@@ -43000,7 +42811,7 @@ http.METHODS = [
 	'UNSUBSCRIBE'
 ]
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./lib/request":103,"./lib/response":104,"builtin-status-codes":6,"url":108,"xtend":112}],102:[function(require,module,exports){
+},{"./lib/request":102,"./lib/response":103,"builtin-status-codes":6,"url":107,"xtend":111}],101:[function(require,module,exports){
 (function (global){
 exports.fetch = isFunction(global.fetch) && isFunction(global.ReadableStream)
 
@@ -43077,7 +42888,7 @@ function isFunction (value) {
 xhr = null // Help gc
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],103:[function(require,module,exports){
+},{}],102:[function(require,module,exports){
 (function (process,global,Buffer){
 var capability = require('./capability')
 var inherits = require('inherits')
@@ -43408,7 +43219,7 @@ var unsafeHeaders = [
 ]
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
-},{"./capability":102,"./response":104,"_process":83,"buffer":5,"inherits":73,"readable-stream":98,"to-arraybuffer":106}],104:[function(require,module,exports){
+},{"./capability":101,"./response":103,"_process":83,"buffer":5,"inherits":73,"readable-stream":98,"to-arraybuffer":105}],103:[function(require,module,exports){
 (function (process,global,Buffer){
 var capability = require('./capability')
 var inherits = require('inherits')
@@ -43636,7 +43447,7 @@ IncomingMessage.prototype._onXHRProgress = function () {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
-},{"./capability":102,"_process":83,"buffer":5,"inherits":73,"readable-stream":98}],105:[function(require,module,exports){
+},{"./capability":101,"_process":83,"buffer":5,"inherits":73,"readable-stream":98}],104:[function(require,module,exports){
 (function (setImmediate,clearImmediate){
 var nextTick = require('process/browser.js').nextTick;
 var apply = Function.prototype.apply;
@@ -43715,7 +43526,7 @@ exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate :
   delete immediateIds[id];
 };
 }).call(this,require("timers").setImmediate,require("timers").clearImmediate)
-},{"process/browser.js":83,"timers":105}],106:[function(require,module,exports){
+},{"process/browser.js":83,"timers":104}],105:[function(require,module,exports){
 var Buffer = require('buffer').Buffer
 
 module.exports = function (buf) {
@@ -43744,7 +43555,7 @@ module.exports = function (buf) {
 	}
 }
 
-},{"buffer":5}],107:[function(require,module,exports){
+},{"buffer":5}],106:[function(require,module,exports){
 'use strict'
 
 var parseUnit = require('parse-unit')
@@ -43820,7 +43631,7 @@ function toPX(str, element) {
   return null
 }
 
-},{"parse-unit":81}],108:[function(require,module,exports){
+},{"parse-unit":81}],107:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -44554,7 +44365,7 @@ Url.prototype.parseHost = function() {
   if (host) this.hostname = host;
 };
 
-},{"./util":109,"punycode":84,"querystring":87}],109:[function(require,module,exports){
+},{"./util":108,"punycode":84,"querystring":87}],108:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -44572,7 +44383,7 @@ module.exports = {
   }
 };
 
-},{}],110:[function(require,module,exports){
+},{}],109:[function(require,module,exports){
 (function (global){
 
 /**
@@ -44643,7 +44454,7 @@ function config (name) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],111:[function(require,module,exports){
+},{}],110:[function(require,module,exports){
 (function (process,Buffer){
 /**
  * Wrapper for built-in http.js to emulate the browser XMLHttpRequest object.
@@ -45267,7 +45078,7 @@ exports.XMLHttpRequest = function() {
 };
 
 }).call(this,require('_process'),require("buffer").Buffer)
-},{"_process":83,"buffer":5,"child_process":4,"fs":4,"http":101,"https":71,"url":108}],112:[function(require,module,exports){
+},{"_process":83,"buffer":5,"child_process":4,"fs":4,"http":100,"https":71,"url":107}],111:[function(require,module,exports){
 module.exports = extend
 
 var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -45288,7 +45099,7 @@ function extend() {
     return target
 }
 
-},{}],113:[function(require,module,exports){
+},{}],112:[function(require,module,exports){
 var mouseChange = require('mouse-change')
 var mouseWheel = require('mouse-wheel')
 var identity = require('gl-mat4/identity')
@@ -45426,7 +45237,7 @@ function createCamera (regl, props) {
   return setupCamera
 }
 
-},{"gl-mat4/identity":55,"gl-mat4/lookAt":58,"gl-mat4/perspective":61,"mouse-change":78,"mouse-wheel":80}],114:[function(require,module,exports){
+},{"gl-mat4/identity":55,"gl-mat4/lookAt":58,"gl-mat4/perspective":61,"mouse-change":78,"mouse-wheel":80}],113:[function(require,module,exports){
 var isnumber = require('isnumber')
 function createDrawLines(regl, attributes) {
 
@@ -45504,7 +45315,7 @@ function createDrawLines(regl, attributes) {
 
 module.exports = createDrawLines
 
-},{"isnumber":76}],115:[function(require,module,exports){
+},{"isnumber":76}],114:[function(require,module,exports){
 let createDrawLines = require('./edges')
 let createDrawNodes = require('./nodes')
 let createCamera = require('./camera')
@@ -45512,7 +45323,8 @@ let createCamera = require('./camera')
 const mat4 = require('gl-mat4')
 let createRegl = require('regl')
 
-module.exports = (attributes, options) => {
+module.exports = (options) => {
+  let attributes = options.attributes;
   let regl = createRegl({
     canvas: options.canvas,
     extensions: ['OES_standard_derivatives']
@@ -45526,7 +45338,7 @@ module.exports = (attributes, options) => {
   })
 
   let drawLines = createDrawLines(regl, attributes)
-  let drawNodes = createDrawNodes(regl, attributes, camera)
+  let drawNodes = createDrawNodes(regl, attributes, camera, options.canvas)
   var globalState = regl({
     uniforms: {
       tick: ({tick}) => tick,
@@ -45548,6 +45360,7 @@ module.exports = (attributes, options) => {
       })
       globalState(() => {
         drawLines()
+        console.log('DRAWING WOW!!')
 
         drawNodes(options.data, options.onHover)
 
@@ -45557,17 +45370,14 @@ module.exports = (attributes, options) => {
   })
 }
 
-},{"./camera":113,"./edges":114,"./nodes":116,"gl-mat4":56,"regl":100}],116:[function(require,module,exports){
+},{"./camera":112,"./edges":113,"./nodes":115,"gl-mat4":56,"regl":99}],115:[function(require,module,exports){
 
 let bunny = require('bunny');
 let normals = require('angle-normals');
-const createCamera = require('regl-camera')
 
 let d3 = require('d3')
 
-let h = (regl, attributes, camera) => {
-
-  let canvas = document.getElementsByTagName('canvas')[0]
+let h = (regl, attributes, camera, canvas) => {
   let fbo = regl.framebuffer({
     width: canvas.width,
     height: canvas.height,
@@ -45783,7 +45593,7 @@ return f
 }
 module.exports = h;
 
-},{"angle-normals":1,"bunny":7,"d3":39,"regl-camera":99}],117:[function(require,module,exports){
+},{"angle-normals":1,"bunny":7,"d3":39}],116:[function(require,module,exports){
 
 let _ = require('lodash')
 let GraphRenderer = require('./index')
@@ -45803,15 +45613,15 @@ let clip = (d) => {
   return d / 4000
 }
 console.log('fetching url '+ url)
-// fetch(url)
-//   .then((body)=>{ return body.json() })
-//   .then((json)=>{
-//     init(json)
-//     // init(json.map(
-//     //   (d) => { return d.data.coords.map((d, i) => { return d / (i % 2 ? innerWidth: innerHeight )})
-//     //          })
-//     //     )
-//   })
+
+let colors = [
+     [237, 248, 251],
+      [191, 211, 230],
+      [158, 188, 218],
+   [136, 86, 167],
+     [129, 15, 124]
+ ]
+
 
   let processKMeans = (data) => {
     let edges = new Array(data.edges.length * 4).fill(0);
@@ -45821,6 +45631,7 @@ console.log('fetching url '+ url)
       edges[idx*4+2] = clip(data.nodes[edge.target].x)
       edges[idx*4+3] = clip(data.nodes[edge.target].y)
     });
+
     let color = _.flatten(data.edges.map((e, i) => {
       let c =  colors[i%4]
 
@@ -45839,7 +45650,6 @@ console.log('fetching url '+ url)
     }
   }
 
-let pos = [[-.5, -.5], [+.5, -.5], [+.5, +.5], [-.5, +.5]]
 let adnan = d3.select('body')
 .append('div')
 .attr('class','adnan');
@@ -45847,15 +45657,12 @@ adnan.text('hello');
 adnan.style('position', 'absolute')
 adnan.style('color', 'white')
     .style('z-index', 1231232)
-console.log('WHY');
+
 let init = (data, canvas) => {
-  let width = innerWidth, height = innerHeight
-  let pos = processKMeans(data)
-  console.log('NEVER')
-  return GraphRenderer(pos, {
+  console.log(data)
+  return GraphRenderer({
+    attributes: processKMeans(data),
     canvas: canvas,
-    width: width,
-    height: height,
     root: document.querySelector('body'),
     data: data.nodes,
     onHover: (node) => {
@@ -45864,9 +45671,21 @@ let init = (data, canvas) => {
     }
   })
 }
-init.GraphRenderer = () => {
-  debugger
-}
-module.exports = init;
 
-},{"./index":115,"d3":39,"lodash":77}]},{},[117]);
+window.GraphRenderer = init;
+
+
+
+
+fetch(url)
+  .then((body)=>{ return body.json() })
+  .then((json)=>{
+    let canvas = document.createElement('canvas')
+    canvas.width = window.innerWidth
+    canvas.height = window.innerHeight
+    document.body.appendChild(canvas)
+    console.log(json)
+    init(json, canvas)
+  })
+
+},{"./index":114,"d3":39,"lodash":77}]},{},[116]);

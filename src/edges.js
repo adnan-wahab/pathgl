@@ -1,6 +1,5 @@
-var isnumber = require('isnumber')
-function createDrawLines(regl, attributes) {
-
+function createDrawLines(regl, options) {
+  let attributes = options.attributes
 
   // make sure to respect system limitations.
   var lineWidth = 3

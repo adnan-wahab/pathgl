@@ -6,7 +6,7 @@ const mat4 = require('gl-mat4')
 let createRegl = require('regl')
 
 module.exports = (options) => {
-  let attributes = options.attributes;
+  console.log(options.canvas)
   let regl = createRegl({
     canvas: options.canvas,
     extensions: ['OES_standard_derivatives']
@@ -19,8 +19,9 @@ module.exports = (options) => {
     theta: -1.6
   })
 
-  let drawLines = createDrawLines(regl, attributes)
-  let drawNodes = createDrawNodes(regl, attributes, camera, options.canvas)
+  let drawLines = createDrawLines(regl, options)
+  let drawNodes = createDrawNodes(regl, options)
+
   var globalState = regl({
     uniforms: {
       tick: ({tick}) => tick,
@@ -42,9 +43,8 @@ module.exports = (options) => {
       })
       globalState(() => {
         drawLines()
-        console.log('DRAWING WOW!!')
-
-        drawNodes(options.data, options.onHover)
+        drawNodes()
+        //console.log('this should work')
 
         //drawPickBuffer
       })

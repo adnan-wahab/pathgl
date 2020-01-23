@@ -1,10 +1,11 @@
 {
   "name": "meetyogi-graph-vis",
-  "version": "0.0.3",
+  "version": "0.0.6",
   "description": "draw dots and lines",
   "main": "index.js",
   "files": [
     "dist/**/*.js",
+    "src/*.js",
     "index.js"
   ],
   "module": "index.js",

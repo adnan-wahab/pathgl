@@ -72,4 +72,4 @@ function createDrawLines(regl, options) {
     return drawLines;
 }
 
-module.exports = createDrawLines
+export default createDrawLines

@@ -1,10 +1,7 @@
 
-let bunny = require('bunny');
-let normals = require('angle-normals');
+import * as d3 from "d3";
 
-let d3 = require('d3')
-
-let h = (regl, options) => {
+let createDrawLines = (regl, options) => {
   let attributes = options.attributes,
       canvas = options.canvas,
       nodes = options.data.nodes;
@@ -220,4 +217,5 @@ let h = (regl, options) => {
 
   }
 }
-module.exports = h;
+
+export default createDrawLines

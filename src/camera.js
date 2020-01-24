@@ -1,10 +1,9 @@
-var mouseChange = require('mouse-change')
-var mouseWheel = require('mouse-wheel')
-var identity = require('gl-mat4/identity')
-var perspective = require('gl-mat4/perspective')
-var lookAt = require('gl-mat4/lookAt')
+import mouseChange from 'mouse-change'
+import mouseWheel from 'mouse-wheel'
+import identity from 'gl-mat4/identity'
+import perspective from 'gl-mat4/perspective'
+import lookAt from  'gl-mat4/lookAt'
 
-module.exports = createCamera
 
 function createCamera (regl, props) {
   var cameraState = {
@@ -134,3 +133,5 @@ function createCamera (regl, props) {
 
   return setupCamera
 }
+
+export default createCamera

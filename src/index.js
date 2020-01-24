@@ -1,11 +1,11 @@
-let createDrawLines = require('./edges')
-let createDrawNodes = require('./nodes')
-let createCamera = require('./camera')
-let _ = require('lodash')
-let d3 = require('d3')
+import createDrawLines from './edges'
+import createDrawNodes from './nodes'
+import createCamera from './camera'
+import _ from 'lodash'
+import * as d3 from 'd3'
 
-const mat4 = require('gl-mat4')
-let createRegl = require('regl')
+import mat4 from 'gl-mat4'
+import createRegl from 'regl'
 let clip = (d) => {
   return d / 4000
 }
@@ -33,8 +33,10 @@ let processKMeans = (data) => {
     }
   }
 
-module.exports.init = (options) => {
-  options.canvas = options.canvas || function () {}
+let init = (options) => {
+  options.onHover = options.onHover || function () {}
+  options.onClick = options.onClick || function () {}
+
   options.attributes = processKMeans(options.data)
   let regl = createRegl({
     canvas: options.canvas,
@@ -85,3 +87,5 @@ module.exports.init = (options) => {
     setOptions: () => {}
   }
 }
+
+export default { init: init }

@@ -45,7 +45,7 @@ function createDrawLines(regl, options) {
         gl_Position = projection * view * vec4(p, 0, 1);
       }`,
       blend: {
-        enable: true,
+        enable: false,
         func: {
           srcRGB: 'src alpha',
           srcAlpha: 'src alpha',
@@ -62,7 +62,12 @@ function createDrawLines(regl, options) {
         offset: [0, 0.0],
         phase: 0.0,
         freq: 0.01,
-        opacity: .5
+        opacity: .5,
+        view: () => {
+          console.log('123')
+          return [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]
+        }, projection: [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]
+
       },
 
       lineWidth: lineWidth,

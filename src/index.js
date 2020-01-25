@@ -6,6 +6,10 @@ import withRaf from 'with-raf';
 import { mat4, vec4 } from 'gl-matrix';
 import createLine from 'regl-line';
 import createScroll from 'scroll-speed';
+import _ from 'lodash';
+import * as d3 from 'd3'
+
+import createDrawLines from './edges';
 
 import BG_FS from './bg.fs';
 import BG_VS from './bg.vs';
@@ -74,7 +78,8 @@ const createScatterplot = ({
   target: initialTarget = DEFAULT_TARGET,
   distance: initialDistance = DEFAULT_DISTANCE,
   rotation: initialRotation = DEFAULT_ROTATION,
-  view: initialView = DEFAULT_VIEW
+  view: initialView = DEFAULT_VIEW,
+  drawLines: initialDrawLines
 } = {}) => {
   const pubSub = createPubSub();
   const scratch = new Float32Array(16);
@@ -115,6 +120,7 @@ const createScatterplot = ({
   let recticleHLine;
   let recticleVLine;
   let recticleColor = toRgba(initialRecticleColor, true);
+  let drawLines = initialDrawLines
 
   let stateTex; // Stores the point texture holding x, y, category, and value
   let stateTexRes = 0; // Width and height of the texture
@@ -332,7 +338,6 @@ const createScatterplot = ({
     if (!isInit) return;
 
     getRelativeMousePosition(event);
-
     // Only ray cast if the mouse cursor is inside
     if (isMouseInCanvas && !mouseDownShift) {
       const clostestPoint = raycast();
@@ -712,8 +717,10 @@ const createScatterplot = ({
     if (!mouseDown && (showRecticle || showRecticleOnce)) drawRecticle();
     if (hoveredPoint >= 0) drawHoveredPoint();
     if (selection.length) drawSelectedPoint();
-
+    initialDrawLines({view: getView(), projection: getView()})
     lasso.draw();
+    console.log('view', getView())
+
 
     // Publish camera change
     if (isViewChanged) pubSub.publish('view', camera.view);
@@ -984,17 +991,58 @@ const createScatterplot = ({
   };
 };
 
-let init = (options) => {
+let clip = (d) => {
+  return d / 4000
+}
+
+let processKMeans = (data) => {
+    let edges = new Array(data.edges.length * 4).fill(0);
+    data.edges.forEach((edge, idx) => {
+      edges[idx*4] = clip(data.nodes[edge.source].x)
+      edges[idx*4+1] = clip(data.nodes[edge.source].y)
+      edges[idx*4+2] = clip(data.nodes[edge.target].x)
+      edges[idx*4+3] = clip(data.nodes[edge.target].y)
+    });
+    let color = _.flatten(data.edges.map((e) => {
+      let c = d3.color(data.nodes[e.source].color);
+      return [c.r /255 , c.g /255 , c.b /255];
+    }));
+
+    let fboColor = color.map((d, i) => {
+      return i / color.length
+    })
+    return {
+      position: edges,
+      color,
+      fboColor
+    }
+  }
+  let init = (options) => {
+    console.log(createRegl)
+
+  options.regl = createRegl(options.canvas)
+  options.attributes= processKMeans(options.data)
+  console.log(options.attributes)
   options.width =1000
   options.height = 1000
+  options.pointSize = 10
+  options.drawLines = createDrawLines(options.regl, options)
+
   const scatterplot = createScatterplot(options);
+
   console.log('yay')
 
-  const points = new Array(10000)
-    .fill()
-    .map(() => [-1 + Math.random() * 2, -1 + Math.random() * 2, '#ff0000']);
+  let pointoverHandler = (pid) => {
+    console.log('wee', pid)
+  }
 
+  const points = options.data.nodes
+    .map((d) => {
+      return [d.x / 4000, d.y /4000, '#ff00ff']});
+      console.log(points.length,scatterplot.get('regl'))
     scatterplot.draw(points);
+    scatterplot.subscribe('pointover', pointoverHandler);
+
 }
 
 export default {init: init};

@@ -31,7 +31,7 @@ let main = () => {
     load(d3.event.target.href)
     d3.event.preventDefault()
   })
-  load('dataKMeans')
+  load('./data/dataKMeans.json')
 }
 
 
@@ -112,7 +112,6 @@ d3.select(window).on('load', main)
 //
 // console.log(`Scatterplot v${scatterplot.get('version')}`);
 //
-// scatterplot.subscribe('pointover', pointoverHandler);
 // scatterplot.subscribe('pointout', pointoutHandler);
 // scatterplot.subscribe('select', selectHandler);
 // scatterplot.subscribe('deselect', deselectHandler);

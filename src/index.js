@@ -484,7 +484,7 @@ const createScatterplot = ({
   const getStateTex = () => stateTex;
   const getStateTexRes = () => stateTexRes;
   const getProjection = () => projection;
-  const getView = () => camera.view;
+  window.getView = () => camera.view;
   const getModel = () => model;
   const getScaling = () => camera.scaling;
   const getNormalNumPoints = () => numPoints;
@@ -699,6 +699,7 @@ const createScatterplot = ({
     if (newPoints) setPoints(newPoints);
     if (!isInit) return;
 
+
     regl.clear({
       // background color (transparent)
       color: [0, 0, 0, 0],
@@ -711,13 +712,13 @@ const createScatterplot = ({
     if (backgroundImage) {
       drawBackgroundImage();
     }
+    initialDrawLines({view: getView(), projection: getView()})
 
     // The draw order of the following calls is important!
     drawPointBodies();
     if (!mouseDown && (showRecticle || showRecticleOnce)) drawRecticle();
     if (hoveredPoint >= 0) drawHoveredPoint();
     if (selection.length) drawSelectedPoint();
-    initialDrawLines({view: getView(), projection: getView()})
     lasso.draw();
     console.log('view', getView())
 
@@ -1025,10 +1026,15 @@ let processKMeans = (data) => {
   console.log(options.attributes)
   options.width =1000
   options.height = 1000
-  options.pointSize = 10
+  options.pointSize = 20
+  //
   options.drawLines = createDrawLines(options.regl, options)
 
   const scatterplot = createScatterplot(options);
+  //catterplot.set({background :'rgba(255,155, 100, .8)'})
+  // scatterplot.set({backgroundImage :{src : 'https://www.seriouseats.com/recipes/images/2014/04/20140430-peeling-eggs-10.jpg', crossOrigin: true}})
+  //scatterplot.set({ background: [255, 0, 0, 1.0] });
+  scatterplot.set({ background: '#00ff00' });
 
   console.log('yay')
 
@@ -1038,10 +1044,11 @@ let processKMeans = (data) => {
 
   const points = options.data.nodes
     .map((d) => {
-      return [d.x / 4000, d.y /4000, '#ff00ff']});
+      return [d.x / 4000, d.y /4000, '#f0ffff']});
       console.log(points.length,scatterplot.get('regl'))
     scatterplot.draw(points);
     scatterplot.subscribe('pointover', pointoverHandler);
+    //scatterplot.set({ showRecticle: true, recticleColor: [1, 0, 0, 0.66] });
 
 }
 

@@ -2,7 +2,7 @@ function createDrawLines(regl, options) {
   let attributes = options.attributes
 
   // make sure to respect system limitations.
-  var lineWidth = 3
+  var lineWidth = 1
   if (lineWidth > regl.limits.lineWidthDims[1]) {
     lineWidth = regl.limits.lineWidthDims[1]
   }
@@ -16,7 +16,7 @@ function createDrawLines(regl, options) {
       uniform float opacity;
 
       void main() {
-        gl_FragColor = vec4(v_color, .05);
+        gl_FragColor = vec4(v_color, .9);
       }`,
 
       vert: `
@@ -65,7 +65,7 @@ function createDrawLines(regl, options) {
         opacity: .5,
         view: () => {
           console.log('123')
-          return [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]
+          return   window.getView()
         }, projection: [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]
 
       },

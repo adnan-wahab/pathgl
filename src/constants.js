@@ -14,7 +14,7 @@ export const DEFAULT_WIDTH = 100;
 export const DEFAULT_HEIGHT = 100;
 
 // Default styles
-export const DEFAULT_POINT_SIZE = 6;
+export const DEFAULT_POINT_SIZE = 30;
 export const DEFAULT_POINT_SIZE_SELECTED = 2;
 export const DEFAULT_POINT_OUTLINE_WIDTH = 2;
 

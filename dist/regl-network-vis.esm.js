@@ -12538,14 +12538,30 @@ function selection_selectAll (select) {
   return new Selection(subgroups, parents);
 }
 
-function matcher (selector) {
+var matcher = function (selector) {
   return function () {
     return this.matches(selector);
   };
+};
+
+if (typeof document !== "undefined") {
+  var element = document.documentElement;
+
+  if (!element.matches) {
+    var vendorMatches = element.webkitMatchesSelector || element.msMatchesSelector || element.mozMatchesSelector || element.oMatchesSelector;
+
+    matcher = function (selector) {
+      return function () {
+        return vendorMatches.call(this, selector);
+      };
+    };
+  }
 }
 
+var matcher$1 = matcher;
+
 function selection_filter (match) {
-  if (typeof match !== "function") match = matcher(match);
+  if (typeof match !== "function") match = matcher$1(match);
 
   for (var groups = this._groups, m = groups.length, subgroups = new Array(m), j = 0; j < m; ++j) {
     for (var group = groups[j], n = group.length, subgroup = subgroups[j] = [], node, i = 0; i < n; ++i) {
@@ -12714,16 +12730,6 @@ function selection_exit () {
   return new Selection(this._exit || this._groups.map(sparse), this._parents);
 }
 
-function selection_join (onenter, onupdate, onexit) {
-  var enter = this.enter(),
-      update = this,
-      exit = this.exit();
-  enter = typeof onenter === "function" ? onenter(enter) : enter.append(onenter + "");
-  if (onupdate != null) update = onupdate(update);
-  if (onexit == null) exit.remove();else onexit(exit);
-  return enter && update ? enter.merge(update).order() : update;
-}
-
 function selection_merge (selection$$1) {
   for (var groups0 = this._groups, groups1 = selection$$1._groups, m0 = groups0.length, m1 = groups1.length, m = Math.min(m0, m1), merges = new Array(m0), j = 0; j < m; ++j) {
     for (var group0 = groups0[j], group1 = groups1[j], n = group0.length, merge = merges[j] = new Array(n), node, i = 0; i < n; ++i) {
@@ -12744,7 +12750,7 @@ function selection_order () {
   for (var groups = this._groups, j = -1, m = groups.length; ++j < m;) {
     for (var group = groups[j], i = group.length - 1, next = group[i], node; --i >= 0;) {
       if (node = group[i]) {
-        if (next && node.compareDocumentPosition(next) ^ 4) next.parentNode.insertBefore(node, next);
+        if (next && next !== node.nextSibling) next.parentNode.insertBefore(node, next);
         next = node;
       }
     }
@@ -13104,15 +13110,11 @@ function selection_remove () {
 }
 
 function selection_cloneShallow() {
-  var clone = this.cloneNode(false),
-      parent = this.parentNode;
-  return parent ? parent.insertBefore(clone, this.nextSibling) : clone;
+  return this.parentNode.insertBefore(this.cloneNode(false), this.nextSibling);
 }
 
 function selection_cloneDeep() {
-  var clone = this.cloneNode(true),
-      parent = this.parentNode;
-  return parent ? parent.insertBefore(clone, this.nextSibling) : clone;
+  return this.parentNode.insertBefore(this.cloneNode(true), this.nextSibling);
 }
 
 function selection_clone (deep) {
@@ -13126,9 +13128,9 @@ function selection_datum (value) {
 var filterEvents = {};
 
 if (typeof document !== "undefined") {
-  var element = document.documentElement;
+  var element$1 = document.documentElement;
 
-  if (!("onmouseenter" in element)) {
+  if (!("onmouseenter" in element$1)) {
     filterEvents = {
       mouseenter: "mouseover",
       mouseleave: "mouseout"
@@ -13287,7 +13289,6 @@ Selection.prototype = selection.prototype = {
   data: selection_data,
   enter: selection_enter,
   exit: selection_exit,
-  join: selection_join,
   merge: selection_merge,
   order: selection_order,
   sort: selection_sort,
@@ -13332,7 +13333,8 @@ var brighter = 1 / darker;
 var reI = "\\s*([+-]?\\d+)\\s*",
     reN = "\\s*([+-]?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?)\\s*",
     reP = "\\s*([+-]?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?)%\\s*",
-    reHex = /^#([0-9a-f]{3,8})$/,
+    reHex3 = /^#([0-9a-f]{3})$/,
+    reHex6 = /^#([0-9a-f]{6})$/,
     reRgbInteger = new RegExp("^rgb\\(" + [reI, reI, reI] + "\\)$"),
     reRgbPercent = new RegExp("^rgb\\(" + [reP, reP, reP] + "\\)$"),
     reRgbaInteger = new RegExp("^rgba\\(" + [reI, reI, reI, reN] + "\\)$"),
@@ -13490,48 +13492,25 @@ var named = {
   yellowgreen: 0x9acd32
 };
 define(Color, color, {
-  copy: function (channels) {
-    return Object.assign(new this.constructor(), this, channels);
-  },
   displayable: function () {
     return this.rgb().displayable();
   },
-  hex: color_formatHex,
-  // Deprecated! Use color.formatHex.
-  formatHex: color_formatHex,
-  formatHsl: color_formatHsl,
-  formatRgb: color_formatRgb,
-  toString: color_formatRgb
+  toString: function () {
+    return this.rgb() + "";
+  }
 });
-
-function color_formatHex() {
-  return this.rgb().formatHex();
-}
-
-function color_formatHsl() {
-  return hslConvert(this).formatHsl();
-}
-
-function color_formatRgb() {
-  return this.rgb().formatRgb();
-}
-
 function color(format) {
-  var m, l;
+  var m;
   format = (format + "").trim().toLowerCase();
-  return (m = reHex.exec(format)) ? (l = m[1].length, m = parseInt(m[1], 16), l === 6 ? rgbn(m) // #ff0000
-  : l === 3 ? new Rgb(m >> 8 & 0xf | m >> 4 & 0xf0, m >> 4 & 0xf | m & 0xf0, (m & 0xf) << 4 | m & 0xf, 1) // #f00
-  : l === 8 ? new Rgb(m >> 24 & 0xff, m >> 16 & 0xff, m >> 8 & 0xff, (m & 0xff) / 0xff) // #ff000000
-  : l === 4 ? new Rgb(m >> 12 & 0xf | m >> 8 & 0xf0, m >> 8 & 0xf | m >> 4 & 0xf0, m >> 4 & 0xf | m & 0xf0, ((m & 0xf) << 4 | m & 0xf) / 0xff) // #f000
-  : null // invalid hex
-  ) : (m = reRgbInteger.exec(format)) ? new Rgb(m[1], m[2], m[3], 1) // rgb(255, 0, 0)
+  return (m = reHex3.exec(format)) ? (m = parseInt(m[1], 16), new Rgb(m >> 8 & 0xf | m >> 4 & 0x0f0, m >> 4 & 0xf | m & 0xf0, (m & 0xf) << 4 | m & 0xf, 1) // #f00
+  ) : (m = reHex6.exec(format)) ? rgbn(parseInt(m[1], 16)) // #ff0000
+  : (m = reRgbInteger.exec(format)) ? new Rgb(m[1], m[2], m[3], 1) // rgb(255, 0, 0)
   : (m = reRgbPercent.exec(format)) ? new Rgb(m[1] * 255 / 100, m[2] * 255 / 100, m[3] * 255 / 100, 1) // rgb(100%, 0%, 0%)
   : (m = reRgbaInteger.exec(format)) ? rgba(m[1], m[2], m[3], m[4]) // rgba(255, 0, 0, 1)
   : (m = reRgbaPercent.exec(format)) ? rgba(m[1] * 255 / 100, m[2] * 255 / 100, m[3] * 255 / 100, m[4]) // rgb(100%, 0%, 0%, 1)
   : (m = reHslPercent.exec(format)) ? hsla(m[1], m[2] / 100, m[3] / 100, 1) // hsl(120, 50%, 50%)
   : (m = reHslaPercent.exec(format)) ? hsla(m[1], m[2] / 100, m[3] / 100, m[4]) // hsla(120, 50%, 50%, 1)
-  : named.hasOwnProperty(format) ? rgbn(named[format]) // eslint-disable-line no-prototype-builtins
-  : format === "transparent" ? new Rgb(NaN, NaN, NaN, 0) : null;
+  : named.hasOwnProperty(format) ? rgbn(named[format]) : format === "transparent" ? new Rgb(NaN, NaN, NaN, 0) : null;
 }
 
 function rgbn(n) {
@@ -13571,29 +13550,14 @@ define(Rgb, rgb, extend(Color, {
     return this;
   },
   displayable: function () {
-    return -0.5 <= this.r && this.r < 255.5 && -0.5 <= this.g && this.g < 255.5 && -0.5 <= this.b && this.b < 255.5 && 0 <= this.opacity && this.opacity <= 1;
+    return 0 <= this.r && this.r <= 255 && 0 <= this.g && this.g <= 255 && 0 <= this.b && this.b <= 255 && 0 <= this.opacity && this.opacity <= 1;
   },
-  hex: rgb_formatHex,
-  // Deprecated! Use color.formatHex.
-  formatHex: rgb_formatHex,
-  formatRgb: rgb_formatRgb,
-  toString: rgb_formatRgb
+  toString: function () {
+    var a = this.opacity;
+    a = isNaN(a) ? 1 : Math.max(0, Math.min(1, a));
+    return (a === 1 ? "rgb(" : "rgba(") + Math.max(0, Math.min(255, Math.round(this.r) || 0)) + ", " + Math.max(0, Math.min(255, Math.round(this.g) || 0)) + ", " + Math.max(0, Math.min(255, Math.round(this.b) || 0)) + (a === 1 ? ")" : ", " + a + ")");
+  }
 }));
-
-function rgb_formatHex() {
-  return "#" + hex(this.r) + hex(this.g) + hex(this.b);
-}
-
-function rgb_formatRgb() {
-  var a = this.opacity;
-  a = isNaN(a) ? 1 : Math.max(0, Math.min(1, a));
-  return (a === 1 ? "rgb(" : "rgba(") + Math.max(0, Math.min(255, Math.round(this.r) || 0)) + ", " + Math.max(0, Math.min(255, Math.round(this.g) || 0)) + ", " + Math.max(0, Math.min(255, Math.round(this.b) || 0)) + (a === 1 ? ")" : ", " + a + ")");
-}
-
-function hex(value) {
-  value = Math.max(0, Math.min(255, Math.round(value) || 0));
-  return (value < 16 ? "0" : "") + value.toString(16);
-}
 
 function hsla(h, s, l, a) {
   if (a <= 0) h = s = l = NaN;else if (l <= 0 || l >= 1) h = s = NaN;else if (s <= 0) h = NaN;
@@ -13655,11 +13619,6 @@ define(Hsl, hsl, extend(Color, {
   },
   displayable: function () {
     return (0 <= this.s && this.s <= 1 || isNaN(this.s)) && 0 <= this.l && this.l <= 1 && 0 <= this.opacity && this.opacity <= 1;
-  },
-  formatHsl: function () {
-    var a = this.opacity;
-    a = isNaN(a) ? 1 : Math.max(0, Math.min(1, a));
-    return (a === 1 ? "hsl(" : "hsla(") + (this.h || 0) + ", " + (this.s || 0) * 100 + "%, " + (this.l || 0) * 100 + "%" + (a === 1 ? ")" : ", " + a + ")");
   }
 }));
 /* From FvD 13.37, CSS Color Module Level 3 */
@@ -13671,10 +13630,11 @@ function hsl2rgb(h, m1, m2) {
 var deg2rad = Math.PI / 180;
 var rad2deg = 180 / Math.PI;
 
-var K = 18,
-    Xn = 0.96422,
-    Yn = 1,
-    Zn = 0.82521,
+var Kn = 18,
+    Xn = 0.950470,
+    // D65 standard referent
+Yn = 1,
+    Zn = 1.088830,
     t0 = 4 / 29,
     t1 = 6 / 29,
     t2 = 3 * t1 * t1,
@@ -13682,20 +13642,22 @@ var K = 18,
 
 function labConvert(o) {
   if (o instanceof Lab) return new Lab(o.l, o.a, o.b, o.opacity);
-  if (o instanceof Hcl) return hcl2lab(o);
-  if (!(o instanceof Rgb)) o = rgbConvert(o);
-  var r = rgb2lrgb(o.r),
-      g = rgb2lrgb(o.g),
-      b = rgb2lrgb(o.b),
-      y = xyz2lab((0.2225045 * r + 0.7168786 * g + 0.0606169 * b) / Yn),
-      x,
-      z;
-  if (r === g && g === b) x = z = y;else {
-    x = xyz2lab((0.4360747 * r + 0.3850649 * g + 0.1430804 * b) / Xn);
-    z = xyz2lab((0.0139322 * r + 0.0971045 * g + 0.7141733 * b) / Zn);
+
+  if (o instanceof Hcl) {
+    var h = o.h * deg2rad;
+    return new Lab(o.l, Math.cos(h) * o.c, Math.sin(h) * o.c, o.opacity);
   }
+
+  if (!(o instanceof Rgb)) o = rgbConvert(o);
+  var b = rgb2xyz(o.r),
+      a = rgb2xyz(o.g),
+      l = rgb2xyz(o.b),
+      x = xyz2lab((0.4124564 * b + 0.3575761 * a + 0.1804375 * l) / Xn),
+      y = xyz2lab((0.2126729 * b + 0.7151522 * a + 0.0721750 * l) / Yn),
+      z = xyz2lab((0.0193339 * b + 0.1191920 * a + 0.9503041 * l) / Zn);
   return new Lab(116 * y - 16, 500 * (x - y), 200 * (y - z), o.opacity);
 }
+
 function lab(l, a, b, opacity) {
   return arguments.length === 1 ? labConvert(l) : new Lab(l, a, b, opacity == null ? 1 : opacity);
 }
@@ -13707,19 +13669,20 @@ function Lab(l, a, b, opacity) {
 }
 define(Lab, lab, extend(Color, {
   brighter: function (k) {
-    return new Lab(this.l + K * (k == null ? 1 : k), this.a, this.b, this.opacity);
+    return new Lab(this.l + Kn * (k == null ? 1 : k), this.a, this.b, this.opacity);
   },
   darker: function (k) {
-    return new Lab(this.l - K * (k == null ? 1 : k), this.a, this.b, this.opacity);
+    return new Lab(this.l - Kn * (k == null ? 1 : k), this.a, this.b, this.opacity);
   },
   rgb: function () {
     var y = (this.l + 16) / 116,
         x = isNaN(this.a) ? y : y + this.a / 500,
         z = isNaN(this.b) ? y : y - this.b / 200;
-    x = Xn * lab2xyz(x);
     y = Yn * lab2xyz(y);
+    x = Xn * lab2xyz(x);
     z = Zn * lab2xyz(z);
-    return new Rgb(lrgb2rgb(3.1338561 * x - 1.6168667 * y - 0.4906146 * z), lrgb2rgb(-0.9787684 * x + 1.9161415 * y + 0.0334540 * z), lrgb2rgb(0.0719453 * x - 0.2289914 * y + 1.4052427 * z), this.opacity);
+    return new Rgb(xyz2rgb(3.2404542 * x - 1.5371385 * y - 0.4985314 * z), // D65 -> sRGB
+    xyz2rgb(-0.9692660 * x + 1.8760108 * y + 0.0415560 * z), xyz2rgb(0.0556434 * x - 0.2040259 * y + 1.0572252 * z), this.opacity);
   }
 }));
 
@@ -13731,21 +13694,21 @@ function lab2xyz(t) {
   return t > t1 ? t * t * t : t2 * (t - t0);
 }
 
-function lrgb2rgb(x) {
+function xyz2rgb(x) {
   return 255 * (x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(x, 1 / 2.4) - 0.055);
 }
 
-function rgb2lrgb(x) {
+function rgb2xyz(x) {
   return (x /= 255) <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
 }
 
 function hclConvert(o) {
   if (o instanceof Hcl) return new Hcl(o.h, o.c, o.l, o.opacity);
   if (!(o instanceof Lab)) o = labConvert(o);
-  if (o.a === 0 && o.b === 0) return new Hcl(NaN, 0 < o.l && o.l < 100 ? 0 : NaN, o.l, o.opacity);
   var h = Math.atan2(o.b, o.a) * rad2deg;
   return new Hcl(h < 0 ? h + 360 : h, Math.sqrt(o.a * o.a + o.b * o.b), o.l, o.opacity);
 }
+
 function hcl(h, c, l, opacity) {
   return arguments.length === 1 ? hclConvert(h) : new Hcl(h, c, l, opacity == null ? 1 : opacity);
 }
@@ -13755,22 +13718,15 @@ function Hcl(h, c, l, opacity) {
   this.l = +l;
   this.opacity = +opacity;
 }
-
-function hcl2lab(o) {
-  if (isNaN(o.h)) return new Lab(o.l, 0, 0, o.opacity);
-  var h = o.h * deg2rad;
-  return new Lab(o.l, Math.cos(h) * o.c, Math.sin(h) * o.c, o.opacity);
-}
-
 define(Hcl, hcl, extend(Color, {
   brighter: function (k) {
-    return new Hcl(this.h, this.c, this.l + K * (k == null ? 1 : k), this.opacity);
+    return new Hcl(this.h, this.c, this.l + Kn * (k == null ? 1 : k), this.opacity);
   },
   darker: function (k) {
-    return new Hcl(this.h, this.c, this.l - K * (k == null ? 1 : k), this.opacity);
+    return new Hcl(this.h, this.c, this.l - Kn * (k == null ? 1 : k), this.opacity);
   },
   rgb: function () {
-    return hcl2lab(this).rgb();
+    return labConvert(this).rgb();
   }
 }));
 
@@ -13826,23 +13782,6 @@ define(Cubehelix, cubehelix, extend(Color, {
   }
 }));
 
-function basis(t1, v0, v1, v2, v3) {
-  var t2 = t1 * t1,
-      t3 = t2 * t1;
-  return ((1 - 3 * t1 + 3 * t2 - t3) * v0 + (4 - 6 * t2 + 3 * t3) * v1 + (1 + 3 * t1 + 3 * t2 - 3 * t3) * v2 + t3 * v3) / 6;
-}
-function basis$1 (values) {
-  var n = values.length - 1;
-  return function (t) {
-    var i = t <= 0 ? t = 0 : t >= 1 ? (t = 1, n - 1) : Math.floor(t * n),
-        v1 = values[i],
-        v2 = values[i + 1],
-        v0 = i > 0 ? values[i - 1] : 2 * v1 - v2,
-        v3 = i < n - 1 ? values[i + 2] : 2 * v2 - v1;
-    return basis((t - i / n) * n, v0, v1, v2, v3);
-  };
-}
-
 function constant$3 (x) {
   return function () {
     return x;
@@ -13896,40 +13835,9 @@ var interpolateRgb = (function rgbGamma(y) {
   return rgb$$1;
 })(1);
 
-function rgbSpline(spline) {
-  return function (colors) {
-    var n = colors.length,
-        r = new Array(n),
-        g = new Array(n),
-        b = new Array(n),
-        i,
-        color$$1;
-
-    for (i = 0; i < n; ++i) {
-      color$$1 = rgb(colors[i]);
-      r[i] = color$$1.r || 0;
-      g[i] = color$$1.g || 0;
-      b[i] = color$$1.b || 0;
-    }
-
-    r = spline(r);
-    g = spline(g);
-    b = spline(b);
-    color$$1.opacity = 1;
-    return function (t) {
-      color$$1.r = r(t);
-      color$$1.g = g(t);
-      color$$1.b = b(t);
-      return color$$1 + "";
-    };
-  };
-}
-
-var rgbBasis = rgbSpline(basis$1);
-
 function interpolateNumber (a, b) {
-  return a = +a, b = +b, function (t) {
-    return a * (1 - t) + b * t;
+  return a = +a, b -= a, function (t) {
+    return a + b * t;
   };
 }
 
@@ -14300,7 +14208,7 @@ function timeout$1 (callback, delay, time) {
   return t;
 }
 
-var emptyOn = dispatch("start", "end", "cancel", "interrupt");
+var emptyOn = dispatch("start", "end", "interrupt");
 var emptyTween = [];
 var CREATED = 0;
 var SCHEDULED = 1;
@@ -14335,7 +14243,7 @@ function init(node, id) {
 }
 function set$a(node, id) {
   var schedule = get$1(node, id);
-  if (schedule.state > STARTED) throw new Error("too late; already running");
+  if (schedule.state > STARTING) throw new Error("too late; already started");
   return schedule;
 }
 function get$1(node, id) {
@@ -14371,17 +14279,19 @@ function create$a(node, id, self) {
       // chance to tick (and possibly end); see d3/d3-transition#54!
 
       if (o.state === STARTED) return timeout$1(start); // Interrupt the active transition, if any.
+      // Dispatch the interrupt event.
 
       if (o.state === RUNNING) {
         o.state = ENDED;
         o.timer.stop();
         o.on.call("interrupt", node, node.__data__, o.index, o.group);
         delete schedules[i];
-      } // Cancel any pre-empted transitions.
+      } // Cancel any pre-empted transitions. No interrupt event is dispatched
+      // because the cancelled transitions never started. Note that this also
+      // removes this transition from the pending list!
       else if (+i < id) {
           o.state = ENDED;
           o.timer.stop();
-          o.on.call("cancel", node, node.__data__, o.index, o.group);
           delete schedules[i];
         }
     } // Defer the first tick to end of the current frame; see d3/d3#1576.
@@ -14422,7 +14332,7 @@ function create$a(node, id, self) {
         n = tween.length;
 
     while (++i < n) {
-      tween[i].call(node, t);
+      tween[i].call(null, t);
     } // Dispatch the end event.
 
 
@@ -14462,7 +14372,7 @@ function interrupt (node, name) {
     active = schedule$$1.state > STARTING && schedule$$1.state < ENDING;
     schedule$$1.state = ENDED;
     schedule$$1.timer.stop();
-    schedule$$1.on.call(active ? "interrupt" : "cancel", node, node.__data__, schedule$$1.index, schedule$$1.group);
+    if (active) schedule$$1.on.call("interrupt", node, node.__data__, schedule$$1.index, schedule$$1.group);
     delete schedules[i];
   }
 
@@ -14575,76 +14485,56 @@ function attrRemoveNS$1(fullname) {
 }
 
 function attrConstant$1(name, interpolate$$1, value1) {
-  var string00,
-      string1 = value1 + "",
-      interpolate0;
+  var value00, interpolate0;
   return function () {
-    var string0 = this.getAttribute(name);
-    return string0 === string1 ? null : string0 === string00 ? interpolate0 : interpolate0 = interpolate$$1(string00 = string0, value1);
+    var value0 = this.getAttribute(name);
+    return value0 === value1 ? null : value0 === value00 ? interpolate0 : interpolate0 = interpolate$$1(value00 = value0, value1);
   };
 }
 
 function attrConstantNS$1(fullname, interpolate$$1, value1) {
-  var string00,
-      string1 = value1 + "",
-      interpolate0;
+  var value00, interpolate0;
   return function () {
-    var string0 = this.getAttributeNS(fullname.space, fullname.local);
-    return string0 === string1 ? null : string0 === string00 ? interpolate0 : interpolate0 = interpolate$$1(string00 = string0, value1);
+    var value0 = this.getAttributeNS(fullname.space, fullname.local);
+    return value0 === value1 ? null : value0 === value00 ? interpolate0 : interpolate0 = interpolate$$1(value00 = value0, value1);
   };
 }
 
 function attrFunction$1(name, interpolate$$1, value) {
-  var string00, string10, interpolate0;
+  var value00, value10, interpolate0;
   return function () {
-    var string0,
-        value1 = value(this),
-        string1;
+    var value0,
+        value1 = value(this);
     if (value1 == null) return void this.removeAttribute(name);
-    string0 = this.getAttribute(name);
-    string1 = value1 + "";
-    return string0 === string1 ? null : string0 === string00 && string1 === string10 ? interpolate0 : (string10 = string1, interpolate0 = interpolate$$1(string00 = string0, value1));
+    value0 = this.getAttribute(name);
+    return value0 === value1 ? null : value0 === value00 && value1 === value10 ? interpolate0 : interpolate0 = interpolate$$1(value00 = value0, value10 = value1);
   };
 }
 
 function attrFunctionNS$1(fullname, interpolate$$1, value) {
-  var string00, string10, interpolate0;
+  var value00, value10, interpolate0;
   return function () {
-    var string0,
-        value1 = value(this),
-        string1;
+    var value0,
+        value1 = value(this);
     if (value1 == null) return void this.removeAttributeNS(fullname.space, fullname.local);
-    string0 = this.getAttributeNS(fullname.space, fullname.local);
-    string1 = value1 + "";
-    return string0 === string1 ? null : string0 === string00 && string1 === string10 ? interpolate0 : (string10 = string1, interpolate0 = interpolate$$1(string00 = string0, value1));
+    value0 = this.getAttributeNS(fullname.space, fullname.local);
+    return value0 === value1 ? null : value0 === value00 && value1 === value10 ? interpolate0 : interpolate0 = interpolate$$1(value00 = value0, value10 = value1);
   };
 }
 
 function transition_attr (name, value) {
   var fullname = namespace(name),
       i = fullname === "transform" ? interpolateTransformSvg : interpolate;
-  return this.attrTween(name, typeof value === "function" ? (fullname.local ? attrFunctionNS$1 : attrFunction$1)(fullname, i, tweenValue(this, "attr." + name, value)) : value == null ? (fullname.local ? attrRemoveNS$1 : attrRemove$1)(fullname) : (fullname.local ? attrConstantNS$1 : attrConstant$1)(fullname, i, value));
-}
-
-function attrInterpolate(name, i) {
-  return function (t) {
-    this.setAttribute(name, i.call(this, t));
-  };
-}
-
-function attrInterpolateNS(fullname, i) {
-  return function (t) {
-    this.setAttributeNS(fullname.space, fullname.local, i.call(this, t));
-  };
+  return this.attrTween(name, typeof value === "function" ? (fullname.local ? attrFunctionNS$1 : attrFunction$1)(fullname, i, tweenValue(this, "attr." + name, value)) : value == null ? (fullname.local ? attrRemoveNS$1 : attrRemove$1)(fullname) : (fullname.local ? attrConstantNS$1 : attrConstant$1)(fullname, i, value + ""));
 }
 
 function attrTweenNS(fullname, value) {
-  var t0, i0;
-
   function tween() {
-    var i = value.apply(this, arguments);
-    if (i !== i0) t0 = (i0 = i) && attrInterpolateNS(fullname, i);
-    return t0;
+    var node = this,
+        i = value.apply(node, arguments);
+    return i && function (t) {
+      node.setAttributeNS(fullname.space, fullname.local, i(t));
+    };
   }
 
   tween._value = value;
@@ -14652,12 +14542,12 @@ function attrTweenNS(fullname, value) {
 }
 
 function attrTween(name, value) {
-  var t0, i0;
-
   function tween() {
-    var i = value.apply(this, arguments);
-    if (i !== i0) t0 = (i0 = i) && attrInterpolate(name, i);
-    return t0;
+    var node = this,
+        i = value.apply(node, arguments);
+    return i && function (t) {
+      node.setAttribute(name, i(t));
+    };
   }
 
   tween._value = value;
@@ -14720,7 +14610,7 @@ function transition_ease (value) {
 }
 
 function transition_filter (match) {
-  if (typeof match !== "function") match = matcher(match);
+  if (typeof match !== "function") match = matcher$1(match);
 
   for (var groups = this._groups, m = groups.length, subgroups = new Array(m), j = 0; j < m; ++j) {
     for (var group = groups[j], n = group.length, subgroup = subgroups[j] = [], node, i = 0; i < n; ++i) {
@@ -14839,79 +14729,51 @@ function transition_selection () {
   return new Selection$1(this._groups, this._parents);
 }
 
-function styleNull(name, interpolate$$1) {
-  var string00, string10, interpolate0;
+function styleRemove$1(name, interpolate$$1) {
+  var value00, value10, interpolate0;
   return function () {
-    var string0 = styleValue(this, name),
-        string1 = (this.style.removeProperty(name), styleValue(this, name));
-    return string0 === string1 ? null : string0 === string00 && string1 === string10 ? interpolate0 : interpolate0 = interpolate$$1(string00 = string0, string10 = string1);
+    var value0 = styleValue(this, name),
+        value1 = (this.style.removeProperty(name), styleValue(this, name));
+    return value0 === value1 ? null : value0 === value00 && value1 === value10 ? interpolate0 : interpolate0 = interpolate$$1(value00 = value0, value10 = value1);
   };
 }
 
-function styleRemove$1(name) {
+function styleRemoveEnd(name) {
   return function () {
     this.style.removeProperty(name);
   };
 }
 
 function styleConstant$1(name, interpolate$$1, value1) {
-  var string00,
-      string1 = value1 + "",
-      interpolate0;
+  var value00, interpolate0;
   return function () {
-    var string0 = styleValue(this, name);
-    return string0 === string1 ? null : string0 === string00 ? interpolate0 : interpolate0 = interpolate$$1(string00 = string0, value1);
+    var value0 = styleValue(this, name);
+    return value0 === value1 ? null : value0 === value00 ? interpolate0 : interpolate0 = interpolate$$1(value00 = value0, value1);
   };
 }
 
 function styleFunction$1(name, interpolate$$1, value) {
-  var string00, string10, interpolate0;
+  var value00, value10, interpolate0;
   return function () {
-    var string0 = styleValue(this, name),
-        value1 = value(this),
-        string1 = value1 + "";
-    if (value1 == null) string1 = value1 = (this.style.removeProperty(name), styleValue(this, name));
-    return string0 === string1 ? null : string0 === string00 && string1 === string10 ? interpolate0 : (string10 = string1, interpolate0 = interpolate$$1(string00 = string0, value1));
-  };
-}
-
-function styleMaybeRemove(id, name) {
-  var on0,
-      on1,
-      listener0,
-      key = "style." + name,
-      event$$1 = "end." + key,
-      remove;
-  return function () {
-    var schedule$$1 = set$a(this, id),
-        on = schedule$$1.on,
-        listener = schedule$$1.value[key] == null ? remove || (remove = styleRemove$1(name)) : undefined; // If this node shared a dispatch with the previous node,
-    // just assign the updated shared dispatch and we’re done!
-    // Otherwise, copy-on-write.
-
-    if (on !== on0 || listener0 !== listener) (on1 = (on0 = on).copy()).on(event$$1, listener0 = listener);
-    schedule$$1.on = on1;
+    var value0 = styleValue(this, name),
+        value1 = value(this);
+    if (value1 == null) value1 = (this.style.removeProperty(name), styleValue(this, name));
+    return value0 === value1 ? null : value0 === value00 && value1 === value10 ? interpolate0 : interpolate0 = interpolate$$1(value00 = value0, value10 = value1);
   };
 }
 
 function transition_style (name, value, priority) {
   var i = (name += "") === "transform" ? interpolateTransformCss : interpolate;
-  return value == null ? this.styleTween(name, styleNull(name, i)).on("end.style." + name, styleRemove$1(name)) : typeof value === "function" ? this.styleTween(name, styleFunction$1(name, i, tweenValue(this, "style." + name, value))).each(styleMaybeRemove(this._id, name)) : this.styleTween(name, styleConstant$1(name, i, value), priority).on("end.style." + name, null);
-}
-
-function styleInterpolate(name, i, priority) {
-  return function (t) {
-    this.style.setProperty(name, i.call(this, t), priority);
-  };
+  return value == null ? this.styleTween(name, styleRemove$1(name, i)).on("end.style." + name, styleRemoveEnd(name)) : this.styleTween(name, typeof value === "function" ? styleFunction$1(name, i, tweenValue(this, "style." + name, value)) : styleConstant$1(name, i, value + ""), priority);
 }
 
 function styleTween(name, value, priority) {
-  var t, i0;
-
   function tween() {
-    var i = value.apply(this, arguments);
-    if (i !== i0) t = (i0 = i) && styleInterpolate(name, i, priority);
-    return t;
+    var node = this,
+        i = value.apply(node, arguments);
+    return i && function (t) {
+      node.style.setProperty(name, i(t), priority);
+    };
   }
 
   tween._value = value;
@@ -14943,33 +14805,6 @@ function transition_text (value) {
   return this.tween("text", typeof value === "function" ? textFunction$1(tweenValue(this, "text", value)) : textConstant$1(value == null ? "" : value + ""));
 }
 
-function textInterpolate(i) {
-  return function (t) {
-    this.textContent = i.call(this, t);
-  };
-}
-
-function textTween(value) {
-  var t0, i0;
-
-  function tween() {
-    var i = value.apply(this, arguments);
-    if (i !== i0) t0 = (i0 = i) && textInterpolate(i);
-    return t0;
-  }
-
-  tween._value = value;
-  return tween;
-}
-
-function transition_textTween (value) {
-  var key = "text";
-  if (arguments.length < 1) return (key = this.tween(key)) && key._value;
-  if (value == null) return this.tween(key, null);
-  if (typeof value !== "function") throw new Error();
-  return this.tween(key, textTween(value));
-}
-
 function transition_transition () {
   var name = this._name,
       id0 = this._id,
@@ -14990,42 +14825,6 @@ function transition_transition () {
   }
 
   return new Transition(groups, this._parents, name, id1);
-}
-
-function transition_end () {
-  var on0,
-      on1,
-      that = this,
-      id = that._id,
-      size = that.size();
-  return new Promise(function (resolve, reject) {
-    var cancel = {
-      value: reject
-    },
-        end = {
-      value: function () {
-        if (--size === 0) resolve();
-      }
-    };
-    that.each(function () {
-      var schedule$$1 = set$a(this, id),
-          on = schedule$$1.on; // If this node shared a dispatch with the previous node,
-      // just assign the updated shared dispatch and we’re done!
-      // Otherwise, copy-on-write.
-
-      if (on !== on0) {
-        on1 = (on0 = on).copy();
-
-        on1._.cancel.push(cancel);
-
-        on1._.interrupt.push(cancel);
-
-        on1._.end.push(end);
-      }
-
-      schedule$$1.on = on1;
-    });
-  });
 }
 
 var id = 0;
@@ -15062,13 +14861,11 @@ Transition.prototype = transition.prototype = {
   style: transition_style,
   styleTween: transition_styleTween,
   text: transition_text,
-  textTween: transition_textTween,
   remove: transition_remove,
   tween: transition_tween,
   delay: transition_delay,
   duration: transition_duration,
-  ease: transition_ease,
-  end: transition_end
+  ease: transition_ease
 };
 
 function cubicInOut(t) {
@@ -15239,8 +15036,6 @@ function set$b(object, f) {
   return set;
 }
 
-// TODO Optimize edge cases.
-
 var EOL = {},
     EOF = {},
     QUOTE = 34,
@@ -15249,7 +15044,7 @@ var EOL = {},
 
 function objectConverter(columns) {
   return new Function("d", "return {" + columns.map(function (name, i) {
-    return JSON.stringify(name) + ": d[" + i + "] || \"\"";
+    return JSON.stringify(name) + ": d[" + i + "]";
   }).join(",") + "}");
 }
 
@@ -15274,25 +15069,7 @@ function inferColumns(rows) {
   return columns;
 }
 
-function pad(value, width) {
-  var s = value + "",
-      length = s.length;
-  return length < width ? new Array(width - length + 1).join(0) + s : s;
-}
-
-function formatYear(year) {
-  return year < 0 ? "-" + pad(-year, 6) : year > 9999 ? "+" + pad(year, 6) : pad(year, 4);
-}
-
-function formatDate(date) {
-  var hours = date.getUTCHours(),
-      minutes = date.getUTCMinutes(),
-      seconds = date.getUTCSeconds(),
-      milliseconds = date.getUTCMilliseconds();
-  return isNaN(date) ? "Invalid Date" : formatYear(date.getUTCFullYear(), 4) + "-" + pad(date.getUTCMonth() + 1, 2) + "-" + pad(date.getUTCDate(), 2) + (milliseconds ? "T" + pad(hours, 2) + ":" + pad(minutes, 2) + ":" + pad(seconds, 2) + "." + pad(milliseconds, 3) + "Z" : seconds ? "T" + pad(hours, 2) + ":" + pad(minutes, 2) + ":" + pad(seconds, 2) + "Z" : minutes || hours ? "T" + pad(hours, 2) + ":" + pad(minutes, 2) + "Z" : "");
-}
-
-function dsvFormat (delimiter) {
+function dsv (delimiter) {
   var reFormat = new RegExp("[\"" + delimiter + "\n\r]"),
       DELIMITER = delimiter.charCodeAt(0);
 
@@ -15368,22 +15145,13 @@ function dsvFormat (delimiter) {
     return rows;
   }
 
-  function preformatBody(rows, columns) {
-    return rows.map(function (row) {
+  function format(rows, columns) {
+    if (columns == null) columns = inferColumns(rows);
+    return [columns.map(formatValue).join(delimiter)].concat(rows.map(function (row) {
       return columns.map(function (column) {
         return formatValue(row[column]);
       }).join(delimiter);
-    });
-  }
-
-  function format(rows, columns) {
-    if (columns == null) columns = inferColumns(rows);
-    return [columns.map(formatValue).join(delimiter)].concat(preformatBody(rows, columns)).join("\n");
-  }
-
-  function formatBody(rows, columns) {
-    if (columns == null) columns = inferColumns(rows);
-    return preformatBody(rows, columns).join("\n");
+    })).join("\n");
   }
 
   function formatRows(rows) {
@@ -15394,26 +15162,21 @@ function dsvFormat (delimiter) {
     return row.map(formatValue).join(delimiter);
   }
 
-  function formatValue(value) {
-    return value == null ? "" : value instanceof Date ? formatDate(value) : reFormat.test(value += "") ? "\"" + value.replace(/"/g, "\"\"") + "\"" : value;
+  function formatValue(text) {
+    return text == null ? "" : reFormat.test(text += "") ? "\"" + text.replace(/"/g, "\"\"") + "\"" : text;
   }
 
   return {
     parse: parse,
     parseRows: parseRows,
     format: format,
-    formatBody: formatBody,
-    formatRows: formatRows,
-    formatRow: formatRow,
-    formatValue: formatValue
+    formatRows: formatRows
   };
 }
 
-var csv = dsvFormat(",");
+var csv = dsv(",");
 
-var tsv = dsvFormat("\t");
-
-var fixtz = new Date("2019-01-01T00:00").getHours() || new Date("2019-07-01T00:00").getHours();
+var tsv = dsv("\t");
 
 function tree_add (d) {
   var x = +this._x.call(null, d),
@@ -15485,10 +15248,11 @@ function addAll(data) {
     if (x > x1) x1 = x;
     if (y < y0) y0 = y;
     if (y > y1) y1 = y;
-  } // If there were no (valid) points, abort.
+  } // If there were no (valid) points, inherit the existing extent.
 
 
-  if (x0 > x1 || y0 > y1) return this; // Expand the tree to cover the new points.
+  if (x1 < x0) x0 = this._x0, x1 = this._x1;
+  if (y1 < y0) y0 = this._y0, y1 = this._y1; // Expand the tree to cover the new points.
 
   this.cover(x0, y0).cover(x1, y1); // Add the new points.
 
@@ -15513,37 +15277,45 @@ function tree_cover (x, y) {
     x1 = (x0 = Math.floor(x)) + 1;
     y1 = (y0 = Math.floor(y)) + 1;
   } // Otherwise, double repeatedly to cover.
-  else {
+  else if (x0 > x || x > x1 || y0 > y || y > y1) {
       var z = x1 - x0,
           node = this._root,
           parent,
           i;
 
-      while (x0 > x || x >= x1 || y0 > y || y >= y1) {
-        i = (y < y0) << 1 | x < x0;
-        parent = new Array(4), parent[i] = node, node = parent, z *= 2;
+      switch (i = (y < (y0 + y1) / 2) << 1 | x < (x0 + x1) / 2) {
+        case 0:
+          {
+            do parent = new Array(4), parent[i] = node, node = parent; while ((z *= 2, x1 = x0 + z, y1 = y0 + z, x > x1 || y > y1));
 
-        switch (i) {
-          case 0:
-            x1 = x0 + z, y1 = y0 + z;
             break;
+          }
 
-          case 1:
-            x0 = x1 - z, y1 = y0 + z;
-            break;
+        case 1:
+          {
+            do parent = new Array(4), parent[i] = node, node = parent; while ((z *= 2, x0 = x1 - z, y1 = y0 + z, x0 > x || y > y1));
 
-          case 2:
-            x1 = x0 + z, y0 = y1 - z;
             break;
+          }
 
-          case 3:
-            x0 = x1 - z, y0 = y1 - z;
+        case 2:
+          {
+            do parent = new Array(4), parent[i] = node, node = parent; while ((z *= 2, x1 = x0 + z, y0 = y1 - z, x > x1 || y0 > y));
+
             break;
-        }
+          }
+
+        case 3:
+          {
+            do parent = new Array(4), parent[i] = node, node = parent; while ((z *= 2, x0 = x1 - z, y0 = y1 - z, x0 > x || y0 > y));
+
+            break;
+          }
       }
 
       if (this._root && this._root.length) this._root = node;
-    }
+    } // If the quadtree covers the point already, just return.
+    else return this;
 
   this._x0 = x0;
   this._y0 = y0;
@@ -15749,14 +15521,14 @@ function tree_visitAfter (callback) {
   return this;
 }
 
-function defaultX$1(d) {
+function defaultX(d) {
   return d[0];
 }
 function tree_x (_) {
   return arguments.length ? (this._x = _, this) : this._x;
 }
 
-function defaultY$1(d) {
+function defaultY(d) {
   return d[1];
 }
 function tree_y (_) {
@@ -15764,7 +15536,7 @@ function tree_y (_) {
 }
 
 function quadtree(nodes, x, y) {
-  var tree = new Quadtree(x == null ? defaultX$1 : x, y == null ? defaultY$1 : y, NaN, NaN, NaN, NaN);
+  var tree = new Quadtree(x == null ? defaultX : x, y == null ? defaultY : y, NaN, NaN, NaN, NaN);
   return nodes == null ? tree : tree.addAll(nodes);
 }
 
@@ -15880,47 +15652,11 @@ function formatNumerals (numerals) {
   };
 }
 
-// [[fill]align][sign][symbol][0][width][,][.precision][~][type]
-var re = /^(?:(.)?([<>=^]))?([+\-( ])?([$#])?(0)?(\d+)?(,)?(\.\d+)?(~)?([a-z%])?$/i;
-function formatSpecifier(specifier) {
-  if (!(match = re.exec(specifier))) throw new Error("invalid format: " + specifier);
-  var match;
-  return new FormatSpecifier({
-    fill: match[1],
-    align: match[2],
-    sign: match[3],
-    symbol: match[4],
-    zero: match[5],
-    width: match[6],
-    comma: match[7],
-    precision: match[8] && match[8].slice(1),
-    trim: match[9],
-    type: match[10]
-  });
-}
-formatSpecifier.prototype = FormatSpecifier.prototype; // instanceof
+function formatDefault (x, p) {
+  x = x.toPrecision(p);
 
-function FormatSpecifier(specifier) {
-  this.fill = specifier.fill === undefined ? " " : specifier.fill + "";
-  this.align = specifier.align === undefined ? ">" : specifier.align + "";
-  this.sign = specifier.sign === undefined ? "-" : specifier.sign + "";
-  this.symbol = specifier.symbol === undefined ? "" : specifier.symbol + "";
-  this.zero = !!specifier.zero;
-  this.width = specifier.width === undefined ? undefined : +specifier.width;
-  this.comma = !!specifier.comma;
-  this.precision = specifier.precision === undefined ? undefined : +specifier.precision;
-  this.trim = !!specifier.trim;
-  this.type = specifier.type === undefined ? "" : specifier.type + "";
-}
-
-FormatSpecifier.prototype.toString = function () {
-  return this.fill + this.align + this.sign + this.symbol + (this.zero ? "0" : "") + (this.width === undefined ? "" : Math.max(1, this.width | 0)) + (this.comma ? "," : "") + (this.precision === undefined ? "" : "." + Math.max(0, this.precision | 0)) + (this.trim ? "~" : "") + this.type;
-};
-
-// Trims insignificant zeros, e.g., replaces 1.2000k with 1.2k.
-function formatTrim (s) {
-  out: for (var n = s.length, i = 1, i0 = -1, i1; i < n; ++i) {
-    switch (s[i]) {
+  out: for (var n = x.length, i = 1, i0 = -1, i1; i < n; ++i) {
+    switch (x[i]) {
       case ".":
         i0 = i1 = i;
         break;
@@ -15930,14 +15666,16 @@ function formatTrim (s) {
         i1 = i;
         break;
 
+      case "e":
+        break out;
+
       default:
-        if (!+s[i]) break out;
         if (i0 > 0) i0 = 0;
         break;
     }
   }
 
-  return i0 > 0 ? s.slice(0, i0) + s.slice(i1 + 1) : s;
+  return i0 > 0 ? x.slice(0, i0) + x.slice(i1 + 1) : x;
 }
 
 var prefixExponent;
@@ -15960,6 +15698,7 @@ function formatRounded (x, p) {
 }
 
 var formatTypes = {
+  "": formatDefault,
   "%": function (x, p) {
     return (x * 100).toFixed(p);
   },
@@ -15997,21 +15736,55 @@ var formatTypes = {
   }
 };
 
+var re = /^(?:(.)?([<>=^]))?([+\-\( ])?([$#])?(0)?(\d+)?(,)?(\.\d+)?([a-z%])?$/i;
+function formatSpecifier(specifier) {
+  return new FormatSpecifier(specifier);
+}
+formatSpecifier.prototype = FormatSpecifier.prototype; // instanceof
+
+function FormatSpecifier(specifier) {
+  if (!(match = re.exec(specifier))) throw new Error("invalid format: " + specifier);
+  var match,
+      fill = match[1] || " ",
+      align = match[2] || ">",
+      sign = match[3] || "-",
+      symbol = match[4] || "",
+      zero = !!match[5],
+      width = match[6] && +match[6],
+      comma = !!match[7],
+      precision = match[8] && +match[8].slice(1),
+      type = match[9] || ""; // The "n" type is an alias for ",g".
+
+  if (type === "n") comma = true, type = "g"; // Map invalid types to the default format.
+  else if (!formatTypes[type]) type = ""; // If zero fill is specified, padding goes after sign and before digits.
+
+  if (zero || fill === "0" && align === "=") zero = true, fill = "0", align = "=";
+  this.fill = fill;
+  this.align = align;
+  this.sign = sign;
+  this.symbol = symbol;
+  this.zero = zero;
+  this.width = width;
+  this.comma = comma;
+  this.precision = precision;
+  this.type = type;
+}
+
+FormatSpecifier.prototype.toString = function () {
+  return this.fill + this.align + this.sign + this.symbol + (this.zero ? "0" : "") + (this.width == null ? "" : Math.max(1, this.width | 0)) + (this.comma ? "," : "") + (this.precision == null ? "" : "." + Math.max(0, this.precision | 0)) + this.type;
+};
+
 function identity$9 (x) {
   return x;
 }
 
-var map$3 = Array.prototype.map,
-    prefixes = ["y", "z", "a", "f", "p", "n", "µ", "m", "", "k", "M", "G", "T", "P", "E", "Z", "Y"];
+var prefixes = ["y", "z", "a", "f", "p", "n", "µ", "m", "", "k", "M", "G", "T", "P", "E", "Z", "Y"];
 function formatLocale (locale) {
-  var group = locale.grouping === undefined || locale.thousands === undefined ? identity$9 : formatGroup(map$3.call(locale.grouping, Number), locale.thousands + ""),
-      currencyPrefix = locale.currency === undefined ? "" : locale.currency[0] + "",
-      currencySuffix = locale.currency === undefined ? "" : locale.currency[1] + "",
-      decimal = locale.decimal === undefined ? "." : locale.decimal + "",
-      numerals = locale.numerals === undefined ? identity$9 : formatNumerals(map$3.call(locale.numerals, String)),
-      percent = locale.percent === undefined ? "%" : locale.percent + "",
-      minus = locale.minus === undefined ? "-" : locale.minus + "",
-      nan = locale.nan === undefined ? "NaN" : locale.nan + "";
+  var group = locale.grouping && locale.thousands ? formatGroup(locale.grouping, locale.thousands) : identity$9,
+      currency = locale.currency,
+      decimal = locale.decimal,
+      numerals = locale.numerals ? formatNumerals(locale.numerals) : identity$9,
+      percent = locale.percent || "%";
 
   function newFormat(specifier) {
     specifier = formatSpecifier(specifier);
@@ -16023,27 +15796,21 @@ function formatLocale (locale) {
         width = specifier.width,
         comma = specifier.comma,
         precision = specifier.precision,
-        trim = specifier.trim,
-        type = specifier.type; // The "n" type is an alias for ",g".
-
-    if (type === "n") comma = true, type = "g"; // The "" type, and any invalid type, is an alias for ".12~g".
-    else if (!formatTypes[type]) precision === undefined && (precision = 12), trim = true, type = "g"; // If zero fill is specified, padding goes after sign and before digits.
-
-    if (zero || fill === "0" && align === "=") zero = true, fill = "0", align = "="; // Compute the prefix and suffix.
+        type = specifier.type; // Compute the prefix and suffix.
     // For SI-prefix, the suffix is lazily computed.
 
-    var prefix = symbol === "$" ? currencyPrefix : symbol === "#" && /[boxX]/.test(type) ? "0" + type.toLowerCase() : "",
-        suffix = symbol === "$" ? currencySuffix : /[%p]/.test(type) ? percent : ""; // What format function should we use?
+    var prefix = symbol === "$" ? currency[0] : symbol === "#" && /[boxX]/.test(type) ? "0" + type.toLowerCase() : "",
+        suffix = symbol === "$" ? currency[1] : /[%p]/.test(type) ? percent : ""; // What format function should we use?
     // Is this an integer type?
     // Can this type generate exponential notation?
 
     var formatType = formatTypes[type],
-        maybeSuffix = /[defgprs%]/.test(type); // Set the default precision if not specified,
+        maybeSuffix = !type || /[defgprs%]/.test(type); // Set the default precision if not specified,
     // or clamp the specified precision to the supported range.
     // For significant precision, it must be in [1, 21].
     // For fixed precision, it must be in [0, 20].
 
-    precision = precision === undefined ? 6 : /[gprs]/.test(type) ? Math.max(1, Math.min(21, precision)) : Math.max(0, Math.min(20, precision));
+    precision = precision == null ? type ? 6 : 12 : /[gprs]/.test(type) ? Math.max(1, Math.min(21, precision)) : Math.max(0, Math.min(20, precision));
 
     function format(value) {
       var valuePrefix = prefix,
@@ -16059,13 +15826,11 @@ function formatLocale (locale) {
         value = +value; // Perform the initial formatting.
 
         var valueNegative = value < 0;
-        value = isNaN(value) ? nan : formatType(Math.abs(value), precision); // Trim insignificant zeros.
-
-        if (trim) value = formatTrim(value); // If a negative value rounds to zero during formatting, treat as positive.
+        value = formatType(Math.abs(value), precision); // If a negative value rounds to zero during formatting, treat as positive.
 
         if (valueNegative && +value === 0) valueNegative = false; // Compute the prefix and suffix.
 
-        valuePrefix = (valueNegative ? sign === "(" ? sign : minus : sign === "-" || sign === "(" ? "" : sign) + valuePrefix;
+        valuePrefix = (valueNegative ? sign === "(" ? sign : "-" : sign === "-" || sign === "(" ? "" : sign) + valuePrefix;
         valueSuffix = (type === "s" ? prefixes[8 + prefixExponent / 3] : "") + valueSuffix + (valueNegative && sign === "(" ? ")" : ""); // Break the formatted value into the integer “value” part that can be
         // grouped, and fractional or exponential “suffix” part that is not.
 
@@ -16141,8 +15906,7 @@ defaultLocale({
   decimal: ".",
   thousands: ",",
   grouping: [3],
-  currency: ["$", ""],
-  minus: "-"
+  currency: ["$", ""]
 });
 function defaultLocale(definition) {
   locale = formatLocale(definition);
@@ -16212,12 +15976,10 @@ var t0$1 = new Date(),
     t1$1 = new Date();
 function newInterval(floori, offseti, count, field) {
   function interval(date) {
-    return floori(date = arguments.length === 0 ? new Date() : new Date(+date)), date;
+    return floori(date = new Date(+date)), date;
   }
 
-  interval.floor = function (date) {
-    return floori(date = new Date(+date)), date;
-  };
+  interval.floor = interval;
 
   interval.ceil = function (date) {
     return floori(date = new Date(date - 1)), offseti(date, 1), floori(date), date;
@@ -16308,7 +16070,7 @@ var durationDay = 864e5;
 var durationWeek = 6048e5;
 
 var second = newInterval(function (date) {
-  date.setTime(date - date.getMilliseconds());
+  date.setTime(Math.floor(date / durationSecond) * durationSecond);
 }, function (date, step) {
   date.setTime(+date + step * durationSecond);
 }, function (start, end) {
@@ -16318,7 +16080,7 @@ var second = newInterval(function (date) {
 });
 
 var minute = newInterval(function (date) {
-  date.setTime(date - date.getMilliseconds() - date.getSeconds() * durationSecond);
+  date.setTime(Math.floor(date / durationMinute) * durationMinute);
 }, function (date, step) {
   date.setTime(+date + step * durationMinute);
 }, function (start, end) {
@@ -16328,7 +16090,9 @@ var minute = newInterval(function (date) {
 });
 
 var hour = newInterval(function (date) {
-  date.setTime(date - date.getMilliseconds() - date.getSeconds() * durationSecond - date.getMinutes() * durationMinute);
+  var offset = date.getTimezoneOffset() * durationMinute % durationHour;
+  if (offset < 0) offset += durationHour;
+  date.setTime(Math.floor((+date - offset) / durationHour) * durationHour + offset);
 }, function (date, step) {
   date.setTime(+date + step * durationHour);
 }, function (start, end) {
@@ -16499,11 +16263,11 @@ function utcDate(d) {
   return new Date(Date.UTC(d.y, d.m, d.d, d.H, d.M, d.S, d.L));
 }
 
-function newDate(y, m, d) {
+function newYear(y) {
   return {
     y: y,
-    m: m,
-    d: d,
+    m: 0,
+    d: 1,
     H: 0,
     M: 0,
     S: 0,
@@ -16546,7 +16310,6 @@ function formatLocale$1(locale) {
     "m": formatMonthNumber,
     "M": formatMinutes,
     "p": formatPeriod,
-    "q": formatQuarter,
     "Q": formatUnixTimestamp,
     "s": formatUnixTimestampSeconds,
     "S": formatSeconds,
@@ -16557,7 +16320,7 @@ function formatLocale$1(locale) {
     "W": formatWeekNumberMonday,
     "x": null,
     "X": null,
-    "y": formatYear$1,
+    "y": formatYear,
     "Y": formatFullYear,
     "Z": formatZone,
     "%": formatLiteralPercent
@@ -16578,7 +16341,6 @@ function formatLocale$1(locale) {
     "m": formatUTCMonthNumber,
     "M": formatUTCMinutes,
     "p": formatUTCPeriod,
-    "q": formatUTCQuarter,
     "Q": formatUnixTimestamp,
     "s": formatUnixTimestampSeconds,
     "S": formatUTCSeconds,
@@ -16610,7 +16372,6 @@ function formatLocale$1(locale) {
     "m": parseMonthNumber,
     "M": parseMinutes,
     "p": parsePeriod,
-    "q": parseQuarter,
     "Q": parseUnixTimestamp,
     "s": parseUnixTimestampSeconds,
     "S": parseSeconds,
@@ -16660,36 +16421,31 @@ function formatLocale$1(locale) {
     };
   }
 
-  function newParse(specifier, Z) {
+  function newParse(specifier, newDate) {
     return function (string) {
-      var d = newDate(1900, undefined, 1),
+      var d = newYear(1900),
           i = parseSpecifier(d, specifier, string += "", 0),
           week,
           day$$1;
       if (i != string.length) return null; // If a UNIX timestamp is specified, return it.
 
-      if ("Q" in d) return new Date(d.Q);
-      if ("s" in d) return new Date(d.s * 1000 + ("L" in d ? d.L : 0)); // If this is utcParse, never use the local timezone.
+      if ("Q" in d) return new Date(d.Q); // The am-pm flag is 0 for AM, and 1 for PM.
 
-      if (Z && !("Z" in d)) d.Z = 0; // The am-pm flag is 0 for AM, and 1 for PM.
-
-      if ("p" in d) d.H = d.H % 12 + d.p * 12; // If the month was not specified, inherit from the quarter.
-
-      if (d.m === undefined) d.m = "q" in d ? d.q : 0; // Convert day-of-week and week-of-year to day-of-year.
+      if ("p" in d) d.H = d.H % 12 + d.p * 12; // Convert day-of-week and week-of-year to day-of-year.
 
       if ("V" in d) {
         if (d.V < 1 || d.V > 53) return null;
         if (!("w" in d)) d.w = 1;
 
         if ("Z" in d) {
-          week = utcDate(newDate(d.y, 0, 1)), day$$1 = week.getUTCDay();
+          week = utcDate(newYear(d.y)), day$$1 = week.getUTCDay();
           week = day$$1 > 4 || day$$1 === 0 ? utcMonday.ceil(week) : utcMonday(week);
           week = utcDay.offset(week, (d.V - 1) * 7);
           d.y = week.getUTCFullYear();
           d.m = week.getUTCMonth();
           d.d = week.getUTCDate() + (d.w + 6) % 7;
         } else {
-          week = localDate(newDate(d.y, 0, 1)), day$$1 = week.getDay();
+          week = newDate(newYear(d.y)), day$$1 = week.getDay();
           week = day$$1 > 4 || day$$1 === 0 ? monday.ceil(week) : monday(week);
           week = day.offset(week, (d.V - 1) * 7);
           d.y = week.getFullYear();
@@ -16698,7 +16454,7 @@ function formatLocale$1(locale) {
         }
       } else if ("W" in d || "U" in d) {
         if (!("w" in d)) d.w = "u" in d ? d.u % 7 : "W" in d ? 1 : 0;
-        day$$1 = "Z" in d ? utcDate(newDate(d.y, 0, 1)).getUTCDay() : localDate(newDate(d.y, 0, 1)).getDay();
+        day$$1 = "Z" in d ? utcDate(newYear(d.y)).getUTCDay() : newDate(newYear(d.y)).getDay();
         d.m = 0;
         d.d = "W" in d ? (d.w + 6) % 7 + d.W * 7 - (day$$1 + 5) % 7 : d.w + d.U * 7 - (day$$1 + 6) % 7;
       } // If a time zone is specified, all fields are interpreted as UTC and then
@@ -16712,7 +16468,7 @@ function formatLocale$1(locale) {
       } // Otherwise, all fields are in local time.
 
 
-      return localDate(d);
+      return newDate(d);
     };
   }
 
@@ -16796,10 +16552,6 @@ function formatLocale$1(locale) {
     return locale_periods[+(d.getHours() >= 12)];
   }
 
-  function formatQuarter(d) {
-    return 1 + ~~(d.getMonth() / 3);
-  }
-
   function formatUTCShortWeekday(d) {
     return locale_shortWeekdays[d.getUTCDay()];
   }
@@ -16820,10 +16572,6 @@ function formatLocale$1(locale) {
     return locale_periods[+(d.getUTCHours() >= 12)];
   }
 
-  function formatUTCQuarter(d) {
-    return 1 + ~~(d.getUTCMonth() / 3);
-  }
-
   return {
     format: function (specifier) {
       var f = newFormat(specifier += "", formats);
@@ -16835,7 +16583,7 @@ function formatLocale$1(locale) {
       return f;
     },
     parse: function (specifier) {
-      var p = newParse(specifier += "", false);
+      var p = newParse(specifier += "", localDate);
 
       p.toString = function () {
         return specifier;
@@ -16853,7 +16601,7 @@ function formatLocale$1(locale) {
       return f;
     },
     utcParse: function (specifier) {
-      var p = newParse(specifier += "", true);
+      var p = newParse(specifier, utcDate);
 
       p.toString = function () {
         return specifier;
@@ -16873,7 +16621,7 @@ var pads = {
 percentRe = /^%/,
     requoteRe = /[\\^$*+?|[\]().{}]/g;
 
-function pad$1(value, fill, width) {
+function pad(value, fill, width) {
   var sign = value < 0 ? "-" : "",
       string = (sign ? -value : value) + "",
       length = string.length;
@@ -16938,11 +16686,6 @@ function parseZone(d, string, i) {
   return n ? (d.Z = n[1] ? 0 : -(n[2] + (n[3] || "00")), i + n[0].length) : -1;
 }
 
-function parseQuarter(d, string, i) {
-  var n = numberRe.exec(string.slice(i, i + 1));
-  return n ? (d.q = n[0] * 3 - 3, i + n[0].length) : -1;
-}
-
 function parseMonthNumber(d, string, i) {
   var n = numberRe.exec(string.slice(i, i + 2));
   return n ? (d.m = n[0] - 1, i + n[0].length) : -1;
@@ -16995,27 +16738,27 @@ function parseUnixTimestamp(d, string, i) {
 
 function parseUnixTimestampSeconds(d, string, i) {
   var n = numberRe.exec(string.slice(i));
-  return n ? (d.s = +n[0], i + n[0].length) : -1;
+  return n ? (d.Q = +n[0] * 1000, i + n[0].length) : -1;
 }
 
 function formatDayOfMonth(d, p) {
-  return pad$1(d.getDate(), p, 2);
+  return pad(d.getDate(), p, 2);
 }
 
 function formatHour24(d, p) {
-  return pad$1(d.getHours(), p, 2);
+  return pad(d.getHours(), p, 2);
 }
 
 function formatHour12(d, p) {
-  return pad$1(d.getHours() % 12 || 12, p, 2);
+  return pad(d.getHours() % 12 || 12, p, 2);
 }
 
 function formatDayOfYear(d, p) {
-  return pad$1(1 + day.count(year(d), d), p, 3);
+  return pad(1 + day.count(year(d), d), p, 3);
 }
 
 function formatMilliseconds(d, p) {
-  return pad$1(d.getMilliseconds(), p, 3);
+  return pad(d.getMilliseconds(), p, 3);
 }
 
 function formatMicroseconds(d, p) {
@@ -17023,15 +16766,15 @@ function formatMicroseconds(d, p) {
 }
 
 function formatMonthNumber(d, p) {
-  return pad$1(d.getMonth() + 1, p, 2);
+  return pad(d.getMonth() + 1, p, 2);
 }
 
 function formatMinutes(d, p) {
-  return pad$1(d.getMinutes(), p, 2);
+  return pad(d.getMinutes(), p, 2);
 }
 
 function formatSeconds(d, p) {
-  return pad$1(d.getSeconds(), p, 2);
+  return pad(d.getSeconds(), p, 2);
 }
 
 function formatWeekdayNumberMonday(d) {
@@ -17040,13 +16783,13 @@ function formatWeekdayNumberMonday(d) {
 }
 
 function formatWeekNumberSunday(d, p) {
-  return pad$1(sunday.count(year(d) - 1, d), p, 2);
+  return pad(sunday.count(year(d), d), p, 2);
 }
 
 function formatWeekNumberISO(d, p) {
   var day$$1 = d.getDay();
   d = day$$1 >= 4 || day$$1 === 0 ? thursday(d) : thursday.ceil(d);
-  return pad$1(thursday.count(year(d), d) + (year(d).getDay() === 4), p, 2);
+  return pad(thursday.count(year(d), d) + (year(d).getDay() === 4), p, 2);
 }
 
 function formatWeekdayNumberSunday(d) {
@@ -17054,40 +16797,40 @@ function formatWeekdayNumberSunday(d) {
 }
 
 function formatWeekNumberMonday(d, p) {
-  return pad$1(monday.count(year(d) - 1, d), p, 2);
+  return pad(monday.count(year(d), d), p, 2);
 }
 
-function formatYear$1(d, p) {
-  return pad$1(d.getFullYear() % 100, p, 2);
+function formatYear(d, p) {
+  return pad(d.getFullYear() % 100, p, 2);
 }
 
 function formatFullYear(d, p) {
-  return pad$1(d.getFullYear() % 10000, p, 4);
+  return pad(d.getFullYear() % 10000, p, 4);
 }
 
 function formatZone(d) {
   var z = d.getTimezoneOffset();
-  return (z > 0 ? "-" : (z *= -1, "+")) + pad$1(z / 60 | 0, "0", 2) + pad$1(z % 60, "0", 2);
+  return (z > 0 ? "-" : (z *= -1, "+")) + pad(z / 60 | 0, "0", 2) + pad(z % 60, "0", 2);
 }
 
 function formatUTCDayOfMonth(d, p) {
-  return pad$1(d.getUTCDate(), p, 2);
+  return pad(d.getUTCDate(), p, 2);
 }
 
 function formatUTCHour24(d, p) {
-  return pad$1(d.getUTCHours(), p, 2);
+  return pad(d.getUTCHours(), p, 2);
 }
 
 function formatUTCHour12(d, p) {
-  return pad$1(d.getUTCHours() % 12 || 12, p, 2);
+  return pad(d.getUTCHours() % 12 || 12, p, 2);
 }
 
 function formatUTCDayOfYear(d, p) {
-  return pad$1(1 + utcDay.count(utcYear(d), d), p, 3);
+  return pad(1 + utcDay.count(utcYear(d), d), p, 3);
 }
 
 function formatUTCMilliseconds(d, p) {
-  return pad$1(d.getUTCMilliseconds(), p, 3);
+  return pad(d.getUTCMilliseconds(), p, 3);
 }
 
 function formatUTCMicroseconds(d, p) {
@@ -17095,15 +16838,15 @@ function formatUTCMicroseconds(d, p) {
 }
 
 function formatUTCMonthNumber(d, p) {
-  return pad$1(d.getUTCMonth() + 1, p, 2);
+  return pad(d.getUTCMonth() + 1, p, 2);
 }
 
 function formatUTCMinutes(d, p) {
-  return pad$1(d.getUTCMinutes(), p, 2);
+  return pad(d.getUTCMinutes(), p, 2);
 }
 
 function formatUTCSeconds(d, p) {
-  return pad$1(d.getUTCSeconds(), p, 2);
+  return pad(d.getUTCSeconds(), p, 2);
 }
 
 function formatUTCWeekdayNumberMonday(d) {
@@ -17112,13 +16855,13 @@ function formatUTCWeekdayNumberMonday(d) {
 }
 
 function formatUTCWeekNumberSunday(d, p) {
-  return pad$1(utcSunday.count(utcYear(d) - 1, d), p, 2);
+  return pad(utcSunday.count(utcYear(d), d), p, 2);
 }
 
 function formatUTCWeekNumberISO(d, p) {
   var day$$1 = d.getUTCDay();
   d = day$$1 >= 4 || day$$1 === 0 ? utcThursday(d) : utcThursday.ceil(d);
-  return pad$1(utcThursday.count(utcYear(d), d) + (utcYear(d).getUTCDay() === 4), p, 2);
+  return pad(utcThursday.count(utcYear(d), d) + (utcYear(d).getUTCDay() === 4), p, 2);
 }
 
 function formatUTCWeekdayNumberSunday(d) {
@@ -17126,15 +16869,15 @@ function formatUTCWeekdayNumberSunday(d) {
 }
 
 function formatUTCWeekNumberMonday(d, p) {
-  return pad$1(utcMonday.count(utcYear(d) - 1, d), p, 2);
+  return pad(utcMonday.count(utcYear(d), d), p, 2);
 }
 
 function formatUTCYear(d, p) {
-  return pad$1(d.getUTCFullYear() % 100, p, 2);
+  return pad(d.getUTCFullYear() % 100, p, 2);
 }
 
 function formatUTCFullYear(d, p) {
-  return pad$1(d.getUTCFullYear() % 10000, p, 4);
+  return pad(d.getUTCFullYear() % 10000, p, 4);
 }
 
 function formatUTCZone() {
@@ -17192,142 +16935,37 @@ function parseIsoNative(string) {
 
 var parseIso = +new Date("2000-01-01T00:00:00.000Z") ? parseIsoNative : utcParse(isoSpecifier);
 
-function colors (specifier) {
-  var n = specifier.length / 6 | 0,
-      colors = new Array(n),
-      i = 0;
-
-  while (i < n) colors[i] = "#" + specifier.slice(i * 6, ++i * 6);
-
-  return colors;
+function colors (s) {
+  return s.match(/.{6}/g).map(function (x) {
+    return "#" + x;
+  });
 }
 
 colors("1f77b4ff7f0e2ca02cd627289467bd8c564be377c27f7f7fbcbd2217becf");
 
-colors("7fc97fbeaed4fdc086ffff99386cb0f0027fbf5b17666666");
+colors("393b795254a36b6ecf9c9ede6379398ca252b5cf6bcedb9c8c6d31bd9e39e7ba52e7cb94843c39ad494ad6616be7969c7b4173a55194ce6dbdde9ed6");
 
-colors("1b9e77d95f027570b3e7298a66a61ee6ab02a6761d666666");
+colors("3182bd6baed69ecae1c6dbefe6550dfd8d3cfdae6bfdd0a231a35474c476a1d99bc7e9c0756bb19e9ac8bcbddcdadaeb636363969696bdbdbdd9d9d9");
 
-colors("a6cee31f78b4b2df8a33a02cfb9a99e31a1cfdbf6fff7f00cab2d66a3d9affff99b15928");
-
-colors("fbb4aeb3cde3ccebc5decbe4fed9a6ffffcce5d8bdfddaecf2f2f2");
-
-colors("b3e2cdfdcdaccbd5e8f4cae4e6f5c9fff2aef1e2cccccccc");
-
-colors("e41a1c377eb84daf4a984ea3ff7f00ffff33a65628f781bf999999");
-
-colors("66c2a5fc8d628da0cbe78ac3a6d854ffd92fe5c494b3b3b3");
-
-colors("8dd3c7ffffb3bebadafb807280b1d3fdb462b3de69fccde5d9d9d9bc80bdccebc5ffed6f");
-
-colors("4e79a7f28e2ce1575976b7b259a14fedc949af7aa1ff9da79c755fbab0ab");
-
-function ramp (scheme) {
-  return rgbBasis(scheme[scheme.length - 1]);
-}
-
-var scheme = new Array(3).concat("d8b365f5f5f55ab4ac", "a6611adfc27d80cdc1018571", "a6611adfc27df5f5f580cdc1018571", "8c510ad8b365f6e8c3c7eae55ab4ac01665e", "8c510ad8b365f6e8c3f5f5f5c7eae55ab4ac01665e", "8c510abf812ddfc27df6e8c3c7eae580cdc135978f01665e", "8c510abf812ddfc27df6e8c3f5f5f5c7eae580cdc135978f01665e", "5430058c510abf812ddfc27df6e8c3c7eae580cdc135978f01665e003c30", "5430058c510abf812ddfc27df6e8c3f5f5f5c7eae580cdc135978f01665e003c30").map(colors);
-ramp(scheme);
-
-var scheme$1 = new Array(3).concat("af8dc3f7f7f77fbf7b", "7b3294c2a5cfa6dba0008837", "7b3294c2a5cff7f7f7a6dba0008837", "762a83af8dc3e7d4e8d9f0d37fbf7b1b7837", "762a83af8dc3e7d4e8f7f7f7d9f0d37fbf7b1b7837", "762a839970abc2a5cfe7d4e8d9f0d3a6dba05aae611b7837", "762a839970abc2a5cfe7d4e8f7f7f7d9f0d3a6dba05aae611b7837", "40004b762a839970abc2a5cfe7d4e8d9f0d3a6dba05aae611b783700441b", "40004b762a839970abc2a5cfe7d4e8f7f7f7d9f0d3a6dba05aae611b783700441b").map(colors);
-ramp(scheme$1);
-
-var scheme$2 = new Array(3).concat("e9a3c9f7f7f7a1d76a", "d01c8bf1b6dab8e1864dac26", "d01c8bf1b6daf7f7f7b8e1864dac26", "c51b7de9a3c9fde0efe6f5d0a1d76a4d9221", "c51b7de9a3c9fde0eff7f7f7e6f5d0a1d76a4d9221", "c51b7dde77aef1b6dafde0efe6f5d0b8e1867fbc414d9221", "c51b7dde77aef1b6dafde0eff7f7f7e6f5d0b8e1867fbc414d9221", "8e0152c51b7dde77aef1b6dafde0efe6f5d0b8e1867fbc414d9221276419", "8e0152c51b7dde77aef1b6dafde0eff7f7f7e6f5d0b8e1867fbc414d9221276419").map(colors);
-ramp(scheme$2);
-
-var scheme$3 = new Array(3).concat("998ec3f7f7f7f1a340", "5e3c99b2abd2fdb863e66101", "5e3c99b2abd2f7f7f7fdb863e66101", "542788998ec3d8daebfee0b6f1a340b35806", "542788998ec3d8daebf7f7f7fee0b6f1a340b35806", "5427888073acb2abd2d8daebfee0b6fdb863e08214b35806", "5427888073acb2abd2d8daebf7f7f7fee0b6fdb863e08214b35806", "2d004b5427888073acb2abd2d8daebfee0b6fdb863e08214b358067f3b08", "2d004b5427888073acb2abd2d8daebf7f7f7fee0b6fdb863e08214b358067f3b08").map(colors);
-ramp(scheme$3);
-
-var scheme$4 = new Array(3).concat("ef8a62f7f7f767a9cf", "ca0020f4a58292c5de0571b0", "ca0020f4a582f7f7f792c5de0571b0", "b2182bef8a62fddbc7d1e5f067a9cf2166ac", "b2182bef8a62fddbc7f7f7f7d1e5f067a9cf2166ac", "b2182bd6604df4a582fddbc7d1e5f092c5de4393c32166ac", "b2182bd6604df4a582fddbc7f7f7f7d1e5f092c5de4393c32166ac", "67001fb2182bd6604df4a582fddbc7d1e5f092c5de4393c32166ac053061", "67001fb2182bd6604df4a582fddbc7f7f7f7d1e5f092c5de4393c32166ac053061").map(colors);
-ramp(scheme$4);
-
-var scheme$5 = new Array(3).concat("ef8a62ffffff999999", "ca0020f4a582bababa404040", "ca0020f4a582ffffffbababa404040", "b2182bef8a62fddbc7e0e0e09999994d4d4d", "b2182bef8a62fddbc7ffffffe0e0e09999994d4d4d", "b2182bd6604df4a582fddbc7e0e0e0bababa8787874d4d4d", "b2182bd6604df4a582fddbc7ffffffe0e0e0bababa8787874d4d4d", "67001fb2182bd6604df4a582fddbc7e0e0e0bababa8787874d4d4d1a1a1a", "67001fb2182bd6604df4a582fddbc7ffffffe0e0e0bababa8787874d4d4d1a1a1a").map(colors);
-ramp(scheme$5);
-
-var scheme$6 = new Array(3).concat("fc8d59ffffbf91bfdb", "d7191cfdae61abd9e92c7bb6", "d7191cfdae61ffffbfabd9e92c7bb6", "d73027fc8d59fee090e0f3f891bfdb4575b4", "d73027fc8d59fee090ffffbfe0f3f891bfdb4575b4", "d73027f46d43fdae61fee090e0f3f8abd9e974add14575b4", "d73027f46d43fdae61fee090ffffbfe0f3f8abd9e974add14575b4", "a50026d73027f46d43fdae61fee090e0f3f8abd9e974add14575b4313695", "a50026d73027f46d43fdae61fee090ffffbfe0f3f8abd9e974add14575b4313695").map(colors);
-ramp(scheme$6);
-
-var scheme$7 = new Array(3).concat("fc8d59ffffbf91cf60", "d7191cfdae61a6d96a1a9641", "d7191cfdae61ffffbfa6d96a1a9641", "d73027fc8d59fee08bd9ef8b91cf601a9850", "d73027fc8d59fee08bffffbfd9ef8b91cf601a9850", "d73027f46d43fdae61fee08bd9ef8ba6d96a66bd631a9850", "d73027f46d43fdae61fee08bffffbfd9ef8ba6d96a66bd631a9850", "a50026d73027f46d43fdae61fee08bd9ef8ba6d96a66bd631a9850006837", "a50026d73027f46d43fdae61fee08bffffbfd9ef8ba6d96a66bd631a9850006837").map(colors);
-ramp(scheme$7);
-
-var scheme$8 = new Array(3).concat("fc8d59ffffbf99d594", "d7191cfdae61abdda42b83ba", "d7191cfdae61ffffbfabdda42b83ba", "d53e4ffc8d59fee08be6f59899d5943288bd", "d53e4ffc8d59fee08bffffbfe6f59899d5943288bd", "d53e4ff46d43fdae61fee08be6f598abdda466c2a53288bd", "d53e4ff46d43fdae61fee08bffffbfe6f598abdda466c2a53288bd", "9e0142d53e4ff46d43fdae61fee08be6f598abdda466c2a53288bd5e4fa2", "9e0142d53e4ff46d43fdae61fee08bffffbfe6f598abdda466c2a53288bd5e4fa2").map(colors);
-ramp(scheme$8);
-
-var scheme$9 = new Array(3).concat("e5f5f999d8c92ca25f", "edf8fbb2e2e266c2a4238b45", "edf8fbb2e2e266c2a42ca25f006d2c", "edf8fbccece699d8c966c2a42ca25f006d2c", "edf8fbccece699d8c966c2a441ae76238b45005824", "f7fcfde5f5f9ccece699d8c966c2a441ae76238b45005824", "f7fcfde5f5f9ccece699d8c966c2a441ae76238b45006d2c00441b").map(colors);
-ramp(scheme$9);
-
-var scheme$a = new Array(3).concat("e0ecf49ebcda8856a7", "edf8fbb3cde38c96c688419d", "edf8fbb3cde38c96c68856a7810f7c", "edf8fbbfd3e69ebcda8c96c68856a7810f7c", "edf8fbbfd3e69ebcda8c96c68c6bb188419d6e016b", "f7fcfde0ecf4bfd3e69ebcda8c96c68c6bb188419d6e016b", "f7fcfde0ecf4bfd3e69ebcda8c96c68c6bb188419d810f7c4d004b").map(colors);
-ramp(scheme$a);
-
-var scheme$b = new Array(3).concat("e0f3dba8ddb543a2ca", "f0f9e8bae4bc7bccc42b8cbe", "f0f9e8bae4bc7bccc443a2ca0868ac", "f0f9e8ccebc5a8ddb57bccc443a2ca0868ac", "f0f9e8ccebc5a8ddb57bccc44eb3d32b8cbe08589e", "f7fcf0e0f3dbccebc5a8ddb57bccc44eb3d32b8cbe08589e", "f7fcf0e0f3dbccebc5a8ddb57bccc44eb3d32b8cbe0868ac084081").map(colors);
-ramp(scheme$b);
-
-var scheme$c = new Array(3).concat("fee8c8fdbb84e34a33", "fef0d9fdcc8afc8d59d7301f", "fef0d9fdcc8afc8d59e34a33b30000", "fef0d9fdd49efdbb84fc8d59e34a33b30000", "fef0d9fdd49efdbb84fc8d59ef6548d7301f990000", "fff7ecfee8c8fdd49efdbb84fc8d59ef6548d7301f990000", "fff7ecfee8c8fdd49efdbb84fc8d59ef6548d7301fb300007f0000").map(colors);
-ramp(scheme$c);
-
-var scheme$d = new Array(3).concat("ece2f0a6bddb1c9099", "f6eff7bdc9e167a9cf02818a", "f6eff7bdc9e167a9cf1c9099016c59", "f6eff7d0d1e6a6bddb67a9cf1c9099016c59", "f6eff7d0d1e6a6bddb67a9cf3690c002818a016450", "fff7fbece2f0d0d1e6a6bddb67a9cf3690c002818a016450", "fff7fbece2f0d0d1e6a6bddb67a9cf3690c002818a016c59014636").map(colors);
-ramp(scheme$d);
-
-var scheme$e = new Array(3).concat("ece7f2a6bddb2b8cbe", "f1eef6bdc9e174a9cf0570b0", "f1eef6bdc9e174a9cf2b8cbe045a8d", "f1eef6d0d1e6a6bddb74a9cf2b8cbe045a8d", "f1eef6d0d1e6a6bddb74a9cf3690c00570b0034e7b", "fff7fbece7f2d0d1e6a6bddb74a9cf3690c00570b0034e7b", "fff7fbece7f2d0d1e6a6bddb74a9cf3690c00570b0045a8d023858").map(colors);
-ramp(scheme$e);
-
-var scheme$f = new Array(3).concat("e7e1efc994c7dd1c77", "f1eef6d7b5d8df65b0ce1256", "f1eef6d7b5d8df65b0dd1c77980043", "f1eef6d4b9dac994c7df65b0dd1c77980043", "f1eef6d4b9dac994c7df65b0e7298ace125691003f", "f7f4f9e7e1efd4b9dac994c7df65b0e7298ace125691003f", "f7f4f9e7e1efd4b9dac994c7df65b0e7298ace125698004367001f").map(colors);
-ramp(scheme$f);
-
-var scheme$g = new Array(3).concat("fde0ddfa9fb5c51b8a", "feebe2fbb4b9f768a1ae017e", "feebe2fbb4b9f768a1c51b8a7a0177", "feebe2fcc5c0fa9fb5f768a1c51b8a7a0177", "feebe2fcc5c0fa9fb5f768a1dd3497ae017e7a0177", "fff7f3fde0ddfcc5c0fa9fb5f768a1dd3497ae017e7a0177", "fff7f3fde0ddfcc5c0fa9fb5f768a1dd3497ae017e7a017749006a").map(colors);
-ramp(scheme$g);
-
-var scheme$h = new Array(3).concat("edf8b17fcdbb2c7fb8", "ffffcca1dab441b6c4225ea8", "ffffcca1dab441b6c42c7fb8253494", "ffffccc7e9b47fcdbb41b6c42c7fb8253494", "ffffccc7e9b47fcdbb41b6c41d91c0225ea80c2c84", "ffffd9edf8b1c7e9b47fcdbb41b6c41d91c0225ea80c2c84", "ffffd9edf8b1c7e9b47fcdbb41b6c41d91c0225ea8253494081d58").map(colors);
-ramp(scheme$h);
-
-var scheme$i = new Array(3).concat("f7fcb9addd8e31a354", "ffffccc2e69978c679238443", "ffffccc2e69978c67931a354006837", "ffffccd9f0a3addd8e78c67931a354006837", "ffffccd9f0a3addd8e78c67941ab5d238443005a32", "ffffe5f7fcb9d9f0a3addd8e78c67941ab5d238443005a32", "ffffe5f7fcb9d9f0a3addd8e78c67941ab5d238443006837004529").map(colors);
-ramp(scheme$i);
-
-var scheme$j = new Array(3).concat("fff7bcfec44fd95f0e", "ffffd4fed98efe9929cc4c02", "ffffd4fed98efe9929d95f0e993404", "ffffd4fee391fec44ffe9929d95f0e993404", "ffffd4fee391fec44ffe9929ec7014cc4c028c2d04", "ffffe5fff7bcfee391fec44ffe9929ec7014cc4c028c2d04", "ffffe5fff7bcfee391fec44ffe9929ec7014cc4c02993404662506").map(colors);
-ramp(scheme$j);
-
-var scheme$k = new Array(3).concat("ffeda0feb24cf03b20", "ffffb2fecc5cfd8d3ce31a1c", "ffffb2fecc5cfd8d3cf03b20bd0026", "ffffb2fed976feb24cfd8d3cf03b20bd0026", "ffffb2fed976feb24cfd8d3cfc4e2ae31a1cb10026", "ffffccffeda0fed976feb24cfd8d3cfc4e2ae31a1cb10026", "ffffccffeda0fed976feb24cfd8d3cfc4e2ae31a1cbd0026800026").map(colors);
-ramp(scheme$k);
-
-var scheme$l = new Array(3).concat("deebf79ecae13182bd", "eff3ffbdd7e76baed62171b5", "eff3ffbdd7e76baed63182bd08519c", "eff3ffc6dbef9ecae16baed63182bd08519c", "eff3ffc6dbef9ecae16baed64292c62171b5084594", "f7fbffdeebf7c6dbef9ecae16baed64292c62171b5084594", "f7fbffdeebf7c6dbef9ecae16baed64292c62171b508519c08306b").map(colors);
-ramp(scheme$l);
-
-var scheme$m = new Array(3).concat("e5f5e0a1d99b31a354", "edf8e9bae4b374c476238b45", "edf8e9bae4b374c47631a354006d2c", "edf8e9c7e9c0a1d99b74c47631a354006d2c", "edf8e9c7e9c0a1d99b74c47641ab5d238b45005a32", "f7fcf5e5f5e0c7e9c0a1d99b74c47641ab5d238b45005a32", "f7fcf5e5f5e0c7e9c0a1d99b74c47641ab5d238b45006d2c00441b").map(colors);
-ramp(scheme$m);
-
-var scheme$n = new Array(3).concat("f0f0f0bdbdbd636363", "f7f7f7cccccc969696525252", "f7f7f7cccccc969696636363252525", "f7f7f7d9d9d9bdbdbd969696636363252525", "f7f7f7d9d9d9bdbdbd969696737373525252252525", "fffffff0f0f0d9d9d9bdbdbd969696737373525252252525", "fffffff0f0f0d9d9d9bdbdbd969696737373525252252525000000").map(colors);
-ramp(scheme$n);
-
-var scheme$o = new Array(3).concat("efedf5bcbddc756bb1", "f2f0f7cbc9e29e9ac86a51a3", "f2f0f7cbc9e29e9ac8756bb154278f", "f2f0f7dadaebbcbddc9e9ac8756bb154278f", "f2f0f7dadaebbcbddc9e9ac8807dba6a51a34a1486", "fcfbfdefedf5dadaebbcbddc9e9ac8807dba6a51a34a1486", "fcfbfdefedf5dadaebbcbddc9e9ac8807dba6a51a354278f3f007d").map(colors);
-ramp(scheme$o);
-
-var scheme$p = new Array(3).concat("fee0d2fc9272de2d26", "fee5d9fcae91fb6a4acb181d", "fee5d9fcae91fb6a4ade2d26a50f15", "fee5d9fcbba1fc9272fb6a4ade2d26a50f15", "fee5d9fcbba1fc9272fb6a4aef3b2ccb181d99000d", "fff5f0fee0d2fcbba1fc9272fb6a4aef3b2ccb181d99000d", "fff5f0fee0d2fcbba1fc9272fb6a4aef3b2ccb181da50f1567000d").map(colors);
-ramp(scheme$p);
-
-var scheme$q = new Array(3).concat("fee6cefdae6be6550d", "feeddefdbe85fd8d3cd94701", "feeddefdbe85fd8d3ce6550da63603", "feeddefdd0a2fdae6bfd8d3ce6550da63603", "feeddefdd0a2fdae6bfd8d3cf16913d948018c2d04", "fff5ebfee6cefdd0a2fdae6bfd8d3cf16913d948018c2d04", "fff5ebfee6cefdd0a2fdae6bfd8d3cf16913d94801a636037f2704").map(colors);
-ramp(scheme$q);
+colors("1f77b4aec7e8ff7f0effbb782ca02c98df8ad62728ff98969467bdc5b0d58c564bc49c94e377c2f7b6d27f7f7fc7c7c7bcbd22dbdb8d17becf9edae5");
 
 cubehelixLong(cubehelix(300, 0.5, 0.0), cubehelix(-240, 0.5, 1.0));
 
 var warm = cubehelixLong(cubehelix(-100, 0.75, 0.35), cubehelix(80, 1.50, 0.8));
 var cool = cubehelixLong(cubehelix(260, 0.75, 0.35), cubehelix(80, 1.50, 0.8));
-var c = cubehelix();
+var rainbow = cubehelix();
 
-var c$1 = rgb(),
-    pi_1_3 = Math.PI / 3,
-    pi_2_3 = Math.PI * 2 / 3;
-
-function ramp$1(range) {
+function ramp(range) {
   var n = range.length;
   return function (t) {
     return range[Math.max(0, Math.min(n - 1, Math.floor(t * n)))];
   };
 }
 
-ramp$1(colors("44015444025645045745055946075a46085c460a5d460b5e470d60470e6147106347116447136548146748166848176948186a481a6c481b6d481c6e481d6f481f70482071482173482374482475482576482677482878482979472a7a472c7a472d7b472e7c472f7d46307e46327e46337f463480453581453781453882443983443a83443b84433d84433e85423f854240864241864142874144874045884046883f47883f48893e49893e4a893e4c8a3d4d8a3d4e8a3c4f8a3c508b3b518b3b528b3a538b3a548c39558c39568c38588c38598c375a8c375b8d365c8d365d8d355e8d355f8d34608d34618d33628d33638d32648e32658e31668e31678e31688e30698e306a8e2f6b8e2f6c8e2e6d8e2e6e8e2e6f8e2d708e2d718e2c718e2c728e2c738e2b748e2b758e2a768e2a778e2a788e29798e297a8e297b8e287c8e287d8e277e8e277f8e27808e26818e26828e26828e25838e25848e25858e24868e24878e23888e23898e238a8d228b8d228c8d228d8d218e8d218f8d21908d21918c20928c20928c20938c1f948c1f958b1f968b1f978b1f988b1f998a1f9a8a1e9b8a1e9c891e9d891f9e891f9f881fa0881fa1881fa1871fa28720a38620a48621a58521a68522a78522a88423a98324aa8325ab8225ac8226ad8127ad8128ae8029af7f2ab07f2cb17e2db27d2eb37c2fb47c31b57b32b67a34b67935b77937b87838b9773aba763bbb753dbc743fbc7340bd7242be7144bf7046c06f48c16e4ac16d4cc26c4ec36b50c46a52c56954c56856c66758c7655ac8645cc8635ec96260ca6063cb5f65cb5e67cc5c69cd5b6ccd5a6ece5870cf5773d05675d05477d1537ad1517cd2507fd34e81d34d84d44b86d54989d5488bd6468ed64590d74393d74195d84098d83e9bd93c9dd93ba0da39a2da37a5db36a8db34aadc32addc30b0dd2fb2dd2db5de2bb8de29bade28bddf26c0df25c2df23c5e021c8e020cae11fcde11dd0e11cd2e21bd5e21ad8e219dae319dde318dfe318e2e418e5e419e7e419eae51aece51befe51cf1e51df4e61ef6e620f8e621fbe723fde725"));
-var magma = ramp$1(colors("00000401000501010601010802010902020b02020d03030f03031204041405041606051806051a07061c08071e0907200a08220b09240c09260d0a290e0b2b100b2d110c2f120d31130d34140e36150e38160f3b180f3d19103f1a10421c10441d11471e114920114b21114e22115024125325125527125829115a2a115c2c115f2d11612f116331116533106734106936106b38106c390f6e3b0f703d0f713f0f72400f74420f75440f764510774710784910784a10794c117a4e117b4f127b51127c52137c54137d56147d57157e59157e5a167e5c167f5d177f5f187f601880621980641a80651a80671b80681c816a1c816b1d816d1d816e1e81701f81721f817320817521817621817822817922827b23827c23827e24828025828125818326818426818627818827818928818b29818c29818e2a81902a81912b81932b80942c80962c80982d80992d809b2e7f9c2e7f9e2f7fa02f7fa1307ea3307ea5317ea6317da8327daa337dab337cad347cae347bb0357bb2357bb3367ab5367ab73779b83779ba3878bc3978bd3977bf3a77c03a76c23b75c43c75c53c74c73d73c83e73ca3e72cc3f71cd4071cf4070d0416fd2426fd3436ed5446dd6456cd8456cd9466bdb476adc4869de4968df4a68e04c67e24d66e34e65e44f64e55064e75263e85362e95462ea5661eb5760ec5860ed5a5fee5b5eef5d5ef05f5ef1605df2625df2645cf3655cf4675cf4695cf56b5cf66c5cf66e5cf7705cf7725cf8745cf8765cf9785df9795df97b5dfa7d5efa7f5efa815ffb835ffb8560fb8761fc8961fc8a62fc8c63fc8e64fc9065fd9266fd9467fd9668fd9869fd9a6afd9b6bfe9d6cfe9f6dfea16efea36ffea571fea772fea973feaa74feac76feae77feb078feb27afeb47bfeb67cfeb77efeb97ffebb81febd82febf84fec185fec287fec488fec68afec88cfeca8dfecc8ffecd90fecf92fed194fed395fed597fed799fed89afdda9cfddc9efddea0fde0a1fde2a3fde3a5fde5a7fde7a9fde9aafdebacfcecaefceeb0fcf0b2fcf2b4fcf4b6fcf6b8fcf7b9fcf9bbfcfbbdfcfdbf"));
-var inferno = ramp$1(colors("00000401000501010601010802010a02020c02020e03021004031204031405041706041907051b08051d09061f0a07220b07240c08260d08290e092b10092d110a30120a32140b34150b37160b39180c3c190c3e1b0c411c0c431e0c451f0c48210c4a230c4c240c4f260c51280b53290b552b0b572d0b592f0a5b310a5c320a5e340a5f3609613809623909633b09643d09653e0966400a67420a68440a68450a69470b6a490b6a4a0c6b4c0c6b4d0d6c4f0d6c510e6c520e6d540f6d550f6d57106e59106e5a116e5c126e5d126e5f136e61136e62146e64156e65156e67166e69166e6a176e6c186e6d186e6f196e71196e721a6e741a6e751b6e771c6d781c6d7a1d6d7c1d6d7d1e6d7f1e6c801f6c82206c84206b85216b87216b88226a8a226a8c23698d23698f24699025689225689326679526679727669827669a28659b29649d29649f2a63a02a63a22b62a32c61a52c60a62d60a82e5fa92e5eab2f5ead305dae305cb0315bb1325ab3325ab43359b63458b73557b93556ba3655bc3754bd3853bf3952c03a51c13a50c33b4fc43c4ec63d4dc73e4cc83f4bca404acb4149cc4248ce4347cf4446d04545d24644d34743d44842d54a41d74b3fd84c3ed94d3dda4e3cdb503bdd513ade5238df5337e05536e15635e25734e35933e45a31e55c30e65d2fe75e2ee8602de9612bea632aeb6429eb6628ec6726ed6925ee6a24ef6c23ef6e21f06f20f1711ff1731df2741cf3761bf37819f47918f57b17f57d15f67e14f68013f78212f78410f8850ff8870ef8890cf98b0bf98c0af98e09fa9008fa9207fa9407fb9606fb9706fb9906fb9b06fb9d07fc9f07fca108fca309fca50afca60cfca80dfcaa0ffcac11fcae12fcb014fcb216fcb418fbb61afbb81dfbba1ffbbc21fbbe23fac026fac228fac42afac62df9c72ff9c932f9cb35f8cd37f8cf3af7d13df7d340f6d543f6d746f5d949f5db4cf4dd4ff4df53f4e156f3e35af3e55df2e661f2e865f2ea69f1ec6df1ed71f1ef75f1f179f2f27df2f482f3f586f3f68af4f88ef5f992f6fa96f8fb9af9fc9dfafda1fcffa4"));
-var plasma = ramp$1(colors("0d088710078813078916078a19068c1b068d1d068e20068f2206902406912605912805922a05932c05942e05952f059631059733059735049837049938049a3a049a3c049b3e049c3f049c41049d43039e44039e46039f48039f4903a04b03a14c02a14e02a25002a25102a35302a35502a45601a45801a45901a55b01a55c01a65e01a66001a66100a76300a76400a76600a76700a86900a86a00a86c00a86e00a86f00a87100a87201a87401a87501a87701a87801a87a02a87b02a87d03a87e03a88004a88104a78305a78405a78606a68707a68808a68a09a58b0aa58d0ba58e0ca48f0da4910ea3920fa39410a29511a19613a19814a099159f9a169f9c179e9d189d9e199da01a9ca11b9ba21d9aa31e9aa51f99a62098a72197a82296aa2395ab2494ac2694ad2793ae2892b02991b12a90b22b8fb32c8eb42e8db52f8cb6308bb7318ab83289ba3388bb3488bc3587bd3786be3885bf3984c03a83c13b82c23c81c33d80c43e7fc5407ec6417dc7427cc8437bc9447aca457acb4679cc4778cc4977cd4a76ce4b75cf4c74d04d73d14e72d24f71d35171d45270d5536fd5546ed6556dd7566cd8576bd9586ada5a6ada5b69db5c68dc5d67dd5e66de5f65de6164df6263e06363e16462e26561e26660e3685fe4695ee56a5de56b5de66c5ce76e5be76f5ae87059e97158e97257ea7457eb7556eb7655ec7754ed7953ed7a52ee7b51ef7c51ef7e50f07f4ff0804ef1814df1834cf2844bf3854bf3874af48849f48948f58b47f58c46f68d45f68f44f79044f79143f79342f89441f89540f9973ff9983ef99a3efa9b3dfa9c3cfa9e3bfb9f3afba139fba238fca338fca537fca636fca835fca934fdab33fdac33fdae32fdaf31fdb130fdb22ffdb42ffdb52efeb72dfeb82cfeba2cfebb2bfebd2afebe2afec029fdc229fdc328fdc527fdc627fdc827fdca26fdcb26fccd25fcce25fcd025fcd225fbd324fbd524fbd724fad824fada24f9dc24f9dd25f8df25f8e125f7e225f7e425f6e626f6e826f5e926f5eb27f4ed27f3ee27f3f027f2f227f1f426f1f525f0f724f0f921"));
+ramp(colors("44015444025645045745055946075a46085c460a5d460b5e470d60470e6147106347116447136548146748166848176948186a481a6c481b6d481c6e481d6f481f70482071482173482374482475482576482677482878482979472a7a472c7a472d7b472e7c472f7d46307e46327e46337f463480453581453781453882443983443a83443b84433d84433e85423f854240864241864142874144874045884046883f47883f48893e49893e4a893e4c8a3d4d8a3d4e8a3c4f8a3c508b3b518b3b528b3a538b3a548c39558c39568c38588c38598c375a8c375b8d365c8d365d8d355e8d355f8d34608d34618d33628d33638d32648e32658e31668e31678e31688e30698e306a8e2f6b8e2f6c8e2e6d8e2e6e8e2e6f8e2d708e2d718e2c718e2c728e2c738e2b748e2b758e2a768e2a778e2a788e29798e297a8e297b8e287c8e287d8e277e8e277f8e27808e26818e26828e26828e25838e25848e25858e24868e24878e23888e23898e238a8d228b8d228c8d228d8d218e8d218f8d21908d21918c20928c20928c20938c1f948c1f958b1f968b1f978b1f988b1f998a1f9a8a1e9b8a1e9c891e9d891f9e891f9f881fa0881fa1881fa1871fa28720a38620a48621a58521a68522a78522a88423a98324aa8325ab8225ac8226ad8127ad8128ae8029af7f2ab07f2cb17e2db27d2eb37c2fb47c31b57b32b67a34b67935b77937b87838b9773aba763bbb753dbc743fbc7340bd7242be7144bf7046c06f48c16e4ac16d4cc26c4ec36b50c46a52c56954c56856c66758c7655ac8645cc8635ec96260ca6063cb5f65cb5e67cc5c69cd5b6ccd5a6ece5870cf5773d05675d05477d1537ad1517cd2507fd34e81d34d84d44b86d54989d5488bd6468ed64590d74393d74195d84098d83e9bd93c9dd93ba0da39a2da37a5db36a8db34aadc32addc30b0dd2fb2dd2db5de2bb8de29bade28bddf26c0df25c2df23c5e021c8e020cae11fcde11dd0e11cd2e21bd5e21ad8e219dae319dde318dfe318e2e418e5e419e7e419eae51aece51befe51cf1e51df4e61ef6e620f8e621fbe723fde725"));
+var magma = ramp(colors("00000401000501010601010802010902020b02020d03030f03031204041405041606051806051a07061c08071e0907200a08220b09240c09260d0a290e0b2b100b2d110c2f120d31130d34140e36150e38160f3b180f3d19103f1a10421c10441d11471e114920114b21114e22115024125325125527125829115a2a115c2c115f2d11612f116331116533106734106936106b38106c390f6e3b0f703d0f713f0f72400f74420f75440f764510774710784910784a10794c117a4e117b4f127b51127c52137c54137d56147d57157e59157e5a167e5c167f5d177f5f187f601880621980641a80651a80671b80681c816a1c816b1d816d1d816e1e81701f81721f817320817521817621817822817922827b23827c23827e24828025828125818326818426818627818827818928818b29818c29818e2a81902a81912b81932b80942c80962c80982d80992d809b2e7f9c2e7f9e2f7fa02f7fa1307ea3307ea5317ea6317da8327daa337dab337cad347cae347bb0357bb2357bb3367ab5367ab73779b83779ba3878bc3978bd3977bf3a77c03a76c23b75c43c75c53c74c73d73c83e73ca3e72cc3f71cd4071cf4070d0416fd2426fd3436ed5446dd6456cd8456cd9466bdb476adc4869de4968df4a68e04c67e24d66e34e65e44f64e55064e75263e85362e95462ea5661eb5760ec5860ed5a5fee5b5eef5d5ef05f5ef1605df2625df2645cf3655cf4675cf4695cf56b5cf66c5cf66e5cf7705cf7725cf8745cf8765cf9785df9795df97b5dfa7d5efa7f5efa815ffb835ffb8560fb8761fc8961fc8a62fc8c63fc8e64fc9065fd9266fd9467fd9668fd9869fd9a6afd9b6bfe9d6cfe9f6dfea16efea36ffea571fea772fea973feaa74feac76feae77feb078feb27afeb47bfeb67cfeb77efeb97ffebb81febd82febf84fec185fec287fec488fec68afec88cfeca8dfecc8ffecd90fecf92fed194fed395fed597fed799fed89afdda9cfddc9efddea0fde0a1fde2a3fde3a5fde5a7fde7a9fde9aafdebacfcecaefceeb0fcf0b2fcf2b4fcf4b6fcf6b8fcf7b9fcf9bbfcfbbdfcfdbf"));
+var inferno = ramp(colors("00000401000501010601010802010a02020c02020e03021004031204031405041706041907051b08051d09061f0a07220b07240c08260d08290e092b10092d110a30120a32140b34150b37160b39180c3c190c3e1b0c411c0c431e0c451f0c48210c4a230c4c240c4f260c51280b53290b552b0b572d0b592f0a5b310a5c320a5e340a5f3609613809623909633b09643d09653e0966400a67420a68440a68450a69470b6a490b6a4a0c6b4c0c6b4d0d6c4f0d6c510e6c520e6d540f6d550f6d57106e59106e5a116e5c126e5d126e5f136e61136e62146e64156e65156e67166e69166e6a176e6c186e6d186e6f196e71196e721a6e741a6e751b6e771c6d781c6d7a1d6d7c1d6d7d1e6d7f1e6c801f6c82206c84206b85216b87216b88226a8a226a8c23698d23698f24699025689225689326679526679727669827669a28659b29649d29649f2a63a02a63a22b62a32c61a52c60a62d60a82e5fa92e5eab2f5ead305dae305cb0315bb1325ab3325ab43359b63458b73557b93556ba3655bc3754bd3853bf3952c03a51c13a50c33b4fc43c4ec63d4dc73e4cc83f4bca404acb4149cc4248ce4347cf4446d04545d24644d34743d44842d54a41d74b3fd84c3ed94d3dda4e3cdb503bdd513ade5238df5337e05536e15635e25734e35933e45a31e55c30e65d2fe75e2ee8602de9612bea632aeb6429eb6628ec6726ed6925ee6a24ef6c23ef6e21f06f20f1711ff1731df2741cf3761bf37819f47918f57b17f57d15f67e14f68013f78212f78410f8850ff8870ef8890cf98b0bf98c0af98e09fa9008fa9207fa9407fb9606fb9706fb9906fb9b06fb9d07fc9f07fca108fca309fca50afca60cfca80dfcaa0ffcac11fcae12fcb014fcb216fcb418fbb61afbb81dfbba1ffbbc21fbbe23fac026fac228fac42afac62df9c72ff9c932f9cb35f8cd37f8cf3af7d13df7d340f6d543f6d746f5d949f5db4cf4dd4ff4df53f4e156f3e35af3e55df2e661f2e865f2ea69f1ec6df1ed71f1ef75f1f179f2f27df2f482f3f586f3f68af4f88ef5f992f6fa96f8fb9af9fc9dfafda1fcffa4"));
+var plasma = ramp(colors("0d088710078813078916078a19068c1b068d1d068e20068f2206902406912605912805922a05932c05942e05952f059631059733059735049837049938049a3a049a3c049b3e049c3f049c41049d43039e44039e46039f48039f4903a04b03a14c02a14e02a25002a25102a35302a35502a45601a45801a45901a55b01a55c01a65e01a66001a66100a76300a76400a76600a76700a86900a86a00a86c00a86e00a86f00a87100a87201a87401a87501a87701a87801a87a02a87b02a87d03a87e03a88004a88104a78305a78405a78606a68707a68808a68a09a58b0aa58d0ba58e0ca48f0da4910ea3920fa39410a29511a19613a19814a099159f9a169f9c179e9d189d9e199da01a9ca11b9ba21d9aa31e9aa51f99a62098a72197a82296aa2395ab2494ac2694ad2793ae2892b02991b12a90b22b8fb32c8eb42e8db52f8cb6308bb7318ab83289ba3388bb3488bc3587bd3786be3885bf3984c03a83c13b82c23c81c33d80c43e7fc5407ec6417dc7427cc8437bc9447aca457acb4679cc4778cc4977cd4a76ce4b75cf4c74d04d73d14e72d24f71d35171d45270d5536fd5546ed6556dd7566cd8576bd9586ada5a6ada5b69db5c68dc5d67dd5e66de5f65de6164df6263e06363e16462e26561e26660e3685fe4695ee56a5de56b5de66c5ce76e5be76f5ae87059e97158e97257ea7457eb7556eb7655ec7754ed7953ed7a52ee7b51ef7c51ef7e50f07f4ff0804ef1814df1834cf2844bf3854bf3874af48849f48948f58b47f58c46f68d45f68f44f79044f79143f79342f89441f89540f9973ff9983ef99a3efa9b3dfa9c3cfa9e3bfb9f3afba139fba238fca338fca537fca636fca835fca934fdab33fdac33fdae32fdaf31fdb130fdb22ffdb42ffdb52efeb72dfeb82cfeba2cfebb2bfebd2afebe2afec029fdc229fdc328fdc527fdc627fdc827fdca26fdcb26fccd25fcce25fcd025fcd225fbd324fbd524fbd724fad824fada24f9dc24f9dd25f8df25f8e125f7e225f7e425f6e626f6e826f5e926f5eb27f4ed27f3ee27f3f027f2f227f1f426f1f525f0f724f0f921"));
 
 var pi$4 = Math.PI;
 

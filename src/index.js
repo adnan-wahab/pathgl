@@ -8,7 +8,6 @@ import createScroll from 'scroll-speed';
 import _ from 'lodash';
 import * as d3 from 'd3'
 import createLine from 'regl-line'
-
 import createDrawLines from './edges';
 
 import BG_FS from './bg.fs';
@@ -208,7 +207,11 @@ const createScatterplot = ({
   };
 
   const select = points => {
-    selection = points;
+    points.forEach(p => {
+      selection.includes(p) ?  _.pull(selection, p) : selection.push(p)
+    })
+    console.log(selection, points)
+
 
     selectedPointsIndexBuffer({
       usage: 'dynamic',

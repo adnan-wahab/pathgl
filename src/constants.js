@@ -21,9 +21,9 @@ export const DEFAULT_POINT_OUTLINE_WIDTH = 2;
 // Default colors
 export const DEFAULT_COLORMAP = [];
 export const DEFAULT_COLOR_BY = null;
-export const DEFAULT_COLOR_NORMAL = [0.66, 0.66, 0.66, 1];
+export const DEFAULT_COLOR_NORMAL = [1, 0.66, 0.66, 1];
 export const DEFAULT_COLOR_ACTIVE = [0, 0.55, 1, 1];
-export const DEFAULT_COLOR_HOVER = [1, 1, 1, 1];
+export const DEFAULT_COLOR_HOVER = [0, 1, 1, 1];
 export const DEFAULT_COLOR_BG = [0, 0, 0, 1];
 export const DEFAULT_COLORS = [
   DEFAULT_COLOR_NORMAL,
@@ -46,6 +46,5 @@ export const DEFAULT_VIEW = new Float32Array([
 
 // Default misc
 export const DEFAULT_BACKGROUND_IMAGE = null;
-export const DEFAULT_LASSO_COLOR = [0, 0.666666667, 1, 1];
-export const DEFAULT_SHOW_RECTICLE = false;
+export const DEFAULT_SHOW_RECTICLE = true;
 export const DEFAULT_RECTICLE_COLOR = [1, 1, 1, 0.5];

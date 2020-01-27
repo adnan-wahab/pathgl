@@ -4,7 +4,7 @@
   (factory((global.createScatterplot = {}),global.createPubSub,global.createREGL));
 }(this, (function (exports,createPubSub,createOriginalRegl) { 'use strict';
 
-  var VERSION = "0.0.7";
+  var VERSION = "0.0.8";
 
   createPubSub = createPubSub && createPubSub.hasOwnProperty('default') ? createPubSub['default'] : createPubSub;
   createOriginalRegl = createOriginalRegl && createOriginalRegl.hasOwnProperty('default') ? createOriginalRegl['default'] : createOriginalRegl;

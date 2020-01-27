@@ -4,6 +4,7 @@ const FRAGMENT_SHADER = `
 #endif
 
 precision mediump float;
+uniform vec2 selection;
 
 varying vec4 color;
 

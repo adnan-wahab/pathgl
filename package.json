@@ -69,7 +69,7 @@
     "canvas-camera-2d": "^0.5.5",
     "canvas-fit": "^1.5.0",
     "canvas-orbit-camera": "^1.0.2",
-    "d3": "^4.8.0",
+    "d3": "5.15.0",
     "d3-dispatch": "^1.0.6",
     "gl-mat4": "^1.1.4",
     "gl-matrix": "^2.8.1",

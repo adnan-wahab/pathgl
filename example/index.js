@@ -34,18 +34,92 @@ let main = () => {
   load('./data/dataKMeans.json')
 }
 
+let makeRandom = () => {
+
+  return new Date(2019, Math.random() * 12 | 0, Math.random() * 30 | 0)
+}
 
 let load = (url) => {
   fetch(url)
     .then((body)=>{ return body.json() })
     .then((json)=>{
-      GraphRenderer.init({ data: json, canvas: canvas })
+      console.log(json)
+
+      json.nodes.forEach (d => {if (! d.attributes.date) d.attributes.date = makeRandom()} )
+
+      let points = json.nodes;
+      const pointoverHandler = pointId => {
+        console.log('Over point:', points[pointId].attributes.date);
+        //const [x, y, category, value] = points[pointId];
+        //onsole.log(`X: ${x}\nY: ${y}\nCategory: ${category}\nValue: ${value}`);
+      };
+      let s = GraphRenderer.init({ data: json, canvas: canvas })
+
+      s.subscribe('pointover', pointoverHandler)
     })
 
+
 }
+let width = 1000, height = 100
+let margin = {
+  top: 10,
+  left: 10,
+  right: 10,
+  bottom: 10
+}
+
+let interval = d3.timeDay.every(1)
+
+let x = d3.scaleTime()
+    .domain([new Date(2019, 1, 1), new Date(2019, 12, 30)])
+    .rangeRound([margin.left, width - margin.right])
+
+let xAxis = g => g
+    .attr("transform", `translate(0,${height - margin.bottom})`)
+    .call(g => g.append("g")
+        .call(d3.axisBottom(x)
+            .ticks(interval)
+            .tickSize(-height + margin.top + margin.bottom)
+            .tickFormat(() => null))
+        .call(g => g.select(".domain")
+            .attr("fill", "#ddd")
+            .attr("stroke", null))
+        .call(g => g.selectAll(".tick line")
+            .attr("stroke", "#fff")
+            .attr("stroke-opacity", d => d <= d3.timeDay(d) ? 1 : 0.5)))
+    .call(g => g.append("g")
+        .call(d3.axisBottom(x)
+            .ticks(d3.timeDay)
+            .tickPadding(0))
+        .attr("text-anchor", null)
+        .call(g => g.select(".domain").remove())
+        .call(g => g.selectAll("text").attr("x", 6)))
 
 d3.select(window).on('load', main)
 
+const svg = d3.select('body').append("svg")
+    .attr("viewBox", [0, 0, width, height]);
+
+const brush = d3.brushX()
+    .extent([[margin.left, margin.top], [width - margin.right, height - margin.bottom]])
+    .on("end", brushended);
+
+svg.append("g")
+    .call(xAxis);
+
+svg.append("g")
+    .call(brush);
+
+function brushended() {
+  const selection = d3.event.selection;
+  if (!d3.event.sourceEvent || !selection) return;
+  const [x0, x1] = selection.map(d => interval.round(x.invert(d)));
+  console.log(x0, x1)
+  window.getAdnan = () => {return [+x0, +x1]}
+
+  d3.select(this).transition().call(brush.move, x1 > x0 ? [x0, x1].map(x) : null);
+}
+window.svg = svg
 
 // const canvas = document.querySelector('#canvas');
 // const numPointsEl = document.querySelector('#num-points');
@@ -58,7 +132,6 @@ d3.select(window).on('load', main)
 //
 // let { width, height } = canvas.getBoundingClientRect();
 //
-// let points = [];
 // let numPoints = 100000;
 // let pointSize = 2;
 // let opacity = 0.33;
@@ -69,11 +142,7 @@ d3.select(window).on('load', main)
 // const showRecticle = true;
 // const recticleColor = [1, 1, 0.878431373, 0.33];
 //
-// const pointoverHandler = pointId => {
-//   console.log('Over point:', pointId);
-//   const [x, y, category, value] = points[pointId];
-//   console.log(`X: ${x}\nY: ${y}\nCategory: ${category}\nValue: ${value}`);
-// };
+
 //
 // const pointoutHandler = pointId => {
 //   console.log('Out point:', pointId);

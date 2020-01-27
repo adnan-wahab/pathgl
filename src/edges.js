@@ -13,10 +13,12 @@ function createDrawLines(regl, options) {
       frag: `
       precision mediump float;
       varying vec3 v_color;
+      varying vec3 wow;
       uniform float opacity;
 
+
       void main() {
-        gl_FragColor = vec4(v_color, .9);
+        gl_FragColor = vec4(v_color + wow, .9);
       }`,
 
       vert: `
@@ -32,10 +34,18 @@ function createDrawLines(regl, options) {
       uniform vec2 offset;
       uniform float tick;
       uniform float phase;
+
       uniform float freq;
+      attribute float dates;
+
+      varying vec3 wow;
+      uniform vec2 selection;
 
       void main() {
         vec2 p  = position;
+
+        if (selection.x < dates && dates < selection.y )
+        wow = vec3(1);
 
         v_color = color;
 
@@ -63,8 +73,11 @@ function createDrawLines(regl, options) {
         phase: 0.0,
         freq: 0.01,
         opacity: .5,
+        selection: () => {
+          return window.getAdnan ?
+           window.getAdnan() : [1,1]
+        },
         view: () => {
-          console.log('123')
           return   window.getView()
         }, projection: [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]
 

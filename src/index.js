@@ -720,7 +720,7 @@ const createScatterplot = ({
     if (hoveredPoint >= 0) drawHoveredPoint();
     if (selection.length) drawSelectedPoint();
     lasso.draw();
-    console.log('view', getView())
+    //console.log('view', getView())
 
 
     // Publish camera change
@@ -997,6 +997,7 @@ let clip = (d) => {
 }
 
 let processKMeans = (data) => {
+  console.log(data)
     let edges = new Array(data.edges.length * 4).fill(0);
     data.edges.forEach((edge, idx) => {
       edges[idx*4] = clip(data.nodes[edge.source].x)
@@ -1004,6 +1005,11 @@ let processKMeans = (data) => {
       edges[idx*4+2] = clip(data.nodes[edge.target].x)
       edges[idx*4+3] = clip(data.nodes[edge.target].y)
     });
+
+
+    let dates = data.edges.map((edge, idx) => {
+      return + data.nodes[edge.source].attributes.date
+    })
     let color = _.flatten(data.edges.map((e) => {
       let c = d3.color(data.nodes[e.source].color);
       return [c.r /255 , c.g /255 , c.b /255];
@@ -1015,12 +1021,12 @@ let processKMeans = (data) => {
     return {
       position: edges,
       color,
+      dates,
       fboColor
     }
   }
   let init = (options) => {
-    console.log(createRegl)
-
+  console.log(createRegl)
   options.regl = createRegl(options.canvas)
   options.attributes= processKMeans(options.data)
   console.log(options.attributes)
@@ -1039,15 +1045,16 @@ let processKMeans = (data) => {
   console.log('yay')
 
   let pointoverHandler = (pid) => {
-    console.log('wee', pid)
+    console.log(pid)
   }
 
   const points = options.data.nodes
     .map((d) => {
-      return [d.x / 4000, d.y /4000, '#f0ffff']});
-      console.log(points.length,scatterplot.get('regl'))
+      return [d.x / 4000, d.y /4000, 123, '#000000']});
+      //console.log(points.length,scatterplot.get('regl'))
     scatterplot.draw(points);
-    scatterplot.subscribe('pointover', pointoverHandler);
+    //scatterplot.subscribe('pointover', pointoverHandler);
+    return scatterplot
     //scatterplot.set({ showRecticle: true, recticleColor: [1, 0, 0, 0.66] });
 
 }

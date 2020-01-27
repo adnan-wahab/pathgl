@@ -54,7 +54,7 @@ import {
   min
 } from './utils';
 
-const createScatterplot = ({
+const creategraph = ({
   regl: initialRegl,
   background: initialBackground = DEFAULT_COLOR_BG,
   backgroundImage: initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE,
@@ -65,14 +65,17 @@ const createScatterplot = ({
   recticleColor: initialRecticleColor = DEFAULT_RECTICLE_COLOR,
   pointSize: initialPointSize = DEFAULT_POINT_SIZE,
   pointSizeSelected: initialPointSizeSelected = DEFAULT_POINT_SIZE_SELECTED,
-  pointOutlineWidth: initialPointOutlineWidth = DEFAULT_POINT_OUTLINE_WIDTH,
+  pointOutlineWidth: initialPointOutlineWidth = 2,
   width: initialWidth = DEFAULT_WIDTH,
   height: initialHeight = DEFAULT_HEIGHT,
   target: initialTarget = DEFAULT_TARGET,
   distance: initialDistance = DEFAULT_DISTANCE,
   rotation: initialRotation = DEFAULT_ROTATION,
   view: initialView = DEFAULT_VIEW,
-  drawLines: initialDrawLines
+  drawLines: initialDrawLines,
+
+  onHover: onHover = () => {},
+  onClick: onClick = () => {}
 } = {}) => {
   const pubSub = createPubSub();
   const scratch = new Float32Array(16);
@@ -265,6 +268,7 @@ const createScatterplot = ({
     const clickDist = dist(...currentMousePosition, ...mouseDownPosition);
     const clostestPoint = raycast();
     if (clostestPoint >= 0) select([clostestPoint]);
+    onClick(selection)
   };
 
   const mouseDblClickHandler = () => {
@@ -279,6 +283,7 @@ const createScatterplot = ({
     if (isMouseInCanvas && !mouseDownShift) {
       const clostestPoint = raycast();
       hover(clostestPoint); // eslint-disable-line no-use-before-define
+      onHover(clostestPoint)
     }
     // Always redraw when mouse as the user might have panned
     if (mouseDown) drawRaf(); // eslint-disable-line no-use-before-define
@@ -550,7 +555,7 @@ const createScatterplot = ({
     // We have to calculate the model-view-projection matrix outside of the
     // shader as we actually don't want the mode, view, or projection of the
     // line view space to change such that the recticle is visualized across the
-    // entire view container and not within the view of the scatterplot
+    // entire view container and not within the view of the graph
     mat4.multiply(
       scratch,
       projection,
@@ -936,17 +941,12 @@ let processKMeans = (data) => {
   //
   options.drawLines = createDrawLines(options.regl, options)
 
-  const scatterplot = createScatterplot(options);
+  const graph = creategraph(options);
   //catterplot.set({background :'rgba(255,155, 100, .8)'})
-  // scatterplot.set({backgroundImage :{src : 'https://www.seriouseats.com/recipes/images/2014/04/20140430-peeling-eggs-10.jpg', crossOrigin: true}})
-  //scatterplot.set({ background: [255, 0, 0, 1.0] });
-  scatterplot.set({ background: '#00ff00' });
+  // graph.set({backgroundImage :{src : 'https://www.seriouseats.com/recipes/images/2014/04/20140430-peeling-eggs-10.jpg', crossOrigin: true}})
+  //graph.set({ background: [255, 0, 0, 1.0] });
+  graph.set({ background: '#00ff00' });
 
-  console.log('yay')
-
-  let pointoverHandler = (pid) => {
-    console.log(pid)
-  }
 
   const points = options.data.nodes
     .map((d) => {
@@ -974,15 +974,15 @@ let processKMeans = (data) => {
         '#ddf7df',
         '#ffffe0'
       ];
-      scatterplot.set({ colorBy: 'value', colors: colorsScale });
+      graph.set({ colorBy: 'value', colors: colorsScale });
 
-scatterplot.set({ pointSizeSelected: 2 });
+graph.set({ pointSizeSelected: 2 });
 // Set color map
-    scatterplot.draw(points);
+    graph.draw(points);
 
-    //scatterplot.subscribe('pointover', pointoverHandler);
-    return scatterplot
-    //scatterplot.set({ showRecticle: true, recticleColor: [1, 0, 0, 0.66] });
+    //graph.subscribe('pointover', pointoverHandler);
+    return graph
+    //graph.set({ showRecticle: true, recticleColor: [1, 0, 0, 0.66] });
 
 }
 

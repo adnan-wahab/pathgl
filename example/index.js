@@ -47,14 +47,20 @@ let load = (url) => {
       json.nodes.forEach (d => {if (! d.attributes.date) d.attributes.date = makeRandom()} )
 
       let points = json.nodes;
-      const pointoverHandler = pointId => {
-        console.log('Over point:', points[pointId].attributes.date);
-        //const [x, y, category, value] = points[pointId];
-        //onsole.log(`X: ${x}\nY: ${y}\nCategory: ${category}\nValue: ${value}`);
-      };
-      let s = GraphRenderer.init({ data: json, canvas: canvas })
 
-      s.subscribe('pointover', pointoverHandler)
+      let graph = GraphRenderer.init({ data: json, canvas: canvas,
+        onHover: (id) => {
+          d3.select('.hover').text(
+            JSON.stringify(points[id] && points[id].label)
+          )
+        },
+        onClick: (id) => {
+          console.log(id, graph.stars)
+          d3.select('.stars').text(
+              JSON.stringify(id)
+            )
+        }
+       })
     })
 
 

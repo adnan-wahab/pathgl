@@ -165,7 +165,7 @@ const creategraph = ({
 
   const raycast = () => {
     const [x, y] = getScatterGlPos();
-
+    console.log(x,y)
     const scaling = camera.scaling;
     const scaledPointSize =
       2 *
@@ -287,15 +287,6 @@ const creategraph = ({
     }
     // Always redraw when mouse as the user might have panned
     if (mouseDown) drawRaf(); // eslint-disable-line no-use-before-define
-  };
-
-  const blurHandler = () => {
-    if (!isInit) return;
-
-    hoveredPoint = undefined;
-    isMouseInCanvas = false;
-    mouseUpHandler();
-    drawRaf(); // eslint-disable-line no-use-before-define
   };
 
   const createColorTexture = (newColors = colors) => {
@@ -789,16 +780,6 @@ const creategraph = ({
     pubSub.publish('view', camera.view);
   };
 
-  const keyUpHandler = ({ key }) => {
-    switch (key) {
-      case 'Escape':
-        deselect();
-        break;
-      default:
-      // Nothing
-    }
-  };
-
   const mouseEnterCanvasHandler = () => {
     isMouseInCanvas = true;
   };
@@ -852,27 +833,25 @@ const creategraph = ({
     set({ width, height });
 
     // Setup event handler
-    window.addEventListener('keyup', keyUpHandler, false);
-    window.addEventListener('blur', blurHandler, false);
+    // window.addEventListener('blur', blurHandler, false);
     window.addEventListener('mousedown', mouseDownHandler, false);
     window.addEventListener('mouseup', mouseUpHandler, false);
     window.addEventListener('mousemove', mouseMoveHandler, false);
     canvas.addEventListener('mouseenter', mouseEnterCanvasHandler, false);
     canvas.addEventListener('mouseleave', mouseLeaveCanvasHandler, false);
     canvas.addEventListener('click', mouseClickHandler, false);
-    canvas.addEventListener('dblclick', mouseDblClickHandler, false);
+    // canvas.addEventListener('dblclick', mouseDblClickHandler, false);
   };
 
   const destroy = () => {
-    window.removeEventListener('keyup', keyUpHandler, false);
-    window.removeEventListener('blur', blurHandler, false);
-    window.removeEventListener('mousedown', mouseDownHandler, false);
-    window.removeEventListener('mouseup', mouseUpHandler, false);
-    window.removeEventListener('mousemove', mouseMoveHandler, false);
-    canvas.removeEventListener('mouseenter', mouseEnterCanvasHandler, false);
-    canvas.removeEventListener('mouseleave', mouseLeaveCanvasHandler, false);
-    canvas.removeEventListener('click', mouseClickHandler, false);
-    canvas.removeEventListener('dblclick', mouseDblClickHandler, false);
+    // window.removeEventListener('blur', blurHandler, false);
+    // window.removeEventListener('mousedown', mouseDownHandler, false);
+    // window.removeEventListener('mouseup', mouseUpHandler, false);
+    // window.removeEventListener('mousemove', mouseMoveHandler, false);
+    // canvas.removeEventListener('mouseenter', mouseEnterCanvasHandler, false);
+    // canvas.removeEventListener('mouseleave', mouseLeaveCanvasHandler, false);
+    // canvas.removeEventListener('click', mouseClickHandler, false);
+    // canvas.removeEventListener('dblclick', mouseDblClickHandler, false);
     canvas = undefined;
     camera = undefined;
     regl = undefined;

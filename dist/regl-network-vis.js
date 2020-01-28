@@ -17026,7 +17026,7 @@ void main() {
 
 
       void main() {
-        gl_FragColor = vec4(v_color + wow, .9);
+        gl_FragColor = vec4(v_color, wow.x);
       }`,
       vert: `
       varying vec3 v_color;
@@ -17052,8 +17052,8 @@ void main() {
         vec2 p  = position;
 
         if (selection.x < dates && dates < selection.y )
-        wow = vec3(1);
-
+        wow = vec3(0);
+        else wow = vec3(1);
         v_color = color;
 
         // translate
@@ -17062,7 +17062,7 @@ void main() {
         gl_Position = projection * view * vec4(p, 0, 1);
       }`,
       blend: {
-        enable: false,
+        enable: true,
         func: {
           srcRGB: 'src alpha',
           srcAlpha: 'src alpha',
@@ -17071,7 +17071,7 @@ void main() {
         }
       },
       depth: {
-        enable: false
+        enable: true
       },
       attributes: attributes,
       uniforms: {
@@ -17547,6 +17547,7 @@ void main() {
 
     const raycast = () => {
       const [x, y] = getScatterGlPos();
+      console.log(x, y);
       const scaling = camera.scaling;
       const scaledPointSize = 2 * pointSize * (min$5(1.0, scaling) + Math.log2(max$6(1.0, scaling))) * window.devicePixelRatio;
       const xNormalizedScaledPointSize = scaledPointSize / width;
@@ -17631,10 +17632,6 @@ void main() {
       onClick(selection$$1);
     };
 
-    const mouseDblClickHandler = () => {
-      deselect();
-    };
-
     const mouseMoveHandler = event$$1 => {
       if (!isInit) return;
       getRelativeMousePosition(event$$1); // Only ray cast if the mouse cursor is inside
@@ -17648,14 +17645,6 @@ void main() {
 
 
       if (mouseDown) drawRaf(); // eslint-disable-line no-use-before-define
-    };
-
-    const blurHandler = () => {
-      if (!isInit) return;
-      hoveredPoint = undefined;
-      isMouseInCanvas = false;
-      mouseUpHandler();
-      drawRaf(); // eslint-disable-line no-use-before-define
     };
 
     const createColorTexture = (newColors = colors) => {
@@ -18098,19 +18087,6 @@ void main() {
       pubSub.publish('view', camera.view);
     };
 
-    const keyUpHandler = ({
-      key
-    }) => {
-      switch (key) {
-        case 'Escape':
-          deselect();
-          break;
-
-        default: // Nothing
-
-      }
-    };
-
     const mouseEnterCanvasHandler = () => {
       isMouseInCanvas = true;
     };
@@ -18159,28 +18135,25 @@ void main() {
         width,
         height
       }); // Setup event handler
+      // window.addEventListener('blur', blurHandler, false);
 
-      window.addEventListener('keyup', keyUpHandler, false);
-      window.addEventListener('blur', blurHandler, false);
       window.addEventListener('mousedown', mouseDownHandler, false);
       window.addEventListener('mouseup', mouseUpHandler, false);
       window.addEventListener('mousemove', mouseMoveHandler, false);
       canvas.addEventListener('mouseenter', mouseEnterCanvasHandler, false);
       canvas.addEventListener('mouseleave', mouseLeaveCanvasHandler, false);
-      canvas.addEventListener('click', mouseClickHandler, false);
-      canvas.addEventListener('dblclick', mouseDblClickHandler, false);
+      canvas.addEventListener('click', mouseClickHandler, false); // canvas.addEventListener('dblclick', mouseDblClickHandler, false);
     };
 
     const destroy = () => {
-      window.removeEventListener('keyup', keyUpHandler, false);
-      window.removeEventListener('blur', blurHandler, false);
-      window.removeEventListener('mousedown', mouseDownHandler, false);
-      window.removeEventListener('mouseup', mouseUpHandler, false);
-      window.removeEventListener('mousemove', mouseMoveHandler, false);
-      canvas.removeEventListener('mouseenter', mouseEnterCanvasHandler, false);
-      canvas.removeEventListener('mouseleave', mouseLeaveCanvasHandler, false);
-      canvas.removeEventListener('click', mouseClickHandler, false);
-      canvas.removeEventListener('dblclick', mouseDblClickHandler, false);
+      // window.removeEventListener('blur', blurHandler, false);
+      // window.removeEventListener('mousedown', mouseDownHandler, false);
+      // window.removeEventListener('mouseup', mouseUpHandler, false);
+      // window.removeEventListener('mousemove', mouseMoveHandler, false);
+      // canvas.removeEventListener('mouseenter', mouseEnterCanvasHandler, false);
+      // canvas.removeEventListener('mouseleave', mouseLeaveCanvasHandler, false);
+      // canvas.removeEventListener('click', mouseClickHandler, false);
+      // canvas.removeEventListener('dblclick', mouseDblClickHandler, false);
       canvas = undefined;
       camera = undefined;
       regl = undefined;
@@ -18193,6 +18166,10 @@ void main() {
       deselect,
       destroy,
       draw: drawRaf,
+      repaint: () => {
+        console.log('paint');
+        withDraw(reset)();
+      },
       get,
       hover,
       refresh,

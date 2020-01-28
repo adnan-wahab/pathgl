@@ -703,6 +703,7 @@ const creategraph = ({
    * or height have been altered
    */
   const refresh = () => {
+
     regl.poll();
   };
 
@@ -871,6 +872,10 @@ const creategraph = ({
     deselect,
     destroy,
     draw: drawRaf,
+    repaint: () => {
+      console.log('paint')
+      withDraw(reset)()
+    },
     get,
     hover,
     refresh,

@@ -18,7 +18,7 @@ function createDrawLines(regl, options) {
 
 
       void main() {
-        gl_FragColor = vec4(v_color + wow, .9);
+        gl_FragColor = vec4(v_color, wow.x);
       }`,
 
       vert: `
@@ -45,8 +45,8 @@ function createDrawLines(regl, options) {
         vec2 p  = position;
 
         if (selection.x < dates && dates < selection.y )
-        wow = vec3(1);
-
+        wow = vec3(0);
+        else wow = vec3(1);
         v_color = color;
 
         // translate
@@ -55,7 +55,7 @@ function createDrawLines(regl, options) {
         gl_Position = projection * view * vec4(p, 0, 1);
       }`,
       blend: {
-        enable: false,
+        enable: true,
         func: {
           srcRGB: 'src alpha',
           srcAlpha: 'src alpha',
@@ -63,7 +63,7 @@ function createDrawLines(regl, options) {
           dstAlpha: 'one minus src alpha',
         },
       },
-      depth: { enable: false },
+      depth: { enable: true },
 
       attributes: attributes,
 

@@ -38,6 +38,8 @@ let makeRandom = () => {
   return new Date(2019, Math.random() * 12 | 0, Math.random() * 30 | 0)
 }
 
+let graph
+
 let load = (url) => {
   fetch(url)
     .then((body)=>{ return body.json() })
@@ -48,7 +50,7 @@ let load = (url) => {
 
       let points = json.nodes;
 
-      let graph = GraphRenderer.init({ data: json, canvas: canvas,
+      graph = GraphRenderer.init({ data: json, canvas: canvas,
         onHover: (id) => {
           d3.select('.hover').text(
             JSON.stringify(points[id] && points[id].label)
@@ -116,6 +118,7 @@ svg.append("g")
     .call(brush);
 
 function brushended() {
+  graph.repaint();
   const selection = d3.event.selection;
   if (!d3.event.sourceEvent || !selection) return;
   const [x0, x1] = selection.map(d => interval.round(x.invert(d)));

@@ -1,7 +1,7 @@
 
 import * as d3 from "d3";
 
-let createDrawLines = (regl, options) => {
+let createDrawNodes = (regl, options) => {
   let attributes = options.attributes,
       canvas = options.canvas,
       nodes = options.data.nodes;
@@ -124,7 +124,12 @@ let createDrawLines = (regl, options) => {
         gl_FragColor = vec4(vColor * alpha, alpha);
 
       }`,
-      uniforms: {isFbo:false},
+      uniforms: {isFbo:false,
+        view: () => {
+          return   window.getView()
+        }, projection: [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]
+
+      },
       cull: {enable: true},
       depth: { enable: true, mask: true },
       blend: {
@@ -177,40 +182,40 @@ let createDrawLines = (regl, options) => {
     //   depth: true,
     // })
 
-    fbo.use(() => {
-      regl.clear({
-        color: [1, 0, 0, 1],
-        depth: true,
-      })
-      drawBunny.drawFbo()
-    })
-
-      let index = -1
-      const stayInWidth = (pickX > 30 && pickX < canvas.width - 30)
-      const stayInHeight = (pickY > 30 && pickY < canvas.height - 30)
-      const compHeight = canvas.height - pickY
-      const stayInComputerHeight = (compHeight > 30 && compHeight < canvas.height - 30)
-      if (stayInWidth && stayInHeight && stayInComputerHeight) {
-        try {
-          const pixels = regl.read({
-            x: pickX,
-            y: canvas.height - pickY,
-            width: 1,
-            height: 1,
-            data: new Uint8Array(6),
-            framebuffer: fbo,
-          })
-
-          const greenValue = pixels[1]
-          if (greenValue !== 0) {
-            const value = (greenValue / 255) * (nodes.length)
-            index = Math.round(value) - 1
-            options.onHover(nodes[index])
-          }
-        } catch (e) {
-          console.error(e)
-        }
-      }
+    // fbo.use(() => {
+    //   regl.clear({
+    //     color: [1, 0, 0, 1],
+    //     depth: true,
+    //   })
+    //   drawBunny.drawFbo()
+    // })
+    //
+    //   let index = -1
+    //   const stayInWidth = (pickX > 30 && pickX < canvas.width - 30)
+    //   const stayInHeight = (pickY > 30 && pickY < canvas.height - 30)
+    //   const compHeight = canvas.height - pickY
+    //   const stayInComputerHeight = (compHeight > 30 && compHeight < canvas.height - 30)
+    //   if (stayInWidth && stayInHeight && stayInComputerHeight) {
+    //     try {
+    //       const pixels = regl.read({
+    //         x: pickX,
+    //         y: canvas.height - pickY,
+    //         width: 1,
+    //         height: 1,
+    //         data: new Uint8Array(6),
+    //         framebuffer: fbo,
+    //       })
+    //
+    //       const greenValue = pixels[1]
+    //       if (greenValue !== 0) {
+    //         const value = (greenValue / 255) * (nodes.length)
+    //         index = Math.round(value) - 1
+    //         options.onHover(nodes[index])
+    //       }
+    //     } catch (e) {
+    //       console.error(e)
+    //     }
+    //   }
 
     drawBunny.draw()
     //drawFboQuad()
@@ -218,4 +223,4 @@ let createDrawLines = (regl, options) => {
   }
 }
 
-export default createDrawLines
+export default createDrawNodes

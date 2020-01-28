@@ -19,6 +19,7 @@ uniform mat4 model;
 uniform mat4 view;
 
 attribute float stateIndex;
+attribute vec2 pos;
 
 // variables to send to the fragment shader
 varying vec4 color;

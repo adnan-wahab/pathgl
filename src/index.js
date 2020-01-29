@@ -7,7 +7,7 @@ import { mat4, vec4 } from 'gl-matrix';
 import createScroll from 'scroll-speed';
 import _ from 'lodash';
 import * as d3 from 'd3'
-import createLine from 'regl-line'
+//import createLine from 'regl-line'
 import createDrawLines from './edges';
 import createDrawNodes from './nodes';
 
@@ -674,11 +674,11 @@ const creategraph = ({
 
     vec4.transformMat4(v, v, scratch);
 
-    recticleHLine.setPoints([-1, v[1], 1, v[1]]);
-    recticleVLine.setPoints([v[0], 1, v[0], -1]);
-
-    recticleHLine.draw();
-    recticleVLine.draw();
+    // recticleHLine.setPoints([-1, v[1], 1, v[1]]);
+    // recticleVLine.setPoints([v[0], 1, v[0], -1]);
+    //
+    // recticleHLine.draw();
+    // recticleVLine.draw();
 
     // Draw outer outline
     drawPoints(
@@ -922,16 +922,16 @@ const creategraph = ({
     updateViewAspectRatio();
     initCamera();
 
-    recticleHLine = createLine(regl, {
-        color: recticleColor,
-        width: 1,
-        is2d: true
-      });
-      recticleVLine = createLine(regl, {
-        color: recticleColor,
-        width: 1,
-        is2d: true
-      });
+    // recticleHLine = createLine(regl, {
+    //     color: recticleColor,
+    //     width: 1,
+    //     is2d: true
+    //   });
+    //   recticleVLine = createLine(regl, {
+    //     color: recticleColor,
+    //     width: 1,
+    //     is2d: true
+    //   });
     scroll = createScroll(canvas);
 
     // Event listeners

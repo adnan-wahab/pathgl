@@ -64,58 +64,57 @@ let load = (url) => {
         }
        })
     })
-
-
 }
-let width = 1000, height = 100
-let margin = {
-  top: 10,
-  left: 10,
-  right: 10,
-  bottom: 10
-}
-
-let interval = d3.timeDay.every(1)
-
-let x = d3.scaleTime()
-    .domain([new Date(2019, 1, 1), new Date(2019, 12, 30)])
-    .rangeRound([margin.left, width - margin.right])
-
-let xAxis = g => g
-    .attr("transform", `translate(0,${height - margin.bottom})`)
-    .call(g => g.append("g")
-        .call(d3.axisBottom(x)
-            .ticks(interval)
-            .tickSize(-height + margin.top + margin.bottom)
-            .tickFormat(() => null))
-        .call(g => g.select(".domain")
-            .attr("fill", "#ddd")
-            .attr("stroke", null))
-        .call(g => g.selectAll(".tick line")
-            .attr("stroke", "#fff")
-            .attr("stroke-opacity", d => d <= d3.timeDay(d) ? 1 : 0.5)))
-    .call(g => g.append("g")
-        .call(d3.axisBottom(x)
-            .ticks(d3.timeDay)
-            .tickPadding(0))
-        .attr("text-anchor", null)
-        .call(g => g.select(".domain").remove())
-        .call(g => g.selectAll("text").attr("x", 6)))
-
 d3.select(window).on('load', main)
-
-const svg = d3.select('body').append("svg")
-    .attr("viewBox", [0, 0, width, height]);
-
-const brush = d3.brushX()
-    .extent([[margin.left, margin.top], [width - margin.right, height - margin.bottom]])
-    .on("end", brushended);
-
-svg.append("g")
-    .call(xAxis);
-
-svg.append("g")
-    .call(brush);
+// let width = 1000, height = 100
+// let margin = {
+//   top: 10,
+//   left: 10,
+//   right: 10,
+//   bottom: 10
+// }
+//
+// let interval = d3.timeDay.every(1)
+//
+// let x = d3.scaleTime()
+//     .domain([new Date(2019, 1, 1), new Date(2019, 12, 30)])
+//     .rangeRound([margin.left, width - margin.right])
+//
+// let xAxis = g => g
+//     .attr("transform", `translate(0,${height - margin.bottom})`)
+//     .call(g => g.append("g")
+//         .call(d3.axisBottom(x)
+//             .ticks(interval)
+//             .tickSize(-height + margin.top + margin.bottom)
+//             .tickFormat(() => null))
+//         .call(g => g.select(".domain")
+//             .attr("fill", "#ddd")
+//             .attr("stroke", null))
+//         .call(g => g.selectAll(".tick line")
+//             .attr("stroke", "#fff")
+//             .attr("stroke-opacity", d => d <= d3.timeDay(d) ? 1 : 0.5)))
+//     .call(g => g.append("g")
+//         .call(d3.axisBottom(x)
+//             .ticks(d3.timeDay)
+//             .tickPadding(0))
+//         .attr("text-anchor", null)
+//         .call(g => g.select(".domain").remove())
+//         .call(g => g.selectAll("text").attr("x", 6)))
+//
+//
+//
+// const svg = d3.select('body').append("svg")
+//     .attr("viewBox", [0, 0, width, height]);
+//
+// const brush = d3.brushX()
+//     .extent([[margin.left, margin.top], [width - margin.right, height - margin.bottom]])
+//     .on("end", brushended);
+//
+// svg.append("g")
+//     .call(xAxis);
+//
+// svg.append("g")
+//     .call(brush);
 
 function brushended() {
   graph.repaint();

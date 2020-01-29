@@ -1,3 +1,4 @@
-import init from './src/index';
+import GraphRenderer from './src/';
 
-export default init as GraphRenderer;
+export * from "./src";
+export default GraphRenderer;

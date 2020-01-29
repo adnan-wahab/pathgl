@@ -5,8 +5,7 @@ const VERSION = require('./version.js');
 
 module.exports = (env, argv) => ({
   entry: {
-    index: './example/index.js',
-    //textureBackground: './example/texture-background.js'
+    index: './example/index.js'
   },
   output: {
     path: `${__dirname}/docs`,
@@ -32,11 +31,6 @@ module.exports = (env, argv) => ({
       template: 'example/index.html',
       filename: 'index.html',
       chunks: ['index']
-    }),
-    new HtmlWebpackPlugin({
-      template: 'example/index.html',
-      filename: 'texture-background.html',
-      chunks: ['textureBackground']
     }),
     new webpack.DefinePlugin({ VERSION })
   ]

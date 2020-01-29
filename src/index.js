@@ -969,7 +969,10 @@ graph.set({ pointSizeSelected: 2 });
     //graph.set({ showRecticle: true, recticleColor: [1, 0, 0, 0.66] });
 
 }
+let update = () => {
 
-export default {init: init};
+}
+export default { init,
+  update };
 
 export { createRegl, createTextureFromUrl };

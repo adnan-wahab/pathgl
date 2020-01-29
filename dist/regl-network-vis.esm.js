@@ -1,4 +1,4 @@
-const VERSION = "0.0.8";
+const VERSION = "0.0.9";
 
 import createPubSub from 'pub-sub-es';
 import createOriginalRegl from 'regl';
@@ -18242,8 +18242,11 @@ let init$1 = options => {
   return graph; //graph.set({ showRecticle: true, recticleColor: [1, 0, 0, 0.66] });
 };
 
+let update = () => {};
+
 var index$4 = {
-  init: init$1
+  init: init$1,
+  update
 };
 
 export default index$4;

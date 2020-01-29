@@ -4,7 +4,7 @@
   (factory((global.createScatterplot = {}),global.createPubSub,global.createREGL));
 }(this, (function (exports,createPubSub,createOriginalRegl) { 'use strict';
 
-  var VERSION = "0.0.8";
+  var VERSION = "0.0.9";
 
   createPubSub = createPubSub && createPubSub.hasOwnProperty('default') ? createPubSub['default'] : createPubSub;
   createOriginalRegl = createOriginalRegl && createOriginalRegl.hasOwnProperty('default') ? createOriginalRegl['default'] : createOriginalRegl;
@@ -18248,8 +18248,11 @@ void main() {
     return graph; //graph.set({ showRecticle: true, recticleColor: [1, 0, 0, 0.66] });
   };
 
+  let update = () => {};
+
   var index$4 = {
-    init: init$1
+    init: init$1,
+    update
   };
 
   exports.default = index$4;

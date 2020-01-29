@@ -1,11 +1,11 @@
-import FRAG_SHADER =`
+let FRAG_SHADER =`
 precision mediump float;
 uniform vec4 color;
 void main() {
   gl_FragColor = color;
 }`;
 
-import VERT_SHADER = // Vertex shader from https://mattdesl.svbtle.com/drawing-lines-is-hard
+let VERT_SHADER = // Vertex shader from https://mattdesl.svbtle.com/drawing-lines-is-hard
 `
 uniform mat4 projection;
 uniform mat4 model;

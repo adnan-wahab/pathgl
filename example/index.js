@@ -49,9 +49,11 @@ let load = (url) => {
       json.nodes.forEach (d => {if (! d.attributes.date) d.attributes.date = makeRandom()} )
 
       let points = json.nodes;
+      window.nodes = points
 
       graph = GraphRenderer.init({ data: json, canvas: canvas,
         onHover: (id) => {
+          console.log(points[id].color)
           d3.select('.hover').text(
             JSON.stringify(points[id] && points[id].label)
           )

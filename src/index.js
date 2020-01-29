@@ -9,6 +9,8 @@ import _ from 'lodash';
 import * as d3 from 'd3'
 import createLine from 'regl-line'
 import createDrawLines from './edges';
+import createDrawNodes from './nodes';
+
 
 import BG_FS from './bg.fs';
 import BG_VS from './bg.vs';
@@ -73,6 +75,7 @@ const creategraph = ({
   rotation: initialRotation = DEFAULT_ROTATION,
   view: initialView = DEFAULT_VIEW,
   drawLines: initialDrawLines,
+  drawNodes: initialDrawNodes,
 
   onHover: onHover = () => {},
   onClick: onClick = () => {}
@@ -110,6 +113,8 @@ const creategraph = ({
   let recticleVLine;
   let recticleColor = toRgba(initialRecticleColor, true);
   let drawLines = initialDrawLines
+  let drawNodes = initialDrawNodes
+
 
   let stateTex; // Stores the point texture holding x, y, category, and value
   let stateTexRes = 0; // Width and height of the texture
@@ -165,7 +170,7 @@ const creategraph = ({
 
   const raycast = () => {
     const [x, y] = getScatterGlPos();
-    console.log(x,y)
+    //console.log(x,y)
     const scaling = camera.scaling;
     const scaledPointSize =
       2 *
@@ -642,13 +647,14 @@ const creategraph = ({
     if (backgroundImage) {
       drawBackgroundImage();
     }
-    initialDrawLines({view: getView(), projection: getView()})
+    drawLines({view: getView(), projection: getView()})
+    //drawNodes({view: getView(), projection: getView()})
 
     // The draw order of the following calls is important!
     drawPointBodies();
-    if (!mouseDown && (showRecticle || showRecticleOnce)) drawRecticle();
-    if (hoveredPoint >= 0) drawHoveredPoint();
-    if (selection.length) drawSelectedPoint();
+    drawRecticle();
+    //if (hoveredPoint >= 0) drawHoveredPoint();
+    //if (selection.length) drawSelectedPoint();
     // Publish camera change
     if (isViewChanged) pubSub.publish('view', camera.view);
   };
@@ -876,8 +882,6 @@ const creategraph = ({
     reset: withDraw(reset),
     select,
     set,
-    subscribe: pubSub.subscribe,
-    unsubscribe: pubSub.unsubscribe
   };
 };
 
@@ -924,6 +928,8 @@ let processKMeans = (data) => {
   options.pointSize = 20
   //
   options.drawLines = createDrawLines(options.regl, options)
+  options.drawNodes = createDrawNodes(options.regl, options)
+
 
   const graph = creategraph(options);
   //catterplot.set({background :'rgba(255,155, 100, .8)'})

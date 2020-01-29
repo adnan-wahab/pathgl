@@ -1,13 +1,3 @@
-const FRAGMENT_SHADER = `
-precision mediump float;
-
-uniform sampler2D texture;
-
-varying vec2 uv;
-
-void main () {
-  gl_FragColor = texture2D(texture, uv);
-}
-`;
+const FRAGMENT_SHADER = 
 
 export default FRAGMENT_SHADER;

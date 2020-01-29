@@ -7,7 +7,7 @@ import { mat4, vec4 } from 'gl-matrix';
 import createScroll from 'scroll-speed';
 import _ from 'lodash';
 import * as d3 from 'd3'
-//import createLine from 'regl-line'
+import createLine from './lines'
 import createDrawLines from './edges';
 import createDrawNodes from './nodes';
 

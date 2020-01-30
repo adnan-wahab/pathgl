@@ -72,7 +72,6 @@ uniform float stateTexRes;
 uniform float pointSize;
 uniform float pointSizeExtra;
 uniform float numPoints;
-uniform float globalState;
 uniform float scaling;
 uniform mat4 projection;
 uniform mat4 model;
@@ -307,8 +306,6 @@ const creategraph = ({
     points.forEach(p => {
       selection.includes(p) ?  _.pull(selection, p) : selection.push(p)
     })
-    console.log(selection, points)
-
 
     selectedPointsIndexBuffer({
       usage: 'dynamic',
@@ -362,7 +359,7 @@ const creategraph = ({
     const clickDist = dist(...currentMousePosition, ...mouseDownPosition);
     const clostestPoint = raycast();
     if (clostestPoint >= 0) select([clostestPoint]);
-    onClick(selection)
+    if (clostestPoint >= 0) onClick(clostestPoint)
   };
 
   const mouseDblClickHandler = () => {
@@ -523,8 +520,7 @@ const creategraph = ({
   const drawPoints = (
     getPointSizeExtra,
     getNumPoints,
-    getStateIndexBuffer,
-    globalState = COLOR_NORMAL_IDX
+    getStateIndexBuffer
   ) =>
     regl({
       frag: POINT_FS,
@@ -563,16 +559,7 @@ const creategraph = ({
         view: getView,
         scaling: getScaling,
         pointSize: getPointSize,
-        pointSizeExtra: getPointSizeExtra,
-        globalState,
-        colorTex: getColorTex,
-        colorTexRes: getColorTexRes,
-        stateTex: getStateTex,
-        stateTexRes: getStateTexRes,
-        isColoredByCategory: getIsColoredByCategory,
-        isColoredByValue: getIsColoredByValue,
-        maxColor: getMaxColor,
-        numColorStates: getNumColorStates
+        pointSizeExtra: getPointSizeExtra
       },
 
       count: getNumPoints,
@@ -1042,29 +1029,6 @@ let processKMeans = (data) => {
     .map((d) => {
       return [d.x / 4000, d.y /4000, +d.attributes.SentimentVal, +d.attributes.SentimentVal ]});
 
-      const colorsScale = [
-        '#002072',
-        '#162b79',
-        '#233680',
-        '#2e4186',
-        '#394d8d',
-        '#425894',
-        '#4b649a',
-        '#5570a1',
-        '#5e7ca7',
-        '#6789ae',
-        '#7195b4',
-        '#7ba2ba',
-        '#85aec0',
-        '#90bbc6',
-        '#9cc7cc',
-        '#a9d4d2',
-        '#b8e0d7',
-        '#c8ecdc',
-        '#ddf7df',
-        '#ffffe0'
-      ];
-      graph.set({ colorBy: 'value', colors: colorsScale });
 
 graph.set({ pointSizeSelected: 2 });
 // Set color map

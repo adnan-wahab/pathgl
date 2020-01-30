@@ -58,10 +58,8 @@ let load = (url) => {
           )
         },
         onClick: (id) => {
-          console.log(id, graph.stars)
-          d3.select('.stars').text(
-              JSON.stringify(id)
-            )
+          console.log(nodes[id])
+
         }
        })
     })

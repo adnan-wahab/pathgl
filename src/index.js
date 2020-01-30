@@ -47,7 +47,7 @@ let POINT_FS = `
 precision mediump float;
 uniform vec2 selection;
 
-varying vec4 color;
+varying vec4 vColor;
 
 void main() {
   float r = 0.0, delta = 0.0, alpha = 1.0;
@@ -59,7 +59,7 @@ void main() {
     alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
   #endif
 
-  gl_FragColor = vec4(color.rgb, alpha * color.a);
+  gl_FragColor = vec4(vColor.rgb, alpha * vColor.a);
 }
 `;
 let POINT_VS = `
@@ -73,10 +73,6 @@ uniform float pointSize;
 uniform float pointSizeExtra;
 uniform float numPoints;
 uniform float globalState;
-uniform float isColoredByCategory;
-uniform float isColoredByValue;
-uniform float maxColor;
-uniform float numColorStates;
 uniform float scaling;
 uniform mat4 projection;
 uniform mat4 model;
@@ -84,9 +80,10 @@ uniform mat4 view;
 
 attribute float stateIndex;
 attribute vec2 pos;
+attribute vec3 color;
 
 // variables to send to the fragment shader
-varying vec4 color;
+varying vec4 vColor;
 
 void main() {
   // First get the state
@@ -101,27 +98,7 @@ void main() {
 
   gl_Position = projection * view * model * vec4(pos, 0.0, 1.0);
 
-  // Determine color index
-  float colorIndexCat = state.z * isColoredByCategory;
-  float colorIndexVal = floor(state.w * maxColor) * isColoredByValue;
-  float colorIndex = colorIndexCat + colorIndexVal;
-  // Multiply by the number of color states per color
-  // I.e., normal, active, hover, background, etc.
-  colorIndex *= numColorStates;
-  // Half a "pixel" or "texel" in texture coordinates
-  eps = 0.5 / colorTexRes;
-  float colorLinearIndex = colorIndex + globalState;
-  // Need to add cEps here to avoid floating point issue that can lead to
-  // dramatic changes in which color is loaded as floor(3/2.9) = 1 but
-  // floor(3/3.0001) = 0!
-  float colorRowIndex = floor((colorLinearIndex + eps) / colorTexRes);
-
-  vec2 colorTexIndex = vec2(
-    (colorLinearIndex / colorTexRes) - colorRowIndex + eps,
-    colorRowIndex / colorTexRes
-  );
-
-  color = texture2D(colorTex, colorTexIndex);
+  vColor = vec4(color, 1);
 
   // The final scaling consists of linear scaling in [0, 1] and log scaling
   // in [1, [
@@ -573,6 +550,10 @@ const creategraph = ({
         pos: {
           buffer: getPositionBuffer,
           size: 2
+        },
+        color: {
+          buffer: attributes.color,
+          size:3
         }
       },
 

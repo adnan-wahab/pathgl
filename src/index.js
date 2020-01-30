@@ -99,7 +99,7 @@ void main() {
 
   vec4 state = texture2D(stateTex, stateTexIndex);
 
-  gl_Position = projection * view * model * vec4(state.x, state.y, 0.0, 1.0);
+  gl_Position = projection * view * model * vec4(pos, 0.0, 1.0);
 
   // Determine color index
   float colorIndexCat = state.z * isColoredByCategory;
@@ -188,11 +188,11 @@ const creategraph = ({
   distance: initialDistance = DEFAULT_DISTANCE,
   rotation: initialRotation = DEFAULT_ROTATION,
   view: initialView = DEFAULT_VIEW,
-  drawLines: initialDrawLines,
-  drawNodes: initialDrawNodes,
-
-  onHover: onHover = () => {},
-  onClick: onClick = () => {}
+  drawLines = () => {},
+  drawNodes = () => {},
+  onHover = () => {},
+  onClick = () => {},
+  attributes = {}
 } = {}) => {
   const pubSub = createPubSub();
   const scratch = new Float32Array(16);
@@ -226,8 +226,6 @@ const creategraph = ({
   let recticleHLine;
   let recticleVLine;
   let recticleColor = toRgba(initialRecticleColor, true);
-  let drawLines = initialDrawLines
-  let drawNodes = initialDrawNodes
 
 
   let stateTex; // Stores the point texture holding x, y, category, and value
@@ -534,6 +532,9 @@ const creategraph = ({
   const getStateTexRes = () => stateTexRes;
   const getProjection = () => projection;
   window.getView = () => camera.view;
+  const getPositionBuffer = () => {
+    return attributes.position
+  }
   const getModel = () => model;
   const getScaling = () => camera.scaling;
   const getNormalNumPoints = () => numPoints;
@@ -568,6 +569,10 @@ const creategraph = ({
         stateIndex: {
           buffer: getStateIndexBuffer,
           size: 1
+        },
+        pos: {
+          buffer: getPositionBuffer,
+          size: 2
         }
       },
 

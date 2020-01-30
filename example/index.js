@@ -53,7 +53,6 @@ let load = (url) => {
 
       graph = GraphRenderer.init({ data: json, canvas: canvas,
         onHover: (id) => {
-          console.log(points[id].color)
           d3.select('.hover').text(
             JSON.stringify(points[id] && points[id].label)
           )
@@ -128,4 +127,3 @@ function brushended() {
 
   d3.select(this).transition().call(brush.move, x1 > x0 ? [x0, x1].map(x) : null);
 }
-window.svg = svg

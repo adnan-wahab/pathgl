@@ -734,7 +734,7 @@ const creategraph = ({
     if (backgroundImage) {
       drawBackgroundImage();
     }
-    drawLines({view: getView(), projection: getView()})
+    //drawLines({view: getView(), projection: getView()})
     //drawNodes({view: getView(), projection: getView()})
 
     // The draw order of the following calls is important!
@@ -973,7 +973,7 @@ const creategraph = ({
 };
 
 let clip = (d) => {
-  return d / 4000
+  return d / 3000
 }
 
 let processKMeans = (data) => {

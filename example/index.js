@@ -9,7 +9,8 @@ let url = [
   // 'sfcommute',
   // 'world',
   'dataKMeans',
-  'mobile-banking'
+  'mobile-banking',
+
 ]
 
 let canvas = document.createElement('canvas')
@@ -31,7 +32,29 @@ let main = () => {
     load(d3.event.target.href)
     d3.event.preventDefault()
   })
-  load('./data/dataKMeans.json')
+
+  loadTSV('./data/d.tsv')
+}
+let colorscale = d3.scaleLinear().domain([-0.15, 0, 0.15]).range([d3.interpolatePuOr(0), d3.interpolatePuOr(.5), d3.interpolatePuOr(1)]).clamp(true)
+let toColor = (color) => {
+  let c = d3.rgb(colorscale(color))
+  return [c.r / 255, c.g / 255, c.b / 255]
+}
+let loadTSV = async () => {
+  let position = []
+  let color = []
+  window.color = color
+  let tsv = await d3.tsv("./data/d.tsv", d3.autoType);
+  tsv.forEach(d => {
+    position.push(d.x / 10, d.y / 10)
+    color.push.apply(color,
+      toColor(d.sentiment)
+    )
+  })
+
+  GraphRenderer.init({ attributes: {
+    position, color
+  }, canvas: canvas })
 }
 
 let makeRandom = () => {

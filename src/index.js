@@ -1006,16 +1006,14 @@ let processKMeans = (data) => {
     }
   }
   let init = (options) => {
-  console.log(createRegl)
   options.regl = createRegl(options.canvas)
-  options.attributes= processKMeans(options.data)
-  console.log(options.attributes)
+  if (options.data) options.attributes= processKMeans(options.data)
   options.width =1000
   options.height = 1000
   options.pointSize = 20
-  //
-  options.drawLines = createDrawLines(options.regl, options)
-  options.drawNodes = createDrawNodes(options.regl, options)
+
+  // options.drawLines = createDrawLines(options.regl, options)
+  // options.drawNodes = createDrawNodes(options.regl, options)
 
 
   const graph = creategraph(options);
@@ -1025,19 +1023,15 @@ let processKMeans = (data) => {
   graph.set({ background: '#00ff00' });
 
 
-  const points = options.data.nodes
+  const points = new Array(100000).fill({x:10, y:20, c: 20, g: 20 })
     .map((d) => {
-      return [d.x / 4000, d.y /4000, +d.attributes.SentimentVal, +d.attributes.SentimentVal ]});
+      return [d.x / 4000, d.y /4000, +d.c, d.g ]});
 
 
 graph.set({ pointSizeSelected: 2 });
-// Set color map
     graph.draw(points);
 
-    //graph.subscribe('pointover', pointoverHandler);
     return graph
-    //graph.set({ showRecticle: true, recticleColor: [1, 0, 0, 0.66] });
-
 }
 let update = () => {
 

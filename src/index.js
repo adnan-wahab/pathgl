@@ -1008,25 +1008,20 @@ let processKMeans = (data) => {
   let init = (options) => {
   options.regl = createRegl(options.canvas)
   if (options.data) options.attributes= processKMeans(options.data)
-  options.width =1000
-  options.height = 1000
   options.pointSize = 20
-
+  console.log(options.width)
   // options.drawLines = createDrawLines(options.regl, options)
   // options.drawNodes = createDrawNodes(options.regl, options)
 
-
   const graph = creategraph(options);
-  //catterplot.set({background :'rgba(255,155, 100, .8)'})
   // graph.set({backgroundImage :{src : 'https://www.seriouseats.com/recipes/images/2014/04/20140430-peeling-eggs-10.jpg', crossOrigin: true}})
-  //graph.set({ background: [255, 0, 0, 1.0] });
-  graph.set({ background: '#00ff00' });
+  graph.set({ background: '#ffff00' });
 
     const points = options.data.nodes
       .map((d) => {
-        return [d.x / 4000, d.y /4000, +d.c, d.g ]});
+        return [clip(d.x), clip(d.y), +d.c, d.g ]});
 
-graph.set({ pointSizeSelected: 2 });
+    graph.set({ pointSizeSelected: 2 });
     graph.draw(points);
 
     return graph

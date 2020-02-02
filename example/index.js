@@ -56,7 +56,9 @@ let loadTSV = async () => {
 
   GraphRenderer.init({ attributes: {
     position, color
-  }, canvas: canvas })
+  }, canvas: canvas,
+
+ })
 }
 
 let makeRandom = () => {
@@ -76,15 +78,6 @@ let load = (url) => {
       window.nodes = points
 
       graph = GraphRenderer.init({ data: json, canvas: canvas,
-        onHover: (id) => {
-          d3.select('.hover').text(
-            JSON.stringify(points[id] && points[id].label)
-          )
-        },
-        onClick: (id) => {
-          console.log(nodes[id])
-
-        }
        })
     })
 }

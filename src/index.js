@@ -1022,11 +1022,9 @@ let processKMeans = (data) => {
   //graph.set({ background: [255, 0, 0, 1.0] });
   graph.set({ background: '#00ff00' });
 
-
-  const points = new Array(100000).fill({x:10, y:20, c: 20, g: 20 })
-    .map((d) => {
-      return [d.x / 4000, d.y /4000, +d.c, d.g ]});
-
+    const points = options.data.nodes
+      .map((d) => {
+        return [d.x / 4000, d.y /4000, +d.c, d.g ]});
 
 graph.set({ pointSizeSelected: 2 });
     graph.draw(points);

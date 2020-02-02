@@ -33,7 +33,9 @@ let main = () => {
     d3.event.preventDefault()
   })
 
-  loadTSV('./data/d.tsv')
+  load('./data/datakmeans.json')
+  document.title = 'what'
+  ///loadTSV('./data/d.tsv')
 }
 let colorscale = d3.scaleLinear().domain([-0.15, 0, 0.15]).range([d3.interpolatePuOr(0), d3.interpolatePuOr(.5), d3.interpolatePuOr(1)]).clamp(true)
 let toColor = (color) => {
@@ -67,7 +69,6 @@ let load = (url) => {
   fetch(url)
     .then((body)=>{ return body.json() })
     .then((json)=>{
-      console.log(json)
 
       json.nodes.forEach (d => {if (! d.attributes.date) d.attributes.date = makeRandom()} )
 

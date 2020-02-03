@@ -145,33 +145,9 @@ import {
   max,
   min
 } from './utils';
+let NOOP = () => {}
 
-const creategraph = (options//{
-//   regl: initialRegl,
-//   background: initialBackground = DEFAULT_COLOR_BG,
-//   backgroundImage: initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE,
-//   canvas: initialCanvas = document.createElement('canvas'),
-//   colorBy: initialColorBy = DEFAULT_COLOR_BY,
-//   colors: initialColors = DEFAULT_COLORS,
-//   showRecticle: initialShowRecticle = DEFAULT_SHOW_RECTICLE,
-//   recticleColor: initialRecticleColor = DEFAULT_RECTICLE_COLOR,
-//   pointSize: initialPointSize = DEFAULT_POINT_SIZE,
-//   pointSizeSelected: initialPointSizeSelected = DEFAULT_POINT_SIZE_SELECTED,
-//   pointOutlineWidth: initialPointOutlineWidth = 2,
-//   width: initialWidth = DEFAULT_WIDTH,
-//   height: initialHeight = DEFAULT_HEIGHT,
-//   target: initialTarget = DEFAULT_TARGET,
-//   distance: initialDistance = DEFAULT_DISTANCE,
-//   rotation: initialRotation = DEFAULT_ROTATION,
-//   view: initialView = DEFAULT_VIEW,
-//   drawLines = () => {},
-//   drawNodes = () => {},
-//   onHover = () => {},
-//   onClick = () => {},
-//   attributes = {}
-// } = {}
-) => {
-  let NOOP = () => {}
+const creategraph = (options) => {
   let initialRegl = options.regl,
   initialBackground = DEFAULT_COLOR_BG,
   initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE,
@@ -747,8 +723,8 @@ const creategraph = (options//{
     // The draw order of the following calls is important!
     drawPointBodies();
     drawRecticle();
-    //if (hoveredPoint >= 0) drawHoveredPoint();
-    //if (selection.length) drawSelectedPoint();
+    if (hoveredPoint >= 0) drawHoveredPoint();
+    if (selection.length) drawSelectedPoint();
     // Publish camera change
     if (isViewChanged) pubSub.publish('view', camera.view);
   };
@@ -992,13 +968,13 @@ let processKMeans = (data) => {
   options.pointSize = 20
   console.log(options.width)
   // options.drawLines = createDrawLines(options.regl, options)
-  // options.drawNodes = createDrawNodes(options.regl, options)
+  //options.drawNodes = createDrawNodes(options.regl, options)
 
   const graph = creategraph(options);
   // graph.set({backgroundImage :{src : 'https://www.seriouseats.com/recipes/images/2014/04/20140430-peeling-eggs-10.jpg', crossOrigin: true}})
-    const points = options.data.nodes
+    const points = options.data ? options.data.nodes
       .map((d) => {
-        return [clip(d.x), clip(d.y), 3, 2 ]});
+        return [clip(d.x), clip(d.y), 3, 2 ]}) : new Array(1e5).fill(10)
     graph.draw(points);
 
     return graph

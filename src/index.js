@@ -146,30 +146,54 @@ import {
   min
 } from './utils';
 
-const creategraph = ({
-  regl: initialRegl,
-  background: initialBackground = DEFAULT_COLOR_BG,
-  backgroundImage: initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE,
-  canvas: initialCanvas = document.createElement('canvas'),
-  colorBy: initialColorBy = DEFAULT_COLOR_BY,
-  colors: initialColors = DEFAULT_COLORS,
-  showRecticle: initialShowRecticle = DEFAULT_SHOW_RECTICLE,
-  recticleColor: initialRecticleColor = DEFAULT_RECTICLE_COLOR,
-  pointSize: initialPointSize = DEFAULT_POINT_SIZE,
-  pointSizeSelected: initialPointSizeSelected = DEFAULT_POINT_SIZE_SELECTED,
-  pointOutlineWidth: initialPointOutlineWidth = 2,
-  width: initialWidth = DEFAULT_WIDTH,
-  height: initialHeight = DEFAULT_HEIGHT,
-  target: initialTarget = DEFAULT_TARGET,
-  distance: initialDistance = DEFAULT_DISTANCE,
-  rotation: initialRotation = DEFAULT_ROTATION,
-  view: initialView = DEFAULT_VIEW,
-  drawLines = () => {},
-  drawNodes = () => {},
-  onHover = () => {},
-  onClick = () => {},
-  attributes = {}
-} = {}) => {
+const creategraph = (options//{
+//   regl: initialRegl,
+//   background: initialBackground = DEFAULT_COLOR_BG,
+//   backgroundImage: initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE,
+//   canvas: initialCanvas = document.createElement('canvas'),
+//   colorBy: initialColorBy = DEFAULT_COLOR_BY,
+//   colors: initialColors = DEFAULT_COLORS,
+//   showRecticle: initialShowRecticle = DEFAULT_SHOW_RECTICLE,
+//   recticleColor: initialRecticleColor = DEFAULT_RECTICLE_COLOR,
+//   pointSize: initialPointSize = DEFAULT_POINT_SIZE,
+//   pointSizeSelected: initialPointSizeSelected = DEFAULT_POINT_SIZE_SELECTED,
+//   pointOutlineWidth: initialPointOutlineWidth = 2,
+//   width: initialWidth = DEFAULT_WIDTH,
+//   height: initialHeight = DEFAULT_HEIGHT,
+//   target: initialTarget = DEFAULT_TARGET,
+//   distance: initialDistance = DEFAULT_DISTANCE,
+//   rotation: initialRotation = DEFAULT_ROTATION,
+//   view: initialView = DEFAULT_VIEW,
+//   drawLines = () => {},
+//   drawNodes = () => {},
+//   onHover = () => {},
+//   onClick = () => {},
+//   attributes = {}
+// } = {}
+) => {
+  let NOOP = () => {}
+  let initialRegl = options.regl,
+  initialBackground = DEFAULT_COLOR_BG,
+  initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE,
+  initialCanvas = options.canvas,
+  initialColorBy = DEFAULT_COLOR_BY,
+  initialColors = DEFAULT_COLORS,
+  initialShowRecticle = DEFAULT_SHOW_RECTICLE,
+  initialRecticleColor = DEFAULT_RECTICLE_COLOR,
+  initialPointSize = DEFAULT_POINT_SIZE,
+  initialPointSizeSelected = DEFAULT_POINT_SIZE_SELECTED,
+  initialPointOutlineWidth = 2,
+  initialWidth = DEFAULT_WIDTH,
+  initialHeight = DEFAULT_HEIGHT,
+  initialTarget = DEFAULT_TARGET,
+  initialDistance = DEFAULT_DISTANCE,
+  initialRotation = DEFAULT_ROTATION,
+  initialView = DEFAULT_VIEW,
+  drawLines = options.createDrawLines || NOOP,
+  drawNodes = options.createDrawNodes || NOOP,
+  onHover = options.onHover || NOOP,
+  onClick = options.onClick || NOOP,
+  attributes = options.attributes;
   const pubSub = createPubSub();
   const scratch = new Float32Array(16);
   const mousePosition = [0, 0];
@@ -258,7 +282,6 @@ const creategraph = ({
 
   const raycast = () => {
     const [x, y] = getScatterGlPos();
-    //console.log(x,y)
     const scaling = camera.scaling;
     const scaledPointSize =
       2 *
@@ -473,20 +496,6 @@ const creategraph = ({
     canvas.width = width * window.devicePixelRatio;
   };
 
-  const setColorBy = type => {
-    switch (type) {
-      case 'category':
-        colorBy = 'category';
-        break;
-
-      case 'value':
-        colorBy = 'value';
-        break;
-
-      default:
-        colorBy = DEFAULT_COLOR_BY;
-    }
-  };
 
   const setOpacity = newOpacity => {
     if (!+newOpacity || +newOpacity <= 0) return;
@@ -512,8 +521,7 @@ const creategraph = ({
   const getModel = () => model;
   const getScaling = () => camera.scaling;
   const getNormalNumPoints = () => numPoints;
-  const getIsColoredByCategory = () => (colorBy === 'category') * 1;
-  const getIsColoredByValue = () => (colorBy === 'value') * 1;
+
   const getMaxColor = () => colors.length / COLOR_NUM_STATES - 1;
   const getNumColorStates = () => COLOR_NUM_STATES;
 
@@ -721,7 +729,6 @@ const creategraph = ({
     if (newPoints) setPoints(newPoints);
     if (!isInit) return;
 
-
     regl.clear({
       // background color (transparent)
       color: [0, 0, 0, 0],
@@ -794,32 +801,9 @@ const creategraph = ({
     regl.poll();
   };
 
-  const get = property => {
-    if (property === 'background') return background;
-    if (property === 'backgroundImage') return backgroundImage;
-    if (property === 'colorBy') return colorBy;
-    if (property === 'colors') return colors;
-    if (property === 'showRecticle') return showRecticle;
-    if (property === 'recticleColor') return recticleColor;
-    if (property === 'opacity') return opacity;
-    if (property === 'pointOutlineWidth') return pointOutlineWidth;
-    if (property === 'pointSize') return pointSize;
-    if (property === 'pointSizeSelected') return pointSizeSelected;
-    if (property === 'width') return width;
-    if (property === 'height') return height;
-    if (property === 'aspectRatio') return dataAspectRatio;
-    if (property === 'canvas') return canvas;
-    if (property === 'regl') return regl;
-    if (property === 'version') return VERSION;
-
-    return undefined;
-  };
-
   const set = ({
     background: newBackground = null,
     backgroundImage: newBackgroundImage = backgroundImage,
-    colorBy: newColorBy = colorBy,
-    colors: newColors = null,
     opacity: newOpacity = null,
     showRecticle: newShowRecticle = null,
     recticleColor: newRecticleColor = null,
@@ -832,8 +816,6 @@ const creategraph = ({
   } = {}) => {
     setBackground(newBackground);
     setBackgroundImage(newBackgroundImage);
-    setColorBy(newColorBy);
-    setColors(newColors);
     setOpacity(newOpacity);
     setShowRecticle(newShowRecticle);
     setRecticleColor(newRecticleColor);
@@ -961,14 +943,12 @@ const creategraph = ({
     draw: drawRaf,
     repaint: () => {
       console.log('paint')
-      withDraw(reset)()
+      withDraw(reset)();
     },
-    get,
     hover,
     refresh,
     reset: withDraw(reset),
     select,
-    set,
   };
 };
 
@@ -977,7 +957,7 @@ let clip = (d) => {
 }
 
 let processKMeans = (data) => {
-  console.log(data)
+  let position = _.flatten(data.nodes.map(d => [clip(d.x), clip(d.y) ]))
     let edges = new Array(data.edges.length * 4).fill(0);
     data.edges.forEach((edge, idx) => {
       edges[idx*4] = clip(data.nodes[edge.source].x)
@@ -987,11 +967,12 @@ let processKMeans = (data) => {
     });
 
 
-    let dates = data.edges.map((edge, idx) => {
-      return + data.nodes[edge.source].attributes.date
+    let dates = data.nodes.map((edge, idx) => {
+      return edge.attributes.date
     })
-    let color = _.flatten(data.edges.map((e) => {
-      let c = d3.color(data.nodes[e.source].color);
+
+    let color = _.flatten(data.nodes.map((d) => {
+      let c = d3.color(d.color);
       return [c.r /255 , c.g /255 , c.b /255];
     }));
 
@@ -999,7 +980,7 @@ let processKMeans = (data) => {
       return i / color.length
     })
     return {
-      position: edges,
+      position,
       color,
       dates,
       fboColor
@@ -1015,21 +996,14 @@ let processKMeans = (data) => {
 
   const graph = creategraph(options);
   // graph.set({backgroundImage :{src : 'https://www.seriouseats.com/recipes/images/2014/04/20140430-peeling-eggs-10.jpg', crossOrigin: true}})
-  graph.set({ background: '#ffff00' });
-
     const points = options.data.nodes
       .map((d) => {
-        return [clip(d.x), clip(d.y), +d.c, d.g ]});
-
-    graph.set({ pointSizeSelected: 2 });
+        return [clip(d.x), clip(d.y), 3, 2 ]});
     graph.draw(points);
 
     return graph
 }
-let update = () => {
 
-}
-export default { init,
-  update };
+export default { init };
 
 export { createRegl, createTextureFromUrl };

@@ -33,7 +33,9 @@ let main = () => {
     d3.event.preventDefault()
   })
 
+  //load('./data/test.json')
   load('./data/datakmeans.json')
+
   document.title = 'what'
   ///loadTSV('./data/d.tsv')
 }
@@ -72,10 +74,11 @@ let load = (url) => {
     .then((body)=>{ return body.json() })
     .then((json)=>{
 
-      json.nodes.forEach (d => {if (! d.attributes.date) d.attributes.date = makeRandom()} )
+      //json.nodes.forEach (d => {if (! d.attributes.date) d.attributes.date = makeRandom()} )
 
       let points = json.nodes;
-      window.nodes = points
+      console.log(points)
+      json.edges = []
 
       graph = GraphRenderer.init({ data: json, canvas: canvas,
        })

@@ -137,7 +137,7 @@ import {
 let NOOP = () => {}
 
 const creategraph = (options) => {
-  let state = {scaling: 1}
+  let state = {scaling: 1, numPoints: 1}
   let initialRegl = options.regl,
   initialBackground = DEFAULT_COLOR_BG,
   initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE,
@@ -278,7 +278,10 @@ const creategraph = (options) => {
       }
     });
 
-    if (minDist < (pointSize / width) * 2) return clostestPoint;
+    if (minDist < (pointSize / width) * 2) {
+      onHover(clostestPoint, x, y, 'why')
+      return clostestPoint
+    };
     return -1;
   };
 
@@ -364,7 +367,6 @@ const creategraph = (options) => {
     if (isMouseInCanvas && !mouseDownShift) {
       const clostestPoint = raycast();
       hover(clostestPoint); // eslint-disable-line no-use-before-define
-      onHover(clostestPoint)
     }
     // Always redraw when mouse as the user might have panned
     if (mouseDown) drawRaf(); // eslint-disable-line no-use-before-define
@@ -487,7 +489,8 @@ const creategraph = (options) => {
   }
   const getModel = () => model;
   const getScaling = () => state.scaling;
-  const getNormalNumPoints = () => numPoints;
+  const getNormalNumPoints = () => numPoints * state.numPoints | 0;
+  window.getNormalNumPoints = getNormalNumPoints
   window.getScaling = getScaling
   const getMaxColor = () => colors.length / COLOR_NUM_STATES - 1;
   const getNumColorStates = () => COLOR_NUM_STATES;
@@ -801,6 +804,8 @@ const creategraph = (options) => {
     let needsRedraw = false;
 
     if (point >= 0) {
+      onHover(point)
+
       needsRedraw = true;
       const newHoveredPoint = point !== hoveredPoint;
       hoveredPoint = point;
@@ -910,7 +915,8 @@ const creategraph = (options) => {
   let count = 100;
   let update = (options) => {
     state.scaling = options.zoom
-    console.log('updating', options)
+    state.numPoints = options.nodeCount
+    console.log('updating', state.numPoints)
     //camera.lookAt([0,0], count--, 0)
   }
 
@@ -969,7 +975,7 @@ let processKMeans = (data) => {
   options.regl = createRegl(options.canvas)
   if (options.data) options.attributes= processKMeans(options.data)
   options.pointSize = 20
-  // options.drawLines = createDrawLines(options.regl, options)
+  //options.drawLines = createDrawLines(options.regl, options)
   //options.drawNodes = createDrawNodes(options.regl, options)
 
   const graph = creategraph(options);

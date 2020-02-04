@@ -68,7 +68,6 @@ precision mediump float;
 uniform sampler2D colorTex;
 uniform float colorTexRes;
 uniform sampler2D stateTex;
-uniform float stateTexRes;
 uniform float pointSize;
 uniform float pointSizeExtra;
 uniform float numPoints;
@@ -85,16 +84,6 @@ attribute vec3 color;
 varying vec4 vColor;
 
 void main() {
-  // First get the state
-  float eps = 0.5 / stateTexRes;
-  float stateRowIndex = floor((stateIndex + eps) / stateTexRes);
-  vec2 stateTexIndex = vec2(
-    (stateIndex / stateTexRes) - stateRowIndex + eps,
-    stateRowIndex / stateTexRes
-  );
-
-  vec4 state = texture2D(stateTex, stateTexIndex);
-
   gl_Position = projection * view * model * vec4(pos, 0.0, 1.0);
 
   vColor = vec4(color, 1);
@@ -330,6 +319,7 @@ const creategraph = (options) => {
 
   const mouseDownHandler = event => {
     if (!isInit) return;
+
 
     mouseDown = true;
 
@@ -689,7 +679,6 @@ const creategraph = (options) => {
 
     numPoints = newPoints.length;
 
-    stateTex = createStateTexture(newPoints);
     normalPointsIndexBuffer({
       usage: 'static',
       type: 'float',
@@ -701,8 +690,7 @@ const creategraph = (options) => {
     isInit = true;
   };
 
-  const draw = (newPoints, showRecticleOnce) => {
-    if (newPoints) setPoints(newPoints);
+  const draw = () => {
     if (!isInit) return;
 
     regl.clear({
@@ -893,6 +881,12 @@ const creategraph = (options) => {
     canvas.addEventListener('mouseleave', mouseLeaveCanvasHandler, false);
     canvas.addEventListener('click', mouseClickHandler, false);
     // canvas.addEventListener('dblclick', mouseDblClickHandler, false);
+
+    let points = options.data ? options.data.nodes
+      .map((d) => {
+        return [clip(d.x), clip(d.y), 3, 2 ]}) : new Array(1e5).fill(10)
+
+      setPoints(points)
   };
 
   const destroy = () => {
@@ -912,6 +906,7 @@ const creategraph = (options) => {
   };
 
   init(canvas);
+
 
   return {
     deselect,
@@ -966,7 +961,6 @@ let processKMeans = (data) => {
   options.regl = createRegl(options.canvas)
   if (options.data) options.attributes= processKMeans(options.data)
   options.pointSize = 20
-  console.log(options.width)
   // options.drawLines = createDrawLines(options.regl, options)
   //options.drawNodes = createDrawNodes(options.regl, options)
 
@@ -975,7 +969,7 @@ let processKMeans = (data) => {
     const points = options.data ? options.data.nodes
       .map((d) => {
         return [clip(d.x), clip(d.y), 3, 2 ]}) : new Array(1e5).fill(10)
-    graph.draw(points);
+    //setPoints(points);
 
     return graph
 }

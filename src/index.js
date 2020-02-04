@@ -142,8 +142,6 @@ const creategraph = (options) => {
   initialBackground = DEFAULT_COLOR_BG,
   initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE,
   initialCanvas = options.canvas,
-  initialColorBy = DEFAULT_COLOR_BY,
-  initialColors = DEFAULT_COLORS,
   initialShowRecticle = DEFAULT_SHOW_RECTICLE,
   initialRecticleColor = DEFAULT_RECTICLE_COLOR,
   initialPointSize = DEFAULT_POINT_SIZE,
@@ -169,7 +167,6 @@ const creategraph = (options) => {
   let background = toRgba(initialBackground, true);
   let backgroundImage = initialBackgroundImage;
   let canvas = initialCanvas;
-  let colors = initialColors;
   let width = initialWidth;
   let height = initialHeight;
   let pointSize = initialPointSize;
@@ -203,7 +200,6 @@ const creategraph = (options) => {
   let colorTex; // Stores the color texture
   let colorTexRes = 0; // Width and height of the texture
 
-  let colorBy = initialColorBy;
   let isViewChanged = false;
   let isInit = false;
 
@@ -372,105 +368,22 @@ const creategraph = (options) => {
     if (mouseDown) drawRaf(); // eslint-disable-line no-use-before-define
   };
 
-  const createColorTexture = (newColors = colors) => {
-    const numColors = newColors.length;
-    colorTexRes = Math.max(2, Math.ceil(Math.sqrt(numColors)));
-    const rgba = new Float32Array(colorTexRes ** 2 * 4);
-    newColors.forEach((color, i) => {
-      rgba[i * 4] = color[0]; // r
-      rgba[i * 4 + 1] = color[1]; // g
-      rgba[i * 4 + 2] = color[2]; // b
-      // For all normal state colors check if the global opacity is not 1 and
-      // if so use that instead.
-      rgba[i * 4 + 3] =
-        i % COLOR_NUM_STATES > 0 || opacity === 1 ? color[3] : opacity; // a
-    });
-
-    return regl.texture({
-      data: rgba,
-      shape: [colorTexRes, colorTexRes, 4],
-      type: 'float'
-    });
-  };
-
   const updateViewAspectRatio = () => {
     viewAspectRatio = width / height;
     projection = mat4.fromScaling([], [1 / viewAspectRatio, 1, 1]);
     model = mat4.fromScaling([], [dataAspectRatio, 1, 1]);
   };
 
-  const setDataAspectRatio = newDataAspectRatio => {
-    if (+newDataAspectRatio <= 0) return;
-    dataAspectRatio = newDataAspectRatio;
-  };
-
-  const setColors = newColors => {
-    if (!newColors || !newColors.length) return;
-
-    const tmp = [];
-    try {
-      newColors.forEach(color => {
-        if (Array.isArray(color) && !isRgb(color) && !isRgba(color)) {
-          // Assuming color is an array of HEX colors
-          for (let j = 0; j < 3; j++) {
-            tmp.push(toRgba(color[j], true));
-          }
-        } else {
-          const rgba = toRgba(color, true);
-          const rgbaOpaque = [...rgba.slice(0, 3), 1];
-          tmp.push(rgba, rgbaOpaque, rgbaOpaque); // normal, active, and hover
-        }
-        tmp.push(background);
-      });
-    } catch (e) {
-      console.error(
-        e,
-        'Invalid format. Please specify an array of colors or a nested array of accents per colors.'
-      );
-    }
-    colors = tmp;
-
-    try {
-      colorTex = createColorTexture();
-    } catch (e) {
-      colors = DEFAULT_COLORS;
-      colorTex = createColorTexture();
-      console.error('Invalid colors. Switching back to default colors.');
-    }
-  };
   const setHeight = newHeight => {
     if (!+newHeight || +newHeight <= 0) return;
     height = +newHeight;
     canvas.height = height * window.devicePixelRatio;
   };
 
-  const setPointSize = newPointSize => {
-    if (!+newPointSize || +newPointSize <= 0) return;
-    pointSize = +newPointSize;
-  };
-
-  const setPointSizeSelected = newPointSizeSelected => {
-    if (!+newPointSizeSelected || +newPointSizeSelected < 0) return;
-    pointSizeSelected = +newPointSizeSelected;
-  };
-
-  const setPointOutlineWidth = newPointOutlineWidth => {
-    if (!+newPointOutlineWidth || +newPointOutlineWidth < 0) return;
-    pointOutlineWidth = +newPointOutlineWidth;
-  };
-
   const setWidth = newWidth => {
     if (!+newWidth || +newWidth <= 0) return;
     width = +newWidth;
     canvas.width = width * window.devicePixelRatio;
-  };
-
-
-  const setOpacity = newOpacity => {
-    if (!+newOpacity || +newOpacity <= 0) return;
-
-    opacity = +newOpacity;
-    colorTex = createColorTexture();
   };
 
   const getBackgroundImage = () => backgroundImage;
@@ -729,34 +642,6 @@ const creategraph = (options) => {
     return out;
   };
 
-  const setBackground = newBackground => {
-    if (!newBackground) return;
-
-    background = toRgba(newBackground, true);
-  };
-
-  const setBackgroundImage = newBackgroundImage => {
-    if (!newBackgroundImage) {
-      backgroundImage = null;
-    } else {
-      backgroundImage = newBackgroundImage;
-    }
-  };
-
-  const setShowRecticle = newShowRecticle => {
-    if (newShowRecticle === null) return;
-
-    showRecticle = newShowRecticle;
-  };
-
-  const setRecticleColor = newRecticleColor => {
-    if (!newRecticleColor) return;
-
-    recticleColor = toRgba(newRecticleColor, true);
-
-    recticleHLine.setStyle({ color: recticleColor });
-    recticleVLine.setStyle({ color: recticleColor });
-  };
 
   /**
    * Update Regl's viewport, drawingBufferWidth, and drawingBufferHeight
@@ -765,34 +650,15 @@ const creategraph = (options) => {
    * or height have been altered
    */
   const refresh = () => {
-
     regl.poll();
   };
 
   const set = ({
-    background: newBackground = null,
-    backgroundImage: newBackgroundImage = backgroundImage,
-    opacity: newOpacity = null,
-    showRecticle: newShowRecticle = null,
-    recticleColor: newRecticleColor = null,
-    pointOutlineWidth: newPointOutlineWidth = null,
-    pointSize: newPointSize = null,
-    pointSizeSelected: newPointSizeSelected = null,
     height: newHeight = null,
     width: newWidth = null,
-    aspectRatio: newDataAspectRatio = null
   } = {}) => {
-    setBackground(newBackground);
-    setBackgroundImage(newBackgroundImage);
-    setOpacity(newOpacity);
-    setShowRecticle(newShowRecticle);
-    setRecticleColor(newRecticleColor);
-    setPointOutlineWidth(newPointOutlineWidth);
-    setPointSize(newPointSize);
-    setPointSizeSelected(newPointSizeSelected);
     setHeight(newHeight);
     setWidth(newWidth);
-    setDataAspectRatio(newDataAspectRatio);
 
     updateViewAspectRatio();
     camera.refresh();
@@ -872,9 +738,6 @@ const creategraph = (options) => {
       type: 'float',
       length: FLOAT_BYTES // This buffer is fixed to exactly 1 point
     });
-
-    colorTex = createColorTexture();
-
     // Set dimensions
     set({ width, height });
 

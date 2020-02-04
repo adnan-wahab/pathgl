@@ -64,10 +64,6 @@ void main() {
 `;
 let POINT_VS = `
 precision mediump float;
-
-uniform sampler2D colorTex;
-uniform float colorTexRes;
-uniform sampler2D stateTex;
 uniform float pointSize;
 uniform float pointSizeExtra;
 uniform float numPoints;
@@ -76,7 +72,6 @@ uniform mat4 projection;
 uniform mat4 model;
 uniform mat4 view;
 
-attribute float stateIndex;
 attribute vec2 pos;
 attribute vec3 color;
 
@@ -88,8 +83,6 @@ void main() {
 
   vColor = vec4(color, 1);
 
-  // The final scaling consists of linear scaling in [0, 1] and log scaling
-  // in [1, [
   float finalScaling = min(1.0, scaling) + log2(max(1.0, scaling));
 
   gl_PointSize = pointSize * finalScaling + pointSizeExtra;
@@ -160,8 +153,8 @@ const creategraph = (options) => {
   attributes = options.attributes;
   const pubSub = createPubSub();
   const scratch = new Float32Array(16);
-  const mousePosition = [0, 0];
-
+  let mousePosition  = [0, 0];
+  window.getMousePosition = () => mousePosition
   checkReglExtensions(initialRegl);
 
   let background = toRgba(initialBackground, true);
@@ -190,15 +183,9 @@ const creategraph = (options) => {
   let recticleVLine;
   let recticleColor = toRgba(initialRecticleColor, true);
 
-
-  let stateTex; // Stores the point texture holding x, y, category, and value
-  let stateTexRes = 0; // Width and height of the texture
   let normalPointsIndexBuffer; // Buffer holding the indices pointing to the correct texel
   let selectedPointsIndexBuffer; // Used for pointing to the selected texels
   let hoveredPointIndexBuffer; // Used for pointing to the hovered texels
-
-  let colorTex; // Stores the color texture
-  let colorTexRes = 0; // Width and height of the texture
 
   let isViewChanged = false;
   let isInit = false;
@@ -291,6 +278,7 @@ const creategraph = (options) => {
   };
 
   const select = points => {
+    //selection = points
     points.forEach(p => {
       selection.includes(p) ?  _.pull(selection, p) : selection.push(p)
     })
@@ -387,14 +375,8 @@ const creategraph = (options) => {
   };
 
   const getBackgroundImage = () => backgroundImage;
-  const getColorTex = () => colorTex;
-  const getColorTexRes = () => colorTexRes;
-  const getNormalPointsIndexBuffer = () => normalPointsIndexBuffer;
-  const getSelectedPointsIndexBuffer = () => selectedPointsIndexBuffer;
   const getPointSize = () => pointSize * window.devicePixelRatio;
   const getNormalPointSizeExtra = () => 0;
-  const getStateTex = () => stateTex;
-  const getStateTexRes = () => stateTexRes;
   const getProjection = () => projection;
   window.getView = () => camera.view;
   const getPositionBuffer = () => {
@@ -405,13 +387,12 @@ const creategraph = (options) => {
   const getNormalNumPoints = () => numPoints * state.numPoints | 0;
   window.getNormalNumPoints = getNormalNumPoints
   window.getScaling = getScaling
-  const getMaxColor = () => colors.length / COLOR_NUM_STATES - 1;
-  const getNumColorStates = () => COLOR_NUM_STATES;
+
 
   const drawPoints = (
+    getPos,
     getPointSizeExtra,
     getNumPoints,
-    getStateIndexBuffer
   ) =>
     regl({
       frag: POINT_FS,
@@ -430,12 +411,8 @@ const creategraph = (options) => {
       depth: { enable: false },
 
       attributes: {
-        stateIndex: {
-          buffer: getStateIndexBuffer,
-          size: 1
-        },
         pos: {
-          buffer: getPositionBuffer,
+          buffer: getPos,
           size: 2
         },
         color: {
@@ -459,43 +436,43 @@ const creategraph = (options) => {
     });
 
   const drawPointBodies = drawPoints(
+    getPositionBuffer,
     getNormalPointSizeExtra,
-    getNormalNumPoints,
-    getNormalPointsIndexBuffer
+    getNormalNumPoints
   );
 
   const drawHoveredPoint = drawPoints(
+    getMouseGlPos,
     getNormalPointSizeExtra,
-    () => 1,
-    () => hoveredPointIndexBuffer,
-    COLOR_HOVER_IDX
+    () => 1
   );
 
   const drawSelectedPoint = () => {
     const numOutlinedPoints = selection.length;
-
+    console.log(selection)
     // Draw outer outline
     drawPoints(
+      () => {return [0,0]},
+
       () =>
         (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
-      () => numOutlinedPoints,
-      getSelectedPointsIndexBuffer,
-      COLOR_ACTIVE_IDX
+      () => numOutlinedPoints
     )();
 
     // Draw inner outline
     drawPoints(
+      () => {return [0,0]},
+
       () => (pointSizeSelected + pointOutlineWidth) * window.devicePixelRatio,
-      () => numOutlinedPoints,
-      getSelectedPointsIndexBuffer,
-      COLOR_BG_IDX
+      () => numOutlinedPoints
     )();
 
     // Draw body
     drawPoints(
+      () => {return [0,0]},
+
       () => pointSizeSelected,
       () => numOutlinedPoints,
-      getSelectedPointsIndexBuffer,
       COLOR_ACTIVE_IDX
     )();
   };
@@ -538,6 +515,8 @@ const creategraph = (options) => {
 
     vec4.transformMat4(v, v, scratch);
 
+    window.tooltip = () => { return v }
+
     recticleHLine.setPoints([-1, v[1], 1, v[1]]);
     recticleVLine.setPoints([v[0], 1, v[0], -1]);
 
@@ -546,18 +525,18 @@ const creategraph = (options) => {
 
     // Draw outer outline
     drawPoints(
+      () => {return [0,0]},
       () =>
         (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
       () => 1,
-      hoveredPointIndexBuffer,
       COLOR_ACTIVE_IDX
     )();
 
     // Draw inner outline
     drawPoints(
+      () => {return [0,0]},
       () => (pointSizeSelected + pointOutlineWidth) * window.devicePixelRatio,
       () => 1,
-      hoveredPointIndexBuffer,
       COLOR_BG_IDX
     )();
   };
@@ -572,24 +551,6 @@ const creategraph = (options) => {
     return index;
   };
 
-  const createStateTexture = newPoints => { //fuck this
-    const numNewPoints = newPoints.length;
-    stateTexRes = Math.max(2, Math.ceil(Math.sqrt(numNewPoints)));
-    const data = new Float32Array(stateTexRes ** 2 * 4);
-
-    for (let i = 0; i < numNewPoints; ++i) {
-      data[i * 4] = newPoints[i][0]; // x
-      data[i * 4 + 1] = newPoints[i][1]; // y
-      data[i * 4 + 2] = .1; // category
-      data[i * 4 + 3] = .1; // value
-    }
-
-    return regl.texture({
-      data,
-      shape: [stateTexRes, stateTexRes, 4],
-      type: 'float'
-    });
-  };
 
   const setPoints = newPoints => {
     isInit = false;

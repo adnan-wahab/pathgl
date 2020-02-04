@@ -183,10 +183,6 @@ const creategraph = (options) => {
   let recticleVLine;
   let recticleColor = toRgba(initialRecticleColor, true);
 
-  let normalPointsIndexBuffer; // Buffer holding the indices pointing to the correct texel
-  let selectedPointsIndexBuffer; // Used for pointing to the selected texels
-  let hoveredPointIndexBuffer; // Used for pointing to the hovered texels
-
   let isViewChanged = false;
   let isInit = false;
 
@@ -278,16 +274,10 @@ const creategraph = (options) => {
   };
 
   const select = points => {
-    //selection = points
-    points.forEach(p => {
-      selection.includes(p) ?  _.pull(selection, p) : selection.push(p)
-    })
-
-    selectedPointsIndexBuffer({
-      usage: 'dynamic',
-      type: 'float',
-      data: new Float32Array(selection)
-    });
+    selection = points
+    // points.forEach(p => {
+    //   selection.includes(p) ?  _.pull(selection, p) : selection.push(p)
+    // })
 
     pubSub.publish('select', {
       points: selection
@@ -393,6 +383,7 @@ const creategraph = (options) => {
     getPos,
     getPointSizeExtra,
     getNumPoints,
+    getColors=(() => attributes.color),
   ) =>
     regl({
       frag: POINT_FS,
@@ -416,7 +407,7 @@ const creategraph = (options) => {
           size: 2
         },
         color: {
-          buffer: attributes.color,
+          buffer: getColors,
           size:3
         }
       },
@@ -441,39 +432,46 @@ const creategraph = (options) => {
     getNormalNumPoints
   );
 
-  const drawHoveredPoint = drawPoints(
-    getMouseGlPos,
-    getNormalPointSizeExtra,
-    () => 1
-  );
 
   const drawSelectedPoint = () => {
     const numOutlinedPoints = selection.length;
-    console.log(selection)
+    let idx = selection[0]
+    const xy = searchIndex.points[idx]
+    console.log('xy', xy)
+
+    let c = [
+      [1,1,1],
+      [1,0,1],
+      [1,1,1]
+    ]
+
+    let colors = (i) => {
+      return c[i]
+    }
     // Draw outer outline
     drawPoints(
-      () => {return [0,0]},
+      xy,
 
       () =>
         (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
-      () => numOutlinedPoints
+      () => numOutlinedPoints,
+      colors(0)
     )();
 
     // Draw inner outline
     drawPoints(
-      () => {return [0,0]},
-
+      xy,
       () => (pointSizeSelected + pointOutlineWidth) * window.devicePixelRatio,
-      () => numOutlinedPoints
+      () => numOutlinedPoints,
+      colors(1)
     )();
 
     // Draw body
     drawPoints(
-      () => {return [0,0]},
-
+      xy,
       () => pointSizeSelected,
       () => numOutlinedPoints,
-      COLOR_ACTIVE_IDX
+      colors(2)
     )();
   };
 
@@ -523,45 +521,32 @@ const creategraph = (options) => {
     recticleHLine.draw();
     recticleVLine.draw();
 
+    let fromage = [
+      [1,1,1],
+      [1,0,1]
+    ]
+
     // Draw outer outline
     drawPoints(
-      () => {return [0,0]},
+      () => [x,y],
       () =>
         (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
       () => 1,
-      COLOR_ACTIVE_IDX
+      () => fromage[0]
     )();
 
     // Draw inner outline
     drawPoints(
-      () => {return [0,0]},
+        () => [x,y],
       () => (pointSizeSelected + pointOutlineWidth) * window.devicePixelRatio,
       () => 1,
-      COLOR_BG_IDX
+        () => fromage[1]
     )();
   };
 
-  const createPointIndex = numNewPoints => {
-    const index = new Float32Array(numNewPoints);
-
-    for (let i = 0; i < numNewPoints; ++i) {
-      index[i] = i;
-    }
-
-    return index;
-  };
-
-
   const setPoints = newPoints => {
     isInit = false;
-
     numPoints = newPoints.length;
-
-    normalPointsIndexBuffer({
-      usage: 'static',
-      type: 'float',
-      data: createPointIndex(numPoints)
-    });
 
     searchIndex = new KDBush(newPoints, p => p[0], p => p[1], 16);
 
@@ -589,7 +574,6 @@ const creategraph = (options) => {
     // The draw order of the following calls is important!
     drawPointBodies();
     drawRecticle();
-    if (hoveredPoint >= 0) drawHoveredPoint();
     if (selection.length) drawSelectedPoint();
     // Publish camera change
     if (isViewChanged) pubSub.publish('view', camera.view);
@@ -627,7 +611,7 @@ const creategraph = (options) => {
     drawRaf();
   };
 
-  const hover = (point, showRecticleOnce = false) => {
+  const hover = (point) => {
     let needsRedraw = false;
 
     if (point >= 0) {
@@ -636,7 +620,6 @@ const creategraph = (options) => {
       needsRedraw = true;
       const newHoveredPoint = point !== hoveredPoint;
       hoveredPoint = point;
-      hoveredPointIndexBuffer.subdata([point]);
       if (newHoveredPoint) pubSub.publish('pointover', hoveredPoint);
     } else {
       needsRedraw = hoveredPoint;
@@ -644,7 +627,7 @@ const creategraph = (options) => {
       if (+needsRedraw >= 0) pubSub.publish('pointout', needsRedraw);
     }
 
-    if (needsRedraw) drawRaf(null, showRecticleOnce);
+    if (needsRedraw) drawRaf(null);
   };
 
   const reset = () => {
@@ -691,14 +674,6 @@ const creategraph = (options) => {
       drawRaf();
     });
 
-    // Buffers
-    normalPointsIndexBuffer = regl.buffer();
-    selectedPointsIndexBuffer = regl.buffer();
-    hoveredPointIndexBuffer = regl.buffer({
-      usage: 'dynamic',
-      type: 'float',
-      length: FLOAT_BYTES // This buffer is fixed to exactly 1 point
-    });
     // Set dimensions
     set({ width, height });
 

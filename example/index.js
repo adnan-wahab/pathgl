@@ -8,8 +8,9 @@ let url = [
   // 'philippines',
   // 'sfcommute',
   // 'world',
-  'dataKMeans',
-  'mobile-banking',
+  'dataKMeans.json',
+  'mobile-banking.json',
+  'd.tsv'
 
 ]
 
@@ -27,8 +28,10 @@ let main = () => {
   container.selectAll('a').data(url).enter()
   .append('div')
   .append('a').text((d) => d)
-  .attr('href', (d) => `./data/${d}.json`)
+  .attr('href', (d) => `./data/${d}`)
   .on('click', d => {
+    if (d3.event.target.href.includes('tsv')) loadTSV()
+    else
     load(d3.event.target.href)
     d3.event.preventDefault()
   })
@@ -71,6 +74,7 @@ let makeRandom = () => {
 let graph
 
 let load = (url) => {
+  console.log('adfssd')
   fetch(url)
     .then((body)=>{ return body.json() })
     .then((json)=>{

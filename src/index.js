@@ -137,6 +137,7 @@ import {
 let NOOP = () => {}
 
 const creategraph = (options) => {
+  let state = {scaling: 1}
   let initialRegl = options.regl,
   initialBackground = DEFAULT_COLOR_BG,
   initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE,
@@ -485,9 +486,9 @@ const creategraph = (options) => {
     return attributes.position
   }
   const getModel = () => model;
-  const getScaling = () => camera.scaling;
+  const getScaling = () => state.scaling;
   const getNormalNumPoints = () => numPoints;
-
+  window.getScaling = getScaling
   const getMaxColor = () => colors.length / COLOR_NUM_STATES - 1;
   const getNumColorStates = () => COLOR_NUM_STATES;
 
@@ -906,6 +907,12 @@ const creategraph = (options) => {
   };
 
   init(canvas);
+  let count = 100;
+  let update = (options) => {
+    state.scaling = options.zoom
+    console.log('updating', options)
+    //camera.lookAt([0,0], count--, 0)
+  }
 
 
   return {
@@ -920,6 +927,7 @@ const creategraph = (options) => {
     refresh,
     reset: withDraw(reset),
     select,
+    update
   };
 };
 

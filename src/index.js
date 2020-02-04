@@ -377,13 +377,17 @@ const creategraph = (options) => {
   const getNormalNumPoints = () => numPoints * state.numPoints | 0;
   window.getNormalNumPoints = getNormalNumPoints
   window.getScaling = getScaling
-
+  let hi = 'cluster'
+  window.onStyleChange = (prop) => {
+    console.log(prop)
+    hi = prop
+  }
 
   const drawPoints = (
     getPos,
     getPointSizeExtra,
     getNumPoints,
-    getColors=(() => attributes.color),
+    getColors=(() => hi == 'cluster' ? attributes.color: attributes.sentimentValue),
   ) =>
     regl({
       frag: POINT_FS,
@@ -742,6 +746,13 @@ let clip = (d) => {
 
 let processKMeans = (data) => {
   let position = _.flatten(data.nodes.map(d => [clip(d.x), clip(d.y) ]))
+  var accent = d3.scaleOrdinal(d3.schemeAccent);
+
+  let sentimentValue = _.flatten(data.nodes.map((d) => {
+    let c = d3.rgb(d3.interpolateSpectral(+ d.attributes.SentimentVal));
+    return [c.r /255 , c.g /255 , c.b /255];
+  }));
+window.sentiment = sentimentValue
     let edges = new Array(data.edges.length * 4).fill(0);
     data.edges.forEach((edge, idx) => {
       edges[idx*4] = clip(data.nodes[edge.source].x)
@@ -767,7 +778,8 @@ let processKMeans = (data) => {
       position,
       color,
       dates,
-      fboColor
+      fboColor,
+      sentimentValue
     }
   }
   let init = (options) => {

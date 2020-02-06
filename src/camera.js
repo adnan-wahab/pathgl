@@ -2,8 +2,7 @@ import mouseChange from 'mouse-change'
 import mouseWheel from 'mouse-wheel'
 import identity from 'gl-mat4/identity'
 import perspective from 'gl-mat4/perspective'
-import lookAt from  'gl-mat4/lookAt'
-
+import lookAt from 'gl-mat4/lookAt'
 
 function createCamera (regl, props) {
   var cameraState = {
@@ -30,18 +29,17 @@ function createCamera (regl, props) {
   var prevX = 0
   var prevY = 0
 
-  document.body.addEventListener('keydown', (e) =>{
-
-    let translate = {
+  document.body.addEventListener('keydown', (e) => {
+    const translate = {
       37: [1, 0],
       38: [0, 1],
       39: [-1, 0],
       40: [0, -1]
     }
-    let dir = translate[e.which] || [0,0]
-    cameraState.center[0] += dir[0] * .1
-    cameraState.center[1] += dir[1] * .1
-    //left up right down
+    const dir = translate[e.which] || [0, 0]
+    cameraState.center[0] += dir[0] * 0.1
+    cameraState.center[1] += dir[1] * 0.1
+    // left up right down
   })
 
   mouseChange(function (buttons, x, y) {
@@ -108,7 +106,7 @@ function createCamera (regl, props) {
 
   var injectContext = regl({
     context: Object.assign({}, cameraState, {
-      projection: function ({viewportWidth, viewportHeight}) {
+      projection: function ({ viewportWidth, viewportHeight }) {
         return perspective(cameraState.projection,
           Math.PI / 4.0,
           viewportWidth / viewportHeight,

@@ -1,6 +1,6 @@
-function createDrawLines(regl, options) {
-  let attributes = options.attributes
-
+function createDrawLines (regl, options) {
+  const attributes = { position: options.attributes.edges, color: options.attributes.color }
+  console.log(options)
   // make sure to respect system limitations.
   var lineWidth = 1
   if (lineWidth > regl.limits.lineWidthDims[1]) {
@@ -8,7 +8,7 @@ function createDrawLines(regl, options) {
   }
 
   // this creates a drawCall that allows you to do draw single line primitive.
-  let drawLines =
+  const drawLines =
     regl({
       frag: `
       precision mediump float;
@@ -18,7 +18,7 @@ function createDrawLines(regl, options) {
 
 
       void main() {
-        gl_FragColor = vec4(v_color, wow.x);
+        gl_FragColor = vec4(1);
       }`,
 
       vert: `
@@ -44,14 +44,14 @@ function createDrawLines(regl, options) {
       void main() {
         vec2 p  = position;
 
-        if (selection.x < dates && dates < selection.y )
-        wow = vec3(0);
-        else wow = vec3(1);
-        v_color = color;
+        // if (selection.x < dates && dates < selection.y )
+        // wow = vec3(0);
+        // else wow = vec3(1);
+        // v_color = color;
 
         // translate
-        p += offset;
-        gl_PointSize = .5;
+        //p += offset;
+        //gl_PointSize = .5;
         gl_Position = projection * view * vec4(p, 0, 1);
       }`,
       blend: {
@@ -60,8 +60,8 @@ function createDrawLines(regl, options) {
           srcRGB: 'src alpha',
           srcAlpha: 'src alpha',
           dstRGB: 'one minus src alpha',
-          dstAlpha: 'one minus src alpha',
-        },
+          dstAlpha: 'one minus src alpha'
+        }
       },
       depth: { enable: true },
 
@@ -72,22 +72,23 @@ function createDrawLines(regl, options) {
         offset: [0, 0.0],
         phase: 0.0,
         freq: 0.01,
-        opacity: .5,
+        opacity: 0.5,
         selection: () => {
-          return window.getAdnan ?
-           window.getAdnan() : [1,1]
+          return window.getAdnan
+            ? window.getAdnan() : [1, 1]
         },
         view: () => {
-          return   window.getView()
-        }, projection: [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]
+          return window.getView()
+        },
+        projection: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 
       },
 
       lineWidth: lineWidth,
-      count: attributes.position.length / 4,
+      count: attributes.position.length,
       primitive: 'lines'
     })
-    return drawLines;
+  return drawLines
 }
 
 export default createDrawLines

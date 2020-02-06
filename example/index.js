@@ -37,8 +37,8 @@ let main = () => {
   })
 
   //load('./data/test.json')
-  //load('./data/datakmeans.json')
-  loadTSV()
+  load('./data/dataKMeans.json')
+  //loadTSV()
 
   document.title = 'what'
   ///loadTSV('./data/d.tsv')

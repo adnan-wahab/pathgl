@@ -1,16 +1,15 @@
 
-import * as d3 from "d3";
+import * as d3 from 'd3'
 
-let createDrawNodes = (regl, options) => {
-  let attributes = options.attributes,
-      canvas = options.canvas,
-      nodes = options.data.nodes;
+const createDrawNodes = (regl, options) => {
+  const attributes = options.attributes
+  const canvas = options.canvas
+  const nodes = options.data.nodes
 
-
-  let fbo = regl.framebuffer({
+  const fbo = regl.framebuffer({
     width: canvas.width,
     height: canvas.height,
-    colorFormat: 'rgba',
+    colorFormat: 'rgba'
   })
 
   const drawFboQuad = regl({
@@ -43,11 +42,11 @@ let createDrawNodes = (regl, options) => {
     attributes: {
       position: [
         -1, 1, -1, -1, 1, -1,
-        -1, 1, 1, 1, 1, -1,
-      ],
+        -1, 1, 1, 1, 1, -1
+      ]
     },
     uniforms: {
-      texture: fbo,
+      texture: fbo
     },
     count: 6,
 
@@ -57,15 +56,14 @@ let createDrawNodes = (regl, options) => {
         srcRGB: 'src alpha',
         srcAlpha: 1,
         dstRGB: 'one minus src alpha',
-        dstAlpha: 1,
-      },
-    },
+        dstAlpha: 1
+      }
+    }
   })
 
   // ----------------------------------------------------------------------------------------- bunny
 
   const createBunny = function (regl) {
-
     const common = {
       vert: `
 
@@ -91,7 +89,7 @@ let createDrawNodes = (regl, options) => {
 
       attributes: attributes,
       primitive: 'points',
-      count: attributes.position.length / 4,
+      count: attributes.position.length / 4
     }
 
     const draw = regl({
@@ -124,13 +122,15 @@ let createDrawNodes = (regl, options) => {
         gl_FragColor = vec4(vColor * alpha, alpha);
 
       }`,
-      uniforms: {isFbo:false,
+      uniforms: {
+        isFbo: false,
         view: () => {
-          return   window.getView()
-        }, projection: [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]
+          return window.getView()
+        },
+        projection: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 
       },
-      cull: {enable: true},
+      cull: { enable: true },
       depth: { enable: true, mask: true },
       blend: {
         enable: false,
@@ -138,15 +138,15 @@ let createDrawNodes = (regl, options) => {
           srcRGB: 'src alpha',
           srcAlpha: 'src alpha',
           dstRGB: 'one minus src alpha',
-          dstAlpha: 'one minus src alpha',
-        },
-      },
+          dstAlpha: 'one minus src alpha'
+        }
+      }
     })
 
     const drawFbo = regl({
       ...common,
       framebuffer: fbo,
-      uniforms: {isFbo:true},
+      uniforms: { isFbo: true },
 
       frag: `
         precision mediump float;
@@ -158,7 +158,7 @@ let createDrawNodes = (regl, options) => {
     })
     return {
       draw,
-      drawFbo,
+      drawFbo
     }
   }
   // ----------------------------------------------------------------------------------------- raf
@@ -218,8 +218,7 @@ let createDrawNodes = (regl, options) => {
     //   }
 
     drawBunny.draw()
-    //drawFboQuad()
-
+    // drawFboQuad()
   }
 }
 

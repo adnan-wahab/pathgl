@@ -753,7 +753,7 @@ const clip = (d) => {
 
 let processKMeans = (data) => {
   console.log(data.nodes, 'nodes')
-  let position = _.flatten(data.nodes.map(d => [clip(d.x), 1. - clip(d.y), d.size ]))
+  let position = _.flatten(data.nodes.map(d => [clip(d.x), clip(d.y), d.size ]))
   var accent = d3.scaleOrdinal(d3.schemeAccent);
 
   let sentimentValue = _.flatten(data.nodes.map((d) => {

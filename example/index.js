@@ -78,6 +78,8 @@ let load = (url) => {
   fetch(url)
     .then((body)=>{ return body.json() })
     .then((json)=>{
+      json.nodes = json.nodes.slice(0, 100)
+      json.edges = []
       graph = GraphRenderer.init({ data: json, canvas: canvas,
        })
     })

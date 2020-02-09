@@ -74,7 +74,7 @@ varying vec2 uv;
 
 void main () {
   uv = position;
-  gl_Position = projection * view * model * vec4(1.0 - 2.0 * position, 0, 1);
+  gl_Position = view * vec4(1.0 - 2.0 * position, 0, 1);
 }
 `
 
@@ -111,18 +111,24 @@ uniform mat4 projection;
 uniform mat4 model;
 uniform mat4 view;
 
-attribute vec2 pos;
+attribute vec3 pos;
 attribute vec3 color;
+
+uniform bool flatSize;
 
 // variables to send to the fragment shader
 varying vec4 vColor;
 
 void main() {
-  gl_Position = projection * view * model * vec4(pos, 0.0, 1.0);
+  gl_Position = projection * view * model * vec4(pos.xy, 0.0, 1.0);
 
   vColor = vec4(color, 1);
 
   float finalScaling = min(1.0, scaling) + log2(max(1.0, scaling));
+  //if (flatSize)
+  gl_PointSize = (pointSize) * finalScaling + pointSizeExtra;
+  //else
+  //gl_PointSize = (pos.z * .5) + pointSizeExtra;
 
   gl_PointSize = .2 * pointSize * finalScaling + pointSizeExtra;
 }
@@ -130,30 +136,30 @@ void main() {
 const NOOP = () => {}
 
 const creategraph = (options) => {
-  const state = { scaling: 1, numPoints: 1 }
-  const initialRegl = options.regl
-  const initialBackground = DEFAULT_COLOR_BG
-  const initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE
-  const initialCanvas = options.canvas
-  const initialShowRecticle = DEFAULT_SHOW_RECTICLE
-  const initialRecticleColor = DEFAULT_RECTICLE_COLOR
-  const initialPointSize = DEFAULT_POINT_SIZE
-  const initialPointSizeSelected = DEFAULT_POINT_SIZE_SELECTED
-  const initialPointOutlineWidth = 2
-  const initialWidth = DEFAULT_WIDTH
-  const initialHeight = DEFAULT_HEIGHT
-  const initialTarget = DEFAULT_TARGET
-  const initialDistance = DEFAULT_DISTANCE
-  const initialRotation = DEFAULT_ROTATION
-  const initialView = DEFAULT_VIEW
-  const drawLines = options.createDrawLines || NOOP
-  const drawNodes = options.createDrawNodes || NOOP
-  const onHover = options.onHover || NOOP
-  const onClick = options.onClick || NOOP
-  const attributes = options.attributes
-  const pubSub = createPubSub()
-  const scratch = new Float32Array(16)
-  const mousePosition = [0, 0]
+  let state = {scaling: .4, numPoints: 1, showLines: true, showNodes: true, flatSize: true }
+  let initialRegl = options.regl,
+  initialBackground = DEFAULT_COLOR_BG,
+  initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE,
+  initialCanvas = options.canvas,
+  initialShowRecticle = DEFAULT_SHOW_RECTICLE,
+  initialRecticleColor = DEFAULT_RECTICLE_COLOR,
+  initialPointSize = DEFAULT_POINT_SIZE,
+  initialPointSizeSelected = DEFAULT_POINT_SIZE_SELECTED,
+  initialPointOutlineWidth = 2,
+  initialWidth = DEFAULT_WIDTH,
+  initialHeight = DEFAULT_HEIGHT,
+  initialTarget = DEFAULT_TARGET,
+  initialDistance = DEFAULT_DISTANCE,
+  initialRotation = DEFAULT_ROTATION,
+  initialView = DEFAULT_VIEW,
+  drawLines = options.drawLines,
+  drawNodes = options.createDrawNodes || NOOP,
+  onHover = options.onHover || NOOP,
+  onClick = options.onClick || NOOP,
+  attributes = options.attributes;
+  const pubSub = createPubSub();
+  const scratch = new Float32Array(16);
+  let mousePosition  = [0, 0];
   window.getMousePosition = () => mousePosition
   checkReglExtensions(initialRegl)
 
@@ -406,7 +412,7 @@ const creategraph = (options) => {
       attributes: {
         pos: {
           buffer: getPos,
-          size: 2
+          size: 3
         },
         color: {
           buffer: getColors,
@@ -420,7 +426,8 @@ const creategraph = (options) => {
         view: getView,
         scaling: getScaling,
         pointSize: getPointSize,
-        pointSizeExtra: getPointSizeExtra
+        pointSizeExtra: getPointSizeExtra,
+        flatSize: () => {return state.flatSize }
       },
 
       count: getNumPoints,
@@ -438,7 +445,7 @@ const creategraph = (options) => {
     const numOutlinedPoints = selection.length
     const idx = selection[0]
     const xy = searchIndex.points[idx]
-    console.log('xy', xy)
+    //console.log('xy', xy)
 
     const c = [
       [1, 1, 1],
@@ -569,13 +576,13 @@ const creategraph = (options) => {
     if (backgroundImage) {
       drawBackgroundImage()
     }
-    drawLines({ view: getView(), projection: getView() })
-    // drawNodes({view: getView(), projection: getView()})
+  if (state.showLines) drawLines()
+    //drawNodes({view: getView(), projection: getView()})
 
     // The draw order of the following calls is important!
-    // drawPointBodies();
-    drawRecticle()
-    if (selection.length) drawSelectedPoint()
+    if (state.showNodes) drawPointBodies();
+    drawRecticle();
+    if (selection.length) drawSelectedPoint();
     // Publish camera change
     if (isViewChanged) pubSub.publish('view', camera.view)
   }
@@ -715,7 +722,12 @@ const creategraph = (options) => {
   const count = 100
   const update = (options) => {
     state.scaling = options.zoom
-    state.numPoints = options.nodeCount
+    state.numPoints = options.numNodes
+    state.showLines = options.showLines
+    state.showNodes = options.showNodes
+    state.flatSize = options.flatSize
+    drawRaf()
+
     console.log('updating', state.numPoints)
     // camera.lookAt([0,0], count--, 0)
   }
@@ -725,8 +737,7 @@ const creategraph = (options) => {
     destroy,
     draw: drawRaf,
     repaint: () => {
-      console.log('paint')
-      withDraw(reset)()
+      withDraw(reset)();
     },
     hover,
     refresh,
@@ -740,51 +751,62 @@ const clip = (d) => {
   return d / 3000
 }
 
-const processKMeans = (data) => {
-  const position = _.flatten(data.nodes.map(d => [clip(d.x), clip(d.y)]))
-  var accent = d3.scaleOrdinal(d3.schemeAccent)
+let processKMeans = (data) => {
+  console.log(data.nodes, 'nodes')
+  let position = _.flatten(data.nodes.map(d => [clip(d.x), 1. - clip(d.y), d.size ]))
+  var accent = d3.scaleOrdinal(d3.schemeAccent);
 
-  const sentimentValue = _.flatten(data.nodes.map((d) => {
-    const c = d3.rgb(d3.interpolateSpectral(+d.attributes.SentimentVal))
-    return [c.r / 255, c.g / 255, c.b / 255]
-  }))
+  let sentimentValue = _.flatten(data.nodes.map((d) => {
+    let c = d3.rgb(d3.interpolateSpectral(+ d.attributes.SentimentVal));
+    return [c.r /255 , c.g /255 , c.b /255];
+  }));
 
-  const edges = new Array(data.edges.length * 4).fill(0)
-  data.edges.forEach((edge, idx) => {
-    edges[idx * 4] = clip(data.nodes[edge.source].x)
-    edges[idx * 4 + 1] = clip(data.nodes[edge.source].y)
-    edges[idx * 4 + 2] = clip(data.nodes[edge.target].x)
-    edges[idx * 4 + 3] = clip(data.nodes[edge.target].y)
-  })
-  window.edges = edges
 
-  const dates = data.nodes.map((edge, idx) => {
-    return edge.attributes.date
-  })
+    let edges = new Array(data.edges.length * 4).fill(0);
+    data.edges.forEach((edge, idx) => {
+      edges[idx*4] = clip(data.nodes[edge.source].x)
+      edges[idx*4+1] = clip(data.nodes[edge.source].y)
+      edges[idx*4+2] = clip(data.nodes[edge.target].x)
+      edges[idx*4+3] = clip(data.nodes[edge.target].y)
+    });
 
-  const color = _.flatten(data.nodes.map((d) => {
-    const c = d3.color(d.color)
-    return [c.r / 255, c.g / 255, c.b / 255]
-  }))
+    let edgeColors = new Array(data.edges.length * 3).fill(0);
+    data.edges.forEach((edge, idx) => {
+      let color = data.nodes[edge.source].color
+      let c = d3.rgb(color);
+      edgeColors[idx*4+1] = c.r / 255
+      edgeColors[idx*4+2] = c.g / 255
+      edgeColors[idx*4+3] = c.b / 255
+    });
 
-  const fboColor = color.map((d, i) => {
-    return i / color.length
-  })
-  return {
-    position,
-    color,
-    dates,
-    fboColor,
-    sentimentValue,
-    edges
+    let dates = data.nodes.map((edge, idx) => {
+      return edge.attributes.date
+    })
+    let color = _.flatten(data.nodes.map((d) => {
+      let c = d3.color(d.color);
+      return [c.r /255 , c.g /255 , c.b /255];
+    }));
+
+    let fboColor = color.map((d, i) => {
+      return i / color.length
+    })
+    return {
+      position,
+      edges,
+      edgeColors,
+      color,
+      dates,
+      fboColor,
+      sentimentValue
+    }
   }
-}
+
 const init = (options) => {
   options.regl = createRegl(options.canvas)
   if (options.data) options.attributes = processKMeans(options.data)
   options.pointSize = 20
   options.drawLines = createDrawLines(options.regl, options)
-  // options.drawNodes = createDrawNodes(options.regl, options)
+  //options.drawNodes = createDrawNodes(options.regl, options)
 
   const graph = creategraph(options)
   // graph.set({backgroundImage :{src : 'https://www.seriouseats.com/recipes/images/2014/04/20140430-peeling-eggs-10.jpg', crossOrigin: true}})

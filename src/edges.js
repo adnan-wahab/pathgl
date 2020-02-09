@@ -1,12 +1,13 @@
 function createDrawLines (regl, options) {
-  const attributes = { position: options.attributes.edges, color: options.attributes.color }
+  const attributes = options.attributes
   console.log(options)
   // make sure to respect system limitations.
   var lineWidth = 1
   if (lineWidth > regl.limits.lineWidthDims[1]) {
     lineWidth = regl.limits.lineWidthDims[1]
   }
-
+window.x = attributes
+console.log('making drawLines', options)
   // this creates a drawCall that allows you to do draw single line primitive.
   const drawLines =
     regl({
@@ -50,8 +51,7 @@ function createDrawLines (regl, options) {
         // v_color = color;
 
         // translate
-        //p += offset;
-        //gl_PointSize = .5;
+        p += offset;
         gl_Position = projection * view * vec4(p, 0, 1);
       }`,
       blend: {
@@ -65,7 +65,10 @@ function createDrawLines (regl, options) {
       },
       depth: { enable: true },
 
-      attributes: attributes,
+      attributes: {
+        position:  attributes.edges,
+          color: attributes.edgeColors
+      },
 
       uniforms: {
         scale: 1,
@@ -85,10 +88,13 @@ function createDrawLines (regl, options) {
       },
 
       lineWidth: lineWidth,
-      count: attributes.position.length,
+      count: attributes.position.length /4 ,
       primitive: 'lines'
     })
-  return drawLines
+
+
+
+  return () => {drawLines()}
 }
 
 export default createDrawLines

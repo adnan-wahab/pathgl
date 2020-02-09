@@ -36,8 +36,8 @@ let main = () => {
     d3.event.preventDefault()
   })
 
-  //load('./data/test.json')
-  load('./data/mobile-banking.json')
+  load('./data/dataKmeans.json')
+  //load('./data/mobile-banking.json')
   //loadTSV()
 
   document.title = 'what'

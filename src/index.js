@@ -130,13 +130,13 @@ void main() {
   //else
   //gl_PointSize = (pos.z * .5) + pointSizeExtra;
 
-  gl_PointSize = .2 * pointSize * finalScaling + pointSizeExtra;
+  gl_PointSize = pointSize * finalScaling + pointSizeExtra;
 }
 `
 const NOOP = () => {}
 
 const creategraph = (options) => {
-  let state = {scaling: .4, numPoints: 1, showLines: true, showNodes: true, flatSize: true }
+  let state = {scaling: .4, numPoints: 1, showLines: false, showNodes: true, flatSize: true }
   let initialRegl = options.regl,
   initialBackground = DEFAULT_COLOR_BG,
   initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE,

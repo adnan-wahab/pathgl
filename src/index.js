@@ -264,6 +264,7 @@ const creategraph = (options) => {
     })
 
     if (minDist < (pointSize / width) * 2) {
+      //adnan
       onHover(clostestPoint, x, y, 'why')
       return clostestPoint
     };
@@ -442,8 +443,8 @@ const creategraph = (options) => {
   )
 
   const drawSelectedPoint = () => {
-    const numOutlinedPoints = selection.length
     const idx = selection[0]
+    const numOutlinedPoints = selection.length
     const xy = searchIndex.points[idx]
     //console.log('xy', xy)
 
@@ -695,8 +696,8 @@ const creategraph = (options) => {
     // canvas.addEventListener('dblclick', mouseDblClickHandler, false);
 
     const points = options.data ? options.data.nodes
-      .map((d) => {
-        return [clip(d.x), clip(d.y), 3, 2]
+      .map((d, idx) => {
+        return [clip(d.x), clip(d.y), idx, 'haha']
       }) : new Array(1e5).fill(10)
 
     setPoints(points)
@@ -761,6 +762,10 @@ let processKMeans = (data) => {
     return [c.r /255 , c.g /255 , c.b /255];
   }));
 
+  let counts = {}
+  data.edges.forEach(d => {
+    counts[d.target] =counts[d.target]
+  })
 
     let edges = new Array(data.edges.length * 4).fill(0);
     data.edges.forEach((edge, idx) => {

@@ -152,7 +152,7 @@ const creategraph = (options) => {
   initialDistance = DEFAULT_DISTANCE,
   initialRotation = DEFAULT_ROTATION,
   initialView = DEFAULT_VIEW,
-  drawLines = options.drawLines,
+  drawLines = createDrawLines(options.regl, options),
   drawNodes = options.createDrawNodes || NOOP,
   onHover = options.onHover || NOOP,
   onClick = options.onClick || NOOP,
@@ -160,6 +160,7 @@ const creategraph = (options) => {
   const pubSub = createPubSub();
   const scratch = new Float32Array(16);
   let mousePosition  = [0, 0];
+  let pointList = []
   window.getMousePosition = () => mousePosition
   checkReglExtensions(initialRegl)
 
@@ -264,8 +265,6 @@ const creategraph = (options) => {
     })
 
     if (minDist < (pointSize / width) * 2) {
-      //adnan
-      onHover(clostestPoint, x, y, 'why')
       return clostestPoint
     };
     return -1
@@ -280,7 +279,9 @@ const creategraph = (options) => {
   }
 
   const select = points => {
-    selection = points
+    if (typeof points === 'string') selection = [pointList.findIndex(d => d[2] === points)]
+    else selection = points
+
     // points.forEach(p => {
     //   selection.includes(p) ?  _.pull(selection, p) : selection.push(p)
     // })
@@ -331,7 +332,7 @@ const creategraph = (options) => {
     const clickDist = dist(...currentMousePosition, ...mouseDownPosition)
     const clostestPoint = raycast()
     if (clostestPoint >= 0) select([clostestPoint])
-    if (clostestPoint >= 0) onClick(clostestPoint)
+    if (clostestPoint >= 0) onClick(pointList[clostestPoint])
   }
 
   const mouseDblClickHandler = () => {
@@ -384,7 +385,7 @@ const creategraph = (options) => {
   window.getScaling = getScaling
   let hi = 'cluster'
   window.onStyleChange = (prop) => {
-    console.log(prop)
+    console.log('onStyleChange', hi)
     hi = prop
   }
 
@@ -555,6 +556,7 @@ const creategraph = (options) => {
 
   const setPoints = newPoints => {
     isInit = false
+    pointList = newPoints
     numPoints = newPoints.length
 
     searchIndex = new KDBush(newPoints, p => p[0], p => p[1], 16)
@@ -697,7 +699,7 @@ const creategraph = (options) => {
 
     const points = options.data ? options.data.nodes
       .map((d, idx) => {
-        return [clip(d.x), clip(d.y), idx, 'haha']
+        return [clip(d.x), clip(d.y), d.uuid]
       }) : new Array(1e5).fill(10)
 
     setPoints(points)
@@ -753,42 +755,51 @@ const clip = (d) => {
 }
 
 let processKMeans = (data) => {
-  console.log(data.nodes, 'nodes')
+
+let getNode = (id) => {
+  return data.nodes.find(d => d.uuid === id)
+}
+
+ let colors = data.nodes.map(d => {
+   return [Math.random(), ]
+ })
+
   let position = _.flatten(data.nodes.map(d => [clip(d.x), clip(d.y), d.size ]))
   var accent = d3.scaleOrdinal(d3.schemeAccent);
 
   let sentimentValue = _.flatten(data.nodes.map((d) => {
-    let c = d3.rgb(d3.interpolateSpectral(+ d.attributes.SentimentVal));
+    let c = d3.rgb(d3.interpolateSpectral(+ d.attributes ? d.attributes.SentimentVal : Math.random()));
     return [c.r /255 , c.g /255 , c.b /255];
   }));
 
   let counts = {}
   data.edges.forEach(d => {
-    counts[d.target] =counts[d.target]
+    counts[d.target] = counts[d.target]
   })
+  console.log('counts', counts)
 
     let edges = new Array(data.edges.length * 4).fill(0);
     data.edges.forEach((edge, idx) => {
-      edges[idx*4] = clip(data.nodes[edge.source].x)
-      edges[idx*4+1] = clip(data.nodes[edge.source].y)
-      edges[idx*4+2] = clip(data.nodes[edge.target].x)
-      edges[idx*4+3] = clip(data.nodes[edge.target].y)
+      edges[idx*4] = clip(getNode(edge.source).x)
+      edges[idx*4+1] = clip(getNode(edge.source).y)
+      edges[idx*4+2] = clip(getNode(edge.target).x)
+      edges[idx*4+3] = clip(getNode(edge.target).y)
     });
 
     let edgeColors = new Array(data.edges.length * 3).fill(0);
-    data.edges.forEach((edge, idx) => {
-      let color = data.nodes[edge.source].color
-      let c = d3.rgb(color);
-      edgeColors[idx*4+1] = c.r / 255
-      edgeColors[idx*4+2] = c.g / 255
-      edgeColors[idx*4+3] = c.b / 255
-    });
+    // data.edges.forEach((edge, idx) => {
+    //   let color = data.nodes[edge.source].color
+    //   let c = d3.rgb(color);
+    //   edgeColors[idx*4+1] = c.r / 255
+    //   edgeColors[idx*4+2] = c.g / 255
+    //   edgeColors[idx*4+3] = c.b / 255
+    // });
 
-    let dates = data.nodes.map((edge, idx) => {
-      return edge.attributes.date
-    })
+    // let dates = data.nodes.map((edge, idx) => {
+    //   return edge.attributes.date
+    // })
     let color = _.flatten(data.nodes.map((d) => {
-      let c = d3.color(d.color);
+      let c = d3.color(d.color || 'pink');
       return [c.r /255 , c.g /255 , c.b /255];
     }));
 
@@ -797,31 +808,20 @@ let processKMeans = (data) => {
     })
     return {
       position,
+      counts,
       edges,
       edgeColors,
       color,
-      dates,
+      //dates,
       fboColor,
       sentimentValue
     }
   }
 
-const init = (options) => {
-  options.regl = createRegl(options.canvas)
-  if (options.data) options.attributes = processKMeans(options.data)
-  options.pointSize = 20
-  options.drawLines = createDrawLines(options.regl, options)
-  //options.drawNodes = createDrawNodes(options.regl, options)
-
-  const graph = creategraph(options)
-  // graph.set({backgroundImage :{src : 'https://www.seriouseats.com/recipes/images/2014/04/20140430-peeling-eggs-10.jpg', crossOrigin: true}})
-  const points = options.data ? options.data.nodes
-    .map((d) => {
-      return [clip(d.x), clip(d.y), 3, 2]
-    }) : new Array(1e5).fill(10)
-  // setPoints(points);
-
-  return graph
+const init = (props) => {
+  if (props.data) props.attributes = processKMeans(props.data)
+  props.regl = createRegl(props.canvas)
+  return creategraph(props)
 }
 
 export default { init }

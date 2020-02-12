@@ -1,14 +1,11 @@
 function createDrawLines (regl, options) {
   const attributes = options.attributes
-  console.log(options)
   // make sure to respect system limitations.
   var lineWidth = 1
   if (lineWidth > regl.limits.lineWidthDims[1]) {
     lineWidth = regl.limits.lineWidthDims[1]
   }
-window.x = attributes
-console.log('making drawLines', options)
-  // this creates a drawCall that allows you to do draw single line primitive.
+
   const drawLines =
     regl({
       frag: `
@@ -94,7 +91,7 @@ console.log('making drawLines', options)
 
 
 
-  return () => {drawLines()}
+  return drawLines
 }
 
 export default createDrawLines

@@ -126,7 +126,7 @@ void main() {
   vColor = vec4(color, 1);
 
   float finalScaling = min(1.0, scaling) + log2(max(1.0, scaling));
-  if (selectedCluster > 0. && selectedCluster != stateIndex) finalScaling = 0.;
+  if (selectedCluster > -.1 && selectedCluster != stateIndex) finalScaling = 0.;
   //if (flatSize)
   gl_PointSize = (pointSize) * finalScaling + pointSizeExtra;
   //else
@@ -283,7 +283,10 @@ const creategraph = (options) => {
   const selectPoint = () => {}
   const selectSubGraph = () => {}
   const selectCluster = (n) => {
-    console.log('selecting ' + (state.selectedCluster = n))
+    if (state.selectedCluster === n) state.selectedCluster = -n
+    else state.selectedCluster = n
+    //state.selectedCluster = n
+
     // console.log( points.map(point => pointList.findIndex(d => d[2] === point)))
     // selection = points.map(point => pointList.findIndex(d => d[2] === point))
 

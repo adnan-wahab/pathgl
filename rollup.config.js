@@ -19,7 +19,7 @@ const getBabelOptions = ({ useESModules }) => ({
 });
 
 const input = "src/index.js";
-const libraryName = "ReglWorldview";
+const libraryName = "ReglNetworkVis";
 
 const globals = { react: "React", "react-dom": "ReactDOM",
 'pub-sub-es': 'createPubSub',

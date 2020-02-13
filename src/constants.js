@@ -34,13 +34,24 @@ export const DEFAULT_COLORS = [
 export const DEFAULT_TARGET = [0, 0]
 export const DEFAULT_DISTANCE = 100000.5
 export const DEFAULT_ROTATION = 0
-console.log('HHHH')
 // prettier-ignore
 export const DEFAULT_VIEW = new Float32Array([
-  1, 0, 0, 0,
-  0, 1, 0, 0,
-  0, 0, 1, 0,
-  0, 0, 0, 1
+  0.08111818879842758,
+  0,
+  0,
+  0,
+  0,
+  0.08111818879842758,
+  0,
+  0,
+  0,
+  0,
+  1,
+  0,
+  0.34380045533180237,
+  -0.2859039008617401,
+  0,
+  1
 ])
 
 // Default misc

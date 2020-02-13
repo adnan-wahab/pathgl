@@ -1,8 +1,6 @@
 const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-const VERSION = require('./version.js');
-
 module.exports = (env, argv) => ({
   entry: {
     index: './example/index.js'
@@ -32,6 +30,5 @@ module.exports = (env, argv) => ({
       filename: 'index.html',
       chunks: ['index']
     }),
-    new webpack.DefinePlugin({ VERSION })
   ]
 });

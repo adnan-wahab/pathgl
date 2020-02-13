@@ -1,10 +1,8 @@
-import canvasCamera2d from 'canvas-camera-2d'
+import createDom2dCamera from 'dom-2d-camera';
 import KDBush from 'kdbush'
-import createPubSub from 'pub-sub-es'
 import withThrottle from 'lodash-es/throttle'
 import withRaf from 'with-raf'
 import { mat4, vec4 } from 'gl-matrix'
-import createScroll from 'scroll-speed'
 import _ from 'lodash'
 import * as d3 from 'd3'
 import createLine from './lines'
@@ -157,7 +155,6 @@ const creategraph = (options) => {
   onHover = options.onHover || NOOP,
   onClick = options.onClick || NOOP,
   attributes = options.attributes;
-  const pubSub = createPubSub();
   const scratch = new Float32Array(16);
   let mousePosition  = [0, 0];
   let pointList = []
@@ -225,7 +222,7 @@ const creategraph = (options) => {
         mat4.multiply(scratch, camera.view, model)
       )
     )
-
+    window.view = camera.view
     // Translate vector
     vec4.transformMat4(v, v, mvp)
 
@@ -233,8 +230,10 @@ const creategraph = (options) => {
   }
 
   const raycast = () => {
+    let pointSize = 100; //MAD HACKS
     const [x, y] = getScatterGlPos()
-    const scaling = camera.scaling
+    const scaling = 1 || camera.scaling
+
     const scaledPointSize =
       2 *
       pointSize *
@@ -251,10 +250,11 @@ const creategraph = (options) => {
       x + xNormalizedScaledPointSize,
       y + yNormalizedScaledPointSize
     )
-
+    //console.log(pointsInBBox)
     // Find the closest point
     let minDist = scaledPointSize
     let clostestPoint
+
     pointsInBBox.forEach(idx => {
       const [ptX, ptY] = searchIndex.points[idx]
       const d = dist(ptX, ptY, x, y)
@@ -263,7 +263,7 @@ const creategraph = (options) => {
         clostestPoint = idx
       }
     })
-
+    return clostestPoint
     if (minDist < (pointSize / width) * 2) {
       return clostestPoint
     };
@@ -272,23 +272,22 @@ const creategraph = (options) => {
 
   const deselect = () => {
     if (selection.length) {
-      pubSub.publish('deselect')
       selection = []
       drawRaf() // eslint-disable-line no-use-before-define
     }
   }
 
-  const select = points => {
-    if (typeof points === 'string') selection = [pointList.findIndex(d => d[2] === points)]
-    else selection = points
+  const selectPoint = () => {}
+  const selectSubGraph = () => {}
+  const selectCluster = (points) => {
+    console.log( points.map(point => pointList.findIndex(d => d[2] === point)))
+    selection = points.map(point => pointList.findIndex(d => d[2] === point))
+    drawRaf() // eslint-disable-line no-use-before-define
+  }
 
-    // points.forEach(p => {
-    //   selection.includes(p) ?  _.pull(selection, p) : selection.push(p)
-    // })
-
-    pubSub.publish('select', {
-      points: selection
-    })
+  const select = (points ) => {
+      if (typeof points === 'string') selection = [pointList.findIndex(d => d[2] === points)]
+      else selection = points
 
     drawRaf() // eslint-disable-line no-use-before-define
   }
@@ -304,7 +303,6 @@ const creategraph = (options) => {
 
   const mouseDownHandler = event => {
     if (!isInit) return
-
     mouseDown = true
 
     mouseDownPosition = getRelativeMousePosition(event)
@@ -344,10 +342,10 @@ const creategraph = (options) => {
 
     getRelativeMousePosition(event)
     // Only ray cast if the mouse cursor is inside
-    if (isMouseInCanvas && !mouseDownShift) {
+    //if (isMouseInCanvas && !mouseDownShift) {
       const clostestPoint = raycast()
       hover(clostestPoint) // eslint-disable-line no-use-before-define
-    }
+    //}
     // Always redraw when mouse as the user might have panned
     if (mouseDown) drawRaf() // eslint-disable-line no-use-before-define
   }
@@ -447,7 +445,6 @@ const creategraph = (options) => {
     const idx = selection[0]
     const numOutlinedPoints = selection.length
     const xy = searchIndex.points[idx]
-    //console.log('xy', xy)
 
     const c = [
       [1, 1, 1],
@@ -503,6 +500,20 @@ const creategraph = (options) => {
     count: 6
   })
 
+  window.tooltip = (x, y) => {
+
+    let v = [x, y, 0, 1]
+    mat4.multiply(
+      scratch,
+      projection,
+      mat4.multiply(scratch, camera.view, model)
+    )
+
+    vec4.transformMat4(v, v, scratch)
+    console.log(v)
+
+  }
+
   const drawRecticle = () => {
     if (!(hoveredPoint >= 0)) return
 
@@ -522,8 +533,6 @@ const creategraph = (options) => {
     )
 
     vec4.transformMat4(v, v, scratch)
-
-    window.tooltip = () => { return v }
 
     recticleHLine.setPoints([-1, v[1], 1, v[1]])
     recticleVLine.setPoints([v[0], 1, v[0], -1])
@@ -579,7 +588,7 @@ const creategraph = (options) => {
     if (backgroundImage) {
       drawBackgroundImage()
     }
-  if (state.showLines) drawLines()
+    if (state.showLines) drawLines()
     //drawNodes({view: getView(), projection: getView()})
 
     // The draw order of the following calls is important!
@@ -587,7 +596,7 @@ const creategraph = (options) => {
     drawRecticle();
     if (selection.length) drawSelectedPoint();
     // Publish camera change
-    if (isViewChanged) pubSub.publish('view', camera.view)
+    // if (isViewChanged) pubSub.publish('view', camera.view)
   }
 
   const drawRaf = withRaf(draw)
@@ -606,6 +615,7 @@ const creategraph = (options) => {
    */
   const refresh = () => {
     regl.poll()
+    camera.refresh()
   }
 
   const set = ({
@@ -625,16 +635,14 @@ const creategraph = (options) => {
     let needsRedraw = false
 
     if (point >= 0) {
-      onHover(point)
-
       needsRedraw = true
       const newHoveredPoint = point !== hoveredPoint
       hoveredPoint = point
-      if (newHoveredPoint) pubSub.publish('pointover', hoveredPoint)
+      onHover(point)
     } else {
       needsRedraw = hoveredPoint
       hoveredPoint = undefined
-      if (+needsRedraw >= 0) pubSub.publish('pointout', needsRedraw)
+      //if (+needsRedraw >= 0) pubSub.publish('pointout', needsRedraw)
     }
 
     if (needsRedraw) drawRaf(null)
@@ -643,7 +651,7 @@ const creategraph = (options) => {
   const reset = () => {
     if (initialView) camera.set(mat4.clone(initialView))
     else camera.lookAt([...initialTarget], initialDistance, initialRotation)
-    pubSub.publish('view', camera.view)
+    //pubSub.publish('view', camera.view)
   }
 
   const mouseEnterCanvasHandler = () => {
@@ -655,9 +663,12 @@ const creategraph = (options) => {
     isMouseInCanvas = false
     drawRaf()
   }
+  const wheelHandler = () => {
+    drawRaf();
+  };
 
   const initCamera = () => {
-    camera = canvasCamera2d(canvas, { zoomSpeed: 1 })
+    camera = createDom2dCamera(canvas)
 
     if (initialView) camera.set(mat4.clone(initialView))
     else camera.lookAt([...initialTarget], initialDistance, initialRotation)
@@ -677,18 +688,12 @@ const creategraph = (options) => {
       width: 1,
       is2d: true
     })
-    scroll = createScroll(canvas)
-
-    // Event listeners
-    scroll.on('scroll', () => {
-      drawRaf()
-    })
 
     // Set dimensions
     set({ width, height })
 
     // Setup event handler
-    // window.addEventListener('blur', blurHandler, false);
+    //window.addEventListener('blur', blurHandler, false);
     window.addEventListener('mousedown', mouseDownHandler, false)
     window.addEventListener('mouseup', mouseUpHandler, false)
     window.addEventListener('mousemove', mouseMoveHandler, false)
@@ -696,7 +701,7 @@ const creategraph = (options) => {
     canvas.addEventListener('mouseleave', mouseLeaveCanvasHandler, false)
     canvas.addEventListener('click', mouseClickHandler, false)
     // canvas.addEventListener('dblclick', mouseDblClickHandler, false);
-
+    canvas.addEventListener('wheel', wheelHandler);
     const points = options.data ? options.data.nodes
       .map((d, idx) => {
         return [clip(d.x), clip(d.y), d.uuid]
@@ -717,12 +722,10 @@ const creategraph = (options) => {
     canvas = undefined
     camera = undefined
     regl = undefined
-    scroll.dispose()
-    pubSub.clear()
   }
 
   init(canvas)
-  const count = 100
+
   const update = (options) => {
     state.scaling = options.zoom
     state.numPoints = options.numNodes
@@ -732,7 +735,6 @@ const creategraph = (options) => {
     drawRaf()
 
     console.log('updating', state.numPoints)
-    // camera.lookAt([0,0], count--, 0)
   }
 
   return {
@@ -746,6 +748,7 @@ const creategraph = (options) => {
     refresh,
     reset: withDraw(reset),
     select,
+    selectCluster,
     update
   }
 }
@@ -787,17 +790,26 @@ let getNode = (id) => {
     });
 
     let edgeColors = new Array(data.edges.length * 3).fill(0);
-    // data.edges.forEach((edge, idx) => {
-    //   let color = data.nodes[edge.source].color
-    //   let c = d3.rgb(color);
-    //   edgeColors[idx*4+1] = c.r / 255
-    //   edgeColors[idx*4+2] = c.g / 255
-    //   edgeColors[idx*4+3] = c.b / 255
-    // });
+    if (data.kmeans) {
+      let x = Object.entries(data.kmeans)
+      x.map(tup => {
+        let {color, nodes} = tup[1]
+        nodes.forEach(id => getNode(id).color = color)
 
-    // let dates = data.nodes.map((edge, idx) => {
-    //   return edge.attributes.date
-    // })
+      })
+    } else {
+      data.edges.forEach((edge, idx) => {
+      let color = data.nodes[edge.source].color
+      let c = d3.rgb(color);
+      edgeColors[idx*4+1] = c.r / 255
+      edgeColors[idx*4+2] = c.g / 255
+      edgeColors[idx*4+3] = c.b / 255
+    });
+  }
+
+    let dates = data.nodes.map((edge, idx) => {
+      return edge.attributes.date
+    })
     let color = _.flatten(data.nodes.map((d) => {
       let c = d3.color(d.color || 'pink');
       return [c.r /255 , c.g /255 , c.b /255];

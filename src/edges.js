@@ -1,4 +1,4 @@
-function createDrawLines (regl, options) {
+function createDrawLines (regl, options, getModel, getProjection) {
   const attributes = options.attributes
   // make sure to respect system limitations.
   var lineWidth = 1
@@ -27,6 +27,7 @@ function createDrawLines (regl, options) {
       attribute vec3 color;
 
       uniform mat4 projection, view;
+      uniform mat4 model;
 
       uniform float scale;
       uniform vec2 offset;
@@ -49,7 +50,7 @@ function createDrawLines (regl, options) {
 
         // translate
         p += offset;
-        gl_Position = projection * view * vec4(p, 0, 1);
+        gl_Position = projection * view * model * vec4(p, 0, 1);
       }`,
       blend: {
         enable: true,
@@ -77,11 +78,9 @@ function createDrawLines (regl, options) {
           return window.getAdnan
             ? window.getAdnan() : [1, 1]
         },
-        view: () => {
-          return window.getView()
-        },
-        projection: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-
+        view: () => getView,
+        projection: getProjection,
+        model: getModel,
       },
 
       lineWidth: lineWidth,

@@ -109,8 +109,11 @@ uniform mat4 projection;
 uniform mat4 model;
 uniform mat4 view;
 
-attribute vec3 pos;
+attribute vec4 pos;
 attribute vec3 color;
+attribute float stateIndex;
+
+uniform float selectedCluster;
 
 uniform bool flatSize;
 
@@ -123,6 +126,7 @@ void main() {
   vColor = vec4(color, 1);
 
   float finalScaling = min(1.0, scaling) + log2(max(1.0, scaling));
+  //if (selectedCluster > 0. && selectedCluster != stateIndex) finalScaling = 0.;
   //if (flatSize)
   gl_PointSize = (pointSize) * finalScaling + pointSizeExtra;
   //else
@@ -134,7 +138,7 @@ void main() {
 const NOOP = () => {}
 
 const creategraph = (options) => {
-  let state = {scaling: .4, numPoints: 1, showLines: false, showNodes: true, flatSize: true }
+  let state = {scaling: .4, numPoints: 1, showLines: false, showNodes: true, flatSize: true, selectedCluster: -1}
   let initialRegl = options.regl,
   initialBackground = DEFAULT_COLOR_BG,
   initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE,
@@ -150,7 +154,6 @@ const creategraph = (options) => {
   initialDistance = DEFAULT_DISTANCE,
   initialRotation = DEFAULT_ROTATION,
   initialView = DEFAULT_VIEW,
-  drawLines = createDrawLines(options.regl, options),
   drawNodes = options.createDrawNodes || NOOP,
   onHover = options.onHover || NOOP,
   onClick = options.onClick || NOOP,
@@ -279,9 +282,11 @@ const creategraph = (options) => {
 
   const selectPoint = () => {}
   const selectSubGraph = () => {}
-  const selectCluster = (points) => {
-    console.log( points.map(point => pointList.findIndex(d => d[2] === point)))
-    selection = points.map(point => pointList.findIndex(d => d[2] === point))
+  const selectCluster = (n) => {
+    console.log('selecting ' + (state.selectedCluster = n))
+    // console.log( points.map(point => pointList.findIndex(d => d[2] === point)))
+    // selection = points.map(point => pointList.findIndex(d => d[2] === point))
+
     drawRaf() // eslint-disable-line no-use-before-define
   }
 
@@ -372,20 +377,21 @@ const creategraph = (options) => {
   const getPointSize = () => pointSize * window.devicePixelRatio
   const getNormalPointSizeExtra = () => 0
   const getProjection = () => projection
-  window.getView = () => camera.view
+  const getView = () => camera.view
   const getPositionBuffer = () => {
     return attributes.position
   }
   const getModel = () => model
   const getScaling = () => state.scaling
   const getNormalNumPoints = () => numPoints * state.numPoints | 0
-  window.getNormalNumPoints = getNormalNumPoints
-  window.getScaling = getScaling
+
   let hi = 'cluster'
   window.onStyleChange = (prop) => {
     console.log('onStyleChange', hi)
     hi = prop
+    drawRaf()
   }
+  let drawLines = createDrawLines(options.regl, options, getModel, getProjection, getView)
 
   const drawPoints = (
     getPos,
@@ -412,16 +418,22 @@ const creategraph = (options) => {
       attributes: {
         pos: {
           buffer: getPos,
-          size: 3
+          size: 4
         },
         color: {
           buffer: getColors,
           size: 3
         }
+        // },
+        // stateIndex: {
+        //   buffer: () => attributes.stateIndex,
+        //   size:1
+        // }
       },
 
       uniforms: {
         projection: getProjection,
+        //selectedCluster: () =>(getPos).length > 1 ? state.selectedCluster : -100 ,
         model: getModel,
         view: getView,
         scaling: getScaling,
@@ -446,7 +458,6 @@ const creategraph = (options) => {
 
     const numOutlinedPoints = 1
     const xy = searchIndex.points[idx]
-console.log('OMG WHY', idx, xy)
     const c = [
       [1, 1, 1],
       [1, 0, 1],
@@ -685,6 +696,7 @@ console.log('OMG WHY', idx, xy)
     } else {
       // needsRedraw = hoveredPoint
       // hoveredPoint = undefined
+      //ADNAN MODE
       if (+needsRedraw >= 0) options.deselect()
     }
 
@@ -815,7 +827,7 @@ let getNode = (id) => {
    return [Math.random(), ]
  })
 
-  let position = _.flatten(data.nodes.map(d => [clip(d.x), clip(d.y), d.size ]))
+  let position = _.flatten(data.nodes.map(d => [clip(d.x), clip(d.y), d.size, 0 ]))
   var accent = d3.scaleOrdinal(d3.schemeAccent);
 
   let sentimentValue = _.flatten(data.nodes.map((d) => {
@@ -863,6 +875,14 @@ let getNode = (id) => {
       return [c.r /255 , c.g /255 , c.b /255];
     }));
 
+    let legend = Object.entries(data.kmeans).map(d => d[1].color)
+
+    let stateIndex = _.flatten(data.nodes.map((d) => {
+      let c = d.color
+      return legend.indexOf(c);
+    }));
+    window.stateIndex = stateIndex
+
     let fboColor = color.map((d, i) => {
       return i / color.length
     })
@@ -874,7 +894,8 @@ let getNode = (id) => {
       color,
       //dates,
       fboColor,
-      sentimentValue
+      sentimentValue,
+      stateIndex
     }
   }
 

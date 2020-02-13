@@ -87,6 +87,7 @@ uniform vec2 selection;
 varying vec4 vColor;
 
 void main() {
+  const vec3 bgColor= vec3(1);
   float r = 0.0, delta = 0.0, alpha = 1.0;
   vec2 cxy = 2.0 * gl_PointCoord - 1.0;
   r = dot(cxy, cxy);
@@ -225,7 +226,7 @@ const creategraph = (options) => {
         mat4.multiply(scratch, camera.view, model)
       )
     )
-    window.view = camera.view
+
     // Translate vector
     vec4.transformMat4(v, v, mvp)
 
@@ -454,7 +455,17 @@ const creategraph = (options) => {
     getPositionBuffer,
     getNormalPointSizeExtra,
     getNormalNumPoints
-  )
+    )
+
+  const drawHalo = drawPoints(
+    getPositionBuffer,
+    () => 20,
+    getNormalNumPoints,
+    () => {
+      let x = _.flatten(options.data.nodes.map(() => [36, 39, 48].map(d => d / 255) ))
+      return  x}
+   )
+
 
   const drawHoveredPoint = () => {
     const idx = hoveredPoint
@@ -642,7 +653,7 @@ const creategraph = (options) => {
     //drawNodes({view: getView(), projection: getView()})
 
     // The draw order of the following calls is important!
-
+    if (state.showNodes) drawHalo()
     if (state.showNodes) drawPointBodies();
 
     drawRecticle();
@@ -821,6 +832,7 @@ const clip = (d) => {
 }
 
 let processKMeans = (data) => {
+  window.fuck = data
 
 let getNode = (id) => {
   return data.nodes.find(d => d.uuid === id)

@@ -1,7 +1,7 @@
-function createDrawLines (regl, options, getModel, getProjection) {
+function createDrawLines (regl, options, getModel, getProjection, getView) {
   const attributes = options.attributes
   // make sure to respect system limitations.
-  var lineWidth = 1
+  var lineWidth = 10
   if (lineWidth > regl.limits.lineWidthDims[1]) {
     lineWidth = regl.limits.lineWidthDims[1]
   }
@@ -78,7 +78,7 @@ function createDrawLines (regl, options, getModel, getProjection) {
           return window.getAdnan
             ? window.getAdnan() : [1, 1]
         },
-        view: () => getView,
+        view: getView,
         projection: getProjection,
         model: getModel,
       },

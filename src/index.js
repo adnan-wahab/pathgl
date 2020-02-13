@@ -271,10 +271,10 @@ const creategraph = (options) => {
   }
 
   const deselect = () => {
-    if (selection.length) {
-      selection = []
-      drawRaf() // eslint-disable-line no-use-before-define
-    }
+    // if (selection.length) {
+    //   selection = []
+    //   drawRaf() // eslint-disable-line no-use-before-define
+    // }
   }
 
   const selectPoint = () => {}
@@ -441,6 +441,42 @@ const creategraph = (options) => {
     getNormalNumPoints
   )
 
+  const drawHoveredPoint = () => {
+    const idx = hoveredPoint
+
+    const numOutlinedPoints = 1
+    const xy = searchIndex.points[idx]
+console.log('OMG WHY', idx, xy)
+    const c = [
+      [1, 1, 1],
+      [1, 0, 1],
+      [1, 1, 0]
+    ]
+
+    const colors = (i) => {
+      return c[i]
+    }
+
+    drawPoints(
+      xy,
+
+      () =>
+        (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
+      () => numOutlinedPoints,
+      colors(0)
+    )()
+
+    drawPoints(
+      xy,
+
+      () =>
+        pointSizeSelected,
+      () => numOutlinedPoints,
+      colors(1)
+    )()
+
+  }
+
   const drawSelectedPoint = () => {
     const idx = selection[0]
     const numOutlinedPoints = selection.length
@@ -592,9 +628,16 @@ const creategraph = (options) => {
     //drawNodes({view: getView(), projection: getView()})
 
     // The draw order of the following calls is important!
+
     if (state.showNodes) drawPointBodies();
+
     drawRecticle();
+
+    if (hoveredPoint >= 0) drawHoveredPoint();
+
     if (selection.length) drawSelectedPoint();
+
+
     // Publish camera change
     // if (isViewChanged) pubSub.publish('view', camera.view)
   }
@@ -640,9 +683,9 @@ const creategraph = (options) => {
       hoveredPoint = point
       onHover(point)
     } else {
-      needsRedraw = hoveredPoint
-      hoveredPoint = undefined
-      //if (+needsRedraw >= 0) pubSub.publish('pointout', needsRedraw)
+      // needsRedraw = hoveredPoint
+      // hoveredPoint = undefined
+      if (+needsRedraw >= 0) options.deselect()
     }
 
     if (needsRedraw) drawRaf(null)
@@ -744,7 +787,12 @@ const creategraph = (options) => {
     repaint: () => {
       withDraw(reset)();
     },
-    hover,
+    hoverPoint: (uuid) => {
+      console.log('uid', uuid,  pointList.findIndex(d => d[2] === uuid))
+      hoveredPoint = pointList.findIndex(d => d[2] === uuid)
+      console.log(hoveredPoint)
+          draw()
+    },
     refresh,
     reset: withDraw(reset),
     select,

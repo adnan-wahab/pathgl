@@ -109,7 +109,7 @@ uniform mat4 projection;
 uniform mat4 model;
 uniform mat4 view;
 
-attribute vec4 pos;
+attribute vec3 pos;
 attribute vec3 color;
 attribute float stateIndex;
 
@@ -126,7 +126,7 @@ void main() {
   vColor = vec4(color, 1);
 
   float finalScaling = min(1.0, scaling) + log2(max(1.0, scaling));
-  //if (selectedCluster > 0. && selectedCluster != stateIndex) finalScaling = 0.;
+  if (selectedCluster > 0. && selectedCluster != stateIndex) finalScaling = 0.;
   //if (flatSize)
   gl_PointSize = (pointSize) * finalScaling + pointSizeExtra;
   //else
@@ -418,22 +418,22 @@ const creategraph = (options) => {
       attributes: {
         pos: {
           buffer: getPos,
-          size: 4
+          size: 3
         },
         color: {
           buffer: getColors,
           size: 3
+
+        },
+        stateIndex: {
+          buffer: () => attributes.stateIndex,
+          size:1
         }
-        // },
-        // stateIndex: {
-        //   buffer: () => attributes.stateIndex,
-        //   size:1
-        // }
       },
 
       uniforms: {
         projection: getProjection,
-        //selectedCluster: () =>(getPos).length > 1 ? state.selectedCluster : -100 ,
+        selectedCluster: () => (getPos.length < 1 ? state.selectedCluster : -100 ),
         model: getModel,
         view: getView,
         scaling: getScaling,
@@ -827,7 +827,7 @@ let getNode = (id) => {
    return [Math.random(), ]
  })
 
-  let position = _.flatten(data.nodes.map(d => [clip(d.x), clip(d.y), d.size, 0 ]))
+  let position = _.flatten(data.nodes.map(d => [clip(d.x), clip(d.y), d.size]))
   var accent = d3.scaleOrdinal(d3.schemeAccent);
 
   let sentimentValue = _.flatten(data.nodes.map((d) => {

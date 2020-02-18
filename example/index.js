@@ -18,23 +18,29 @@ let canvas = document.createElement('canvas')
 
 let main = () => {
   document.body.appendChild(canvas)
+
+
+
+
   let container = d3.select('body').append('div')
   .attr('class', 'sidebar')
+
+
 
   canvas.height = innerHeight
   canvas.width = innerWidth
   console.log('hi', container.node())
 
-  container.selectAll('a').data(url).enter()
-  .append('div')
-  .append('a').text((d) => d)
-  .attr('href', (d) => `./data/${d}`)
-  .on('click', d => {
-    if (d3.event.target.href.includes('tsv')) loadTSV()
-    else
-    load(d3.event.target.href)
-    d3.event.preventDefault()
-  })
+  // container.selectAll('a').data(url).enter()
+  // .append('div')
+  // .append('a').text((d) => d)
+  // .attr('href', (d) => `./data/${d}`)
+  // .on('click', d => {
+  //   if (d3.event.target.href.includes('tsv')) loadTSV()
+  //   else
+  //   load(d3.event.target.href)
+  //   d3.event.preventDefault()
+  // })
 
   //load('./data/dataKMeans.json')
   //load('./data/mobile-banking.json')
@@ -60,11 +66,15 @@ let loadTSV = async () => {
     )
   })
 
-  GraphRenderer.init({ attributes: {
+  let graph = GraphRenderer.init({ attributes: {
     position, color
   }, canvas: canvas,
 
  })
+
+
+ d3.select('#size').on('change', () => graph.update({sizeAttenuation: d3.event.target.value / 100}))
+
 }
 
 let makeRandom = () => {

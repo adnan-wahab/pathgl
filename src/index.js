@@ -36,6 +36,10 @@ import {
   FLOAT_BYTES
 } from './constants'
 
+const BG_COLOR = [    0.1411764705882353,
+  0.15294117647058825,
+  0.18823529411764706, 1]
+
 import {
   checkReglExtensions,
   createRegl,
@@ -103,8 +107,8 @@ void main() {
     alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
   #endif
 
-  vec3 color =   (r < 0.3) ? vColor.rgb : bgColor;
-  gl_FragColor = vec4(color, alpha * vColor.a);
+  //vec3 color =   (r < 0.3) ? vColor.rgb : bgColor;
+  gl_FragColor = vec4(vColor.rgb, alpha * vColor.a);
 }
 `
 const POINT_VS = `
@@ -132,12 +136,14 @@ varying vec4 vColor;
 void main() {
   gl_Position = projection * view * model * vec4(pos.xy, 0.0, 1.0);
 
-  vColor = vec4(color, 1);
+  vColor = vec4(color, 1.);
 
-  float finalScaling = sizeAttenuation;
+  float finalScaling = pow(sizeAttenuation, scaling);
+  finalScaling = pow(pointSize, sizeAttenuation);
+
   if (selectedCluster > -.1 && selectedCluster != stateIndex) finalScaling = 0.;
 
-  gl_PointSize = (pointSize) * finalScaling + pointSizeExtra;
+  gl_PointSize = finalScaling + pointSizeExtra;
 
 }
 `
@@ -145,7 +151,7 @@ const NOOP = () => {}
 
 const creategraph = (options) => {
   let state = {
-sizeAttenuation: 1,
+sizeAttenuation: .1,
     scaling: .4, numPoints: 1, showLines: true, showNodes: true, flatSize: true, selectedCluster: -1}
   let initialRegl = options.regl,
   initialBackground = DEFAULT_COLOR_BG,
@@ -184,7 +190,7 @@ sizeAttenuation: 1,
   const pointSize = initialPointSize
   const pointSizeSelected = initialPointSizeSelected
   const pointOutlineWidth = initialPointOutlineWidth
-  let regl = initialRegl || createRegl(initialCanvas)
+  let regl = initialRegl || createRegl(initialCanvas, {premultipliedAlpha: false})
   let camera
   let scroll
   let mouseDown = false
@@ -210,18 +216,37 @@ sizeAttenuation: 1,
   let hoveredPoint
   let isMouseInCanvas = false
 
-  //
-  //  REMOVE OLD CAMERA FIRST
-  // let d3_zoom =   d3.zoom()
-  //       .extent([[0, 0], [width, height]])
-  //       .scaleExtent([1, 8])
-  //       .on("zoom", zoomed)
-  //
-  // d3.select(initialCanvas).call(d3_zoom)
-  //
-  // function zoomed() {
-  //   console.log(d3.event.transform)
-  //   }
+//   // REMOVE OLD CAMERA FIRST
+//   let d3_zoom =   d3.zoom()
+//         .extent([[0, 0], [width, height]])
+//         .scaleExtent([1, 8])
+//         .on("zoom", zoomed)
+//
+//   d3.select(initialCanvas).call(d3_zoom)
+//
+//   function zoomed() {
+//     let t = d3.event.transform
+//     let scale = t.k;
+//     let x = -(t.x - innerWidth/2) / scale;
+//     let y = (t.y - height/2) / scale;
+//     let z = getZFromScale(scale);
+//     console.log(x,y,z)
+//     window.camera = camera
+//     //camera.reset([x,y], z)
+//     camera.lookAt([x, y], z)
+//
+//     }
+//     function toRadians (angle) {
+//       return angle * (Math.PI / 180);
+//     }
+//     function getZFromScale(scale) {
+//       let fov = 40
+//   let half_fov = fov/2;
+//   let half_fov_radians = toRadians(half_fov);
+//   let scale_height = height / scale;
+//   let camera_z_position = scale_height / (2 * Math.tan(half_fov_radians));
+//   return camera_z_position;
+// }
 
   // Get a copy of the current mouse position
   const getMousePos = () => mousePosition.slice()
@@ -417,11 +442,9 @@ sizeAttenuation: 1,
   let drawLines = () => {}
   //createDrawLines(options.regl, options, getModel, getProjection, getView)
 
-  const drawPoints = (
-    getPos,
+  const drawAllPoints = (
     getPointSizeExtra,
-    getNumPoints,
-    getColors = () => hi == 'cluster' ? attributes.color : attributes.sentimentValue
+    getNumPoints
   ) =>
     regl({
       frag: POINT_FS,
@@ -441,11 +464,11 @@ sizeAttenuation: 1,
 
       attributes: {
         pos: {
-          buffer: getPos,
+          buffer: attributes.position,
           size: 3
         },
         color: {
-          buffer: getColors,
+          buffer: attributes.color,
           size: 3
 
         },
@@ -457,7 +480,8 @@ sizeAttenuation: 1,
 
       uniforms: {
         projection: getProjection,
-        selectedCluster: () => (getPos.length < 1 ? state.selectedCluster : -100 ),
+        time: () => Date.now() / 1000,
+        selectedCluster: () => (attributes.position.length < 1 ? state.selectedCluster : -100 ),
         model: getModel,
         view: getView,
         scaling: getScaling,
@@ -472,8 +496,64 @@ sizeAttenuation: 1,
       primitive: 'points'
     })
 
-  const drawPointBodies = drawPoints(
-    getPositionBuffer,
+    const drawPoints = (
+      getPos,
+      getPointSizeExtra,
+      getNumPoints,
+      getColors = () => hi == 'cluster' ? attributes.color : attributes.sentimentValue
+    ) =>
+      regl({
+        frag: POINT_FS,
+        vert: POINT_VS,
+
+        blend: {
+          enable: true,
+          func: {
+            srcRGB: 'src alpha',
+            srcAlpha: 'one',
+            dstRGB: 'one minus src alpha',
+            dstAlpha: 'one minus src alpha'
+          }
+        },
+
+        depth: { enable: false },
+
+        attributes: {
+          pos: {
+            buffer: getPos,
+            size: 3
+          },
+          color: {
+            buffer: getColors,
+            size: 3
+
+          },
+          stateIndex: {
+            buffer: () => attributes.stateIndex,
+            size:1
+          }
+        },
+
+        uniforms: {
+          projection: getProjection,
+          selectedCluster: () => (getPos.length < 1 ? state.selectedCluster : -100 ),
+          model: getModel,
+          view: getView,
+          scaling: getScaling,
+          pointSize: getPointSize,
+          pointSizeExtra: getPointSizeExtra,
+          sizeAttenuation: () => state.sizeAttenuation,
+          flatSize: () => {return state.flatSize }
+        },
+
+        count: getNumPoints,
+
+        primitive: 'points'
+      })
+
+
+
+  const drawPointBodies = drawAllPoints(
     getNormalPointSizeExtra,
     getNormalNumPoints
     )
@@ -660,7 +740,7 @@ sizeAttenuation: 1,
 
     regl.clear({
       // background color (transparent)
-      color: [0, 0, 0, 0],
+      color: BG_COLOR,
       depth: 1
     })
 
@@ -760,6 +840,7 @@ sizeAttenuation: 1,
   const initCamera = () => {
     camera = createDom2dCamera(canvas)
 
+    window.camera = camera
     if (initialView) camera.set(mat4.clone(initialView))
     else camera.lookAt([...initialTarget], initialDistance, initialRotation)
   }
@@ -817,14 +898,16 @@ sizeAttenuation: 1,
   init(canvas)
 
   const update = (options) => {
-    state.sizeAttenuation = options.sizeAttenuation
-    state.numPoints = options.numNodes
-    state.showLines = options.showLines
-    state.showNodes = options.showNodes
-    state.flatSize = options.flatSize
+    _.each(options, (k,v) => state[v] = k)
+    //
+    // state.sizeAttenuation = options.sizeAttenuation
+    // state.numPoints = options.numNodes
+    // state.showLines = options.showLines
+    // state.showNodes = options.showNodes
+    // state.flatSize = options.flatSize
     drawRaf()
+    _.each(options, (k,v) => console.log(v,k))
 
-    console.log('updating', state.numPoints)
   }
 
   return {

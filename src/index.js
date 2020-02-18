@@ -8,6 +8,8 @@ import * as d3 from 'd3'
 import createLine from './lines'
 import createDrawLines from './edges'
 import createDrawNodes from './nodes'
+window.zoom = d3.zoom
+
 
 import {
   COLOR_ACTIVE_IDX,
@@ -87,7 +89,11 @@ uniform vec2 selection;
 varying vec4 vColor;
 
 void main() {
-  const vec3 bgColor= vec3(1);
+  const vec3 bgColor= vec3(
+    0.1411764705882353,
+  0.15294117647058825,
+  0.18823529411764706
+  );
   float r = 0.0, delta = 0.0, alpha = 1.0;
   vec2 cxy = 2.0 * gl_PointCoord - 1.0;
   r = dot(cxy, cxy);
@@ -97,7 +103,8 @@ void main() {
     alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
   #endif
 
-  gl_FragColor = vec4(vColor.rgb, alpha * vColor.a);
+  vec3 color =   (r < 0.3) ? vColor.rgb : bgColor;
+  gl_FragColor = vec4(color, alpha * vColor.a);
 }
 `
 const POINT_VS = `
@@ -106,6 +113,7 @@ uniform float pointSize;
 uniform float pointSizeExtra;
 uniform float numPoints;
 uniform float scaling;
+uniform float sizeAttenuation;
 uniform mat4 projection;
 uniform mat4 model;
 uniform mat4 view;
@@ -126,20 +134,19 @@ void main() {
 
   vColor = vec4(color, 1);
 
-  float finalScaling = min(1.0, scaling) + log2(max(1.0, scaling));
+  float finalScaling = sizeAttenuation;
   if (selectedCluster > -.1 && selectedCluster != stateIndex) finalScaling = 0.;
-  //if (flatSize)
-  gl_PointSize = (pointSize) * finalScaling + pointSizeExtra;
-  //else
-  //gl_PointSize = (pos.z * .5) + pointSizeExtra;
 
-  gl_PointSize = pointSize * finalScaling + pointSizeExtra;
+  gl_PointSize = (pointSize) * finalScaling + pointSizeExtra;
+
 }
 `
 const NOOP = () => {}
 
 const creategraph = (options) => {
-  let state = {scaling: .4, numPoints: 1, showLines: false, showNodes: true, flatSize: true, selectedCluster: -1}
+  let state = {
+sizeAttenuation: 1,
+    scaling: .4, numPoints: 1, showLines: true, showNodes: true, flatSize: true, selectedCluster: -1}
   let initialRegl = options.regl,
   initialBackground = DEFAULT_COLOR_BG,
   initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE,
@@ -162,6 +169,10 @@ const creategraph = (options) => {
   const scratch = new Float32Array(16);
   let mousePosition  = [0, 0];
   let pointList = []
+
+
+
+
   window.getMousePosition = () => mousePosition
   checkReglExtensions(initialRegl)
 
@@ -198,6 +209,19 @@ const creategraph = (options) => {
 
   let hoveredPoint
   let isMouseInCanvas = false
+
+  //
+  //  REMOVE OLD CAMERA FIRST
+  // let d3_zoom =   d3.zoom()
+  //       .extent([[0, 0], [width, height]])
+  //       .scaleExtent([1, 8])
+  //       .on("zoom", zoomed)
+  //
+  // d3.select(initialCanvas).call(d3_zoom)
+  //
+  // function zoomed() {
+  //   console.log(d3.event.transform)
+  //   }
 
   // Get a copy of the current mouse position
   const getMousePos = () => mousePosition.slice()
@@ -318,18 +342,13 @@ const creategraph = (options) => {
     mouseDownShift = event.shiftKey
 
     // fix camera
-    if (mouseDownShift) camera.config({ isFixed: true })
+    //if (mouseDownShift) camera.config({ isFixed: true })
   }
 
   const mouseUpHandler = () => {
     if (!isInit) return
 
     mouseDown = false
-
-    if (mouseDownShift) {
-      mouseDownShift = false
-      camera.config({ isFixed: false })
-    }
   }
 
   const mouseClickHandler = event => {
@@ -443,6 +462,7 @@ const creategraph = (options) => {
         scaling: getScaling,
         pointSize: getPointSize,
         pointSizeExtra: getPointSizeExtra,
+        sizeAttenuation: () => state.sizeAttenuation,
         flatSize: () => {return state.flatSize }
       },
 
@@ -653,7 +673,7 @@ const creategraph = (options) => {
     //drawNodes({view: getView(), projection: getView()})
 
     // The draw order of the following calls is important!
-    if (state.showNodes) drawHalo()
+    //if (state.showNodes) drawHalo()
     if (state.showNodes) drawPointBodies();
 
     drawRecticle();
@@ -796,7 +816,7 @@ const creategraph = (options) => {
   init(canvas)
 
   const update = (options) => {
-    state.scaling = options.zoom
+    state.sizeAttenuation = options.sizeAttenuation
     state.numPoints = options.numNodes
     state.showLines = options.showLines
     state.showNodes = options.showNodes

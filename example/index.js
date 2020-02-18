@@ -36,9 +36,9 @@ let main = () => {
     d3.event.preventDefault()
   })
 
-  load('./data/dataKMeans.json')
+  //load('./data/dataKMeans.json')
   //load('./data/mobile-banking.json')
-  //loadTSV()
+  loadTSV()
 
   document.title = 'what'
   ///loadTSV('./data/d.tsv')
@@ -54,7 +54,7 @@ let loadTSV = async () => {
   window.color = color
   let tsv = await d3.tsv("./data/d.tsv", d3.autoType);
   tsv.forEach(d => {
-    position.push(d.x / 10, d.y / 10)
+    position.push(d.x / 10, d.y / 10, 0)
     color.push.apply(color,
       toColor(d.sentiment)
     )

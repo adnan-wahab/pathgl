@@ -414,7 +414,8 @@ sizeAttenuation: 1,
     hi = prop
     drawRaf()
   }
-  let drawLines = createDrawLines(options.regl, options, getModel, getProjection, getView)
+  let drawLines = () => {}
+  //createDrawLines(options.regl, options, getModel, getProjection, getView)
 
   const drawPoints = (
     getPos,
@@ -731,7 +732,7 @@ sizeAttenuation: 1,
       // needsRedraw = hoveredPoint
       // hoveredPoint = undefined
       //ADNAN MODE
-      if (+needsRedraw >= 0) options.deselect()
+      //if (+needsRedraw >= 0) options.deselect()
     }
 
     if (needsRedraw) drawRaf(null)
@@ -852,8 +853,6 @@ const clip = (d) => {
 }
 
 let processKMeans = (data) => {
-  window.fuck = data
-
 let getNode = (id) => {
   return data.nodes.find(d => d.uuid === id)
 }
@@ -936,6 +935,8 @@ let getNode = (id) => {
 
 const init = (props) => {
   if (props.data) props.attributes = processKMeans(props.data)
+  else props.attributes.stateIndex = _.range(277678 / 2)
+  window.props = props
   props.regl = createRegl(props.canvas)
   return creategraph(props)
 }

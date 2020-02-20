@@ -937,7 +937,7 @@ const clip = (d) => {
 
 let processKMeans = (data) => {
 let getNode = (id) => {
-  return data.nodes.find(d => d.uuid === id)
+  return data.points[id]
 }
 
  let colors = data.nodes.map(d => {
@@ -960,6 +960,7 @@ let getNode = (id) => {
 
     let edges = new Array(data.edges.length * 4).fill(0);
     data.edges.forEach((edge, idx) => {
+      console.log('wtf')
       edges[idx*4] = clip(getNode(edge.source).x)
       edges[idx*4+1] = clip(getNode(edge.source).y)
       edges[idx*4+2] = clip(getNode(edge.target).x)
@@ -985,7 +986,7 @@ let getNode = (id) => {
   }
 
     let dates = data.nodes.map((edge, idx) => {
-      return edge.attributes.date
+      return (edge.attributes || {}).date
     })
     let color = _.flatten(data.nodes.map((d) => {
       let c = d3.color(d.color || 'pink');

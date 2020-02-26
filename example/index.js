@@ -31,16 +31,16 @@ let main = () => {
   canvas.width = innerWidth
   console.log('hi', container.node())
 
-  // container.selectAll('a').data(url).enter()
-  // .append('div')
-  // .append('a').text((d) => d)
-  // .attr('href', (d) => `./data/${d}`)
-  // .on('click', d => {
-  //   if (d3.event.target.href.includes('tsv')) loadTSV()
-  //   else
-  //   load(d3.event.target.href)
-  //   d3.event.preventDefault()
-  // })
+  container.selectAll('a').data(url).enter()
+  .append('div')
+  .append('a').text((d) => d)
+  .attr('href', (d) => `./data/${d}`)
+  .on('click', d => {
+    if (d3.event.target.href.includes('tsv')) loadTSV()
+    else
+    load(d3.event.target.href)
+    d3.event.preventDefault()
+  })
 
   //load('./data/dataKMeans.json')
   //load('./data/mobile-banking.json')

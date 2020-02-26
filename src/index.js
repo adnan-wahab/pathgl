@@ -139,7 +139,7 @@ void main() {
   vColor = vec4(color, 1.);
 
   float finalScaling = pow(sizeAttenuation, scaling);
-  finalScaling = pow(pointSize, sizeAttenuation);
+  finalScaling = 1. + pow(pointSize, sizeAttenuation);
 
   if (selectedCluster > -.1 && selectedCluster != stateIndex) finalScaling = 0.;
 
@@ -993,7 +993,7 @@ let getNode = (id) => {
       return [c.r /255 , c.g /255 , c.b /255];
     }));
 
-    let legend = Object.entries(data.kmeans).map(d => d[1].color)
+    let legend = Object.entries(data.kmeans || {}).map(d => d[1].color);
 
     let stateIndex = _.flatten(data.nodes.map((d) => {
       let c = d.color
@@ -1021,7 +1021,7 @@ const init = (props) => {
   if (props.data) props.attributes = processKMeans(props.data)
   else props.attributes.stateIndex = _.range(277678 / 2)
   window.props = props
-  props.regl = createRegl(props.canvas)
+  window.regl = ( window.regl || (props.regl = createRegl(props.canvas)))
   return creategraph(props)
 }
 

@@ -73,7 +73,9 @@ let loadTSV = async () => {
  })
 
 
- d3.select('#size').on('change', () => graph.update({sizeAttenuation: d3.event.target.value / 100}))
+ d3.select('#size').on('change', () =>
+ graph.update({sizeAttenuation: d3.event.target.value / 100})
+)
 
 }
 

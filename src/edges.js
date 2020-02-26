@@ -1,5 +1,7 @@
 function createDrawLines (regl, options, getModel, getProjection, getView) {
   const attributes = options.attributes
+
+  if (! attributes.edges) return () => {}
   // make sure to respect system limitations.
   var lineWidth = 10
   if (lineWidth > regl.limits.lineWidthDims[1]) {

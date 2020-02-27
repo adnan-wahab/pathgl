@@ -22,7 +22,9 @@ let main = () => {
 
 
 
-  let container = d3.select('body').append('div')
+  let container = d3.select('body')
+  .style('overflow', 'hidden')
+  .append('div')
   .attr('class', 'sidebar')
 
 

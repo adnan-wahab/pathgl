@@ -107,8 +107,8 @@ void main() {
     alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
   #endif
 
-  //vec3 color =   (r < 0.3) ? vColor.rgb : bgColor;
-  gl_FragColor = vec4(vColor.rgb, alpha * vColor.a);
+  vec3 color =   (r < 0.75) ? vColor.rgb : bgColor;
+  gl_FragColor = vec4(color, alpha * vColor.a);
 }
 `
 const POINT_VS = `
@@ -139,7 +139,7 @@ void main() {
   vColor = vec4(color, 1.);
 
   float finalScaling = pow(sizeAttenuation, scaling);
-  finalScaling = 2. + pow(pointSize, sizeAttenuation);
+  finalScaling = 4. + pow(pointSize, sizeAttenuation);
 
   if (selectedCluster > -.1 && selectedCluster != stateIndex) finalScaling = 0.;
 
@@ -151,10 +151,15 @@ const NOOP = () => {}
 
 const creategraph = (options) => {
   let state = {
-sizeAttenuation: .1,
+    sizeAttenuation: .1,
     scaling: .4,
-     numNodes: 1,
-     showLines: true, showNodes: true, flatSize: true, selectedCluster: -1}
+    numNodes: 1,
+    showLines: true,
+    showNodes: true,
+    flatSize: true,
+    selectedCluster: -1
+  };
+
   let initialRegl = options.regl,
   initialBackground = DEFAULT_COLOR_BG,
   initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE,
@@ -176,11 +181,9 @@ sizeAttenuation: .1,
   attributes = options.attributes;
   const scratch = new Float32Array(16);
   let mousePosition  = [0, 0];
+  window.getMousePosition = () => mousePosition
   let pointList = []
 
-  window.state = state
-
-  window.getMousePosition = () => mousePosition
   checkReglExtensions(initialRegl)
 
   const background = toRgba(initialBackground, true)
@@ -304,7 +307,7 @@ sizeAttenuation: .1,
       x + xNormalizedScaledPointSize,
       y + yNormalizedScaledPointSize
     )
-    //console.log(pointsInBBox)
+
     // Find the closest point
     let minDist = scaledPointSize
     let clostestPoint
@@ -905,6 +908,9 @@ sizeAttenuation: .1,
   }
 
   return {
+    changeData: (attributes) => {
+
+    },
     deselect,
     destroy,
     draw: drawRaf,
@@ -992,7 +998,7 @@ let getNode = (id) => {
       let c = d.color
       return legend.indexOf(c);
     }));
-    window.stateIndex = stateIndex
+
 
     let fboColor = color.map((d, i) => {
       return i / color.length
@@ -1004,6 +1010,7 @@ let getNode = (id) => {
       edgeColors,
       color,
       //dates,
+      //
       fboColor,
       sentimentValue,
       stateIndex

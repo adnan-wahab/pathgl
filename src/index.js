@@ -107,15 +107,15 @@ void main() {
     alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
   #endif
 
-  //vec3 color =   (r < 0.3) ? vColor.rgb : bgColor;
-  gl_FragColor = vec4(vColor.rgb, alpha * vColor.a);
+  vec3 color =   (r < 0.75) ? vColor.rgb : bgColor;
+  gl_FragColor = vec4(color, alpha * vColor.a);
 }
 `
 const POINT_VS = `
 precision mediump float;
 uniform float pointSize;
 uniform float pointSizeExtra;
-uniform float numPoints;
+uniform float numNodes;
 uniform float scaling;
 uniform float sizeAttenuation;
 uniform mat4 projection;
@@ -139,7 +139,7 @@ void main() {
   vColor = vec4(color, 1.);
 
   float finalScaling = pow(sizeAttenuation, scaling);
-  finalScaling = 1. + pow(pointSize, sizeAttenuation);
+  finalScaling = 4. + pow(pointSize, sizeAttenuation);
 
   if (selectedCluster > -.1 && selectedCluster != stateIndex) finalScaling = 0.;
 
@@ -151,8 +151,15 @@ const NOOP = () => {}
 
 const creategraph = (options) => {
   let state = {
-sizeAttenuation: .1,
-    scaling: .4, numPoints: 1, showLines: true, showNodes: true, flatSize: true, selectedCluster: -1}
+    sizeAttenuation: .1,
+    scaling: .4,
+    numNodes: 1,
+    showLines: true,
+    showNodes: true,
+    flatSize: true,
+    selectedCluster: -1
+  };
+
   let initialRegl = options.regl,
   initialBackground = DEFAULT_COLOR_BG,
   initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE,
@@ -174,12 +181,9 @@ sizeAttenuation: .1,
   attributes = options.attributes;
   const scratch = new Float32Array(16);
   let mousePosition  = [0, 0];
+  window.getMousePosition = () => mousePosition
   let pointList = []
 
-
-
-
-  window.getMousePosition = () => mousePosition
   checkReglExtensions(initialRegl)
 
   const background = toRgba(initialBackground, true)
@@ -303,7 +307,7 @@ sizeAttenuation: .1,
       x + xNormalizedScaledPointSize,
       y + yNormalizedScaledPointSize
     )
-    //console.log(pointsInBBox)
+
     // Find the closest point
     let minDist = scaledPointSize
     let clostestPoint
@@ -431,7 +435,7 @@ sizeAttenuation: .1,
   }
   const getModel = () => model
   const getScaling = () => state.scaling
-  const getNormalNumPoints = () => numPoints * state.numPoints | 0
+  const getNormalNumPoints = () => numPoints * state.numNodes | 0
 
   let hi = 'cluster'
   window.onStyleChange = (prop) => {
@@ -439,8 +443,7 @@ sizeAttenuation: .1,
     hi = prop
     drawRaf()
   }
-  let drawLines = () => {}
-  //createDrawLines(options.regl, options, getModel, getProjection, getView)
+  let drawLines = createDrawLines(options.regl, options, getModel, getProjection, getView)
 
   const drawAllPoints = (
     getPointSizeExtra,
@@ -572,7 +575,7 @@ sizeAttenuation: .1,
     const idx = hoveredPoint
 
     const numOutlinedPoints = 1
-    const xy = searchIndex.points[idx]
+    const xy = searchIndex.points[idx].concat(0)
     const c = [
       [1, 1, 1],
       [1, 0, 1],
@@ -898,19 +901,16 @@ sizeAttenuation: .1,
   init(canvas)
 
   const update = (options) => {
-    _.each(options, (k,v) => state[v] = k)
-    //
-    // state.sizeAttenuation = options.sizeAttenuation
-    // state.numPoints = options.numNodes
-    // state.showLines = options.showLines
-    // state.showNodes = options.showNodes
-    // state.flatSize = options.flatSize
+
     drawRaf()
-    _.each(options, (k,v) => console.log(v,k))
+    _.each(options, (k,v) => { state[v] = k })
 
   }
 
   return {
+    changeData: (attributes) => {
+
+    },
     deselect,
     destroy,
     draw: drawRaf,
@@ -960,7 +960,6 @@ let getNode = (id) => {
 
     let edges = new Array(data.edges.length * 4).fill(0);
     data.edges.forEach((edge, idx) => {
-      console.log('wtf')
       edges[idx*4] = clip(getNode(edge.source).x)
       edges[idx*4+1] = clip(getNode(edge.source).y)
       edges[idx*4+2] = clip(getNode(edge.target).x)
@@ -999,7 +998,7 @@ let getNode = (id) => {
       let c = d.color
       return legend.indexOf(c);
     }));
-    window.stateIndex = stateIndex
+
 
     let fboColor = color.map((d, i) => {
       return i / color.length
@@ -1011,6 +1010,7 @@ let getNode = (id) => {
       edgeColors,
       color,
       //dates,
+      //
       fboColor,
       sentimentValue,
       stateIndex

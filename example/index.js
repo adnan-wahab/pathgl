@@ -22,7 +22,9 @@ let main = () => {
 
 
 
-  let container = d3.select('body').append('div')
+  let container = d3.select('body')
+  .style('overflow', 'hidden')
+  .append('div')
   .attr('class', 'sidebar')
 
 
@@ -73,7 +75,9 @@ let loadTSV = async () => {
  })
 
 
- d3.select('#size').on('change', () => graph.update({sizeAttenuation: d3.event.target.value / 100}))
+ d3.select('#size').on('change', () =>
+ graph.update({sizeAttenuation: d3.event.target.value / 100})
+)
 
 }
 

@@ -45,11 +45,10 @@ let main = () => {
   })
 
   //load('./data/dataKMeans.json')
-  //load('./data/mobile-banking.json')
-  loadTSV()
+  load('./data/mobile-banking.json')
+  //loadTSV()
 
   document.title = 'what'
-  ///loadTSV('./data/d.tsv')
 }
 let colorscale = d3.scaleLinear().domain([-0.15, 0, 0.15]).range([d3.interpolatePuOr(0), d3.interpolatePuOr(.5), d3.interpolatePuOr(1)]).clamp(true)
 let toColor = (color) => {
@@ -88,12 +87,11 @@ let makeRandom = () => {
 let graph
 
 let load = (url) => {
-  console.log('adfssd')
   fetch(url)
     .then((body)=>{ return body.json() })
     .then((json)=>{
       json.nodes = json.nodes.slice(0, 100)
-      json.edges = []
+      //json.edges = []
       graph = GraphRenderer.init({ data: json, canvas: canvas,
        })
     })

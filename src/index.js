@@ -1018,8 +1018,13 @@ let getNode = (id) => {
   }
 
 const init = (props) => {
+  let points = props.data.points = {}
+      props.data.nodes.forEach(d => points[d.uuid] = d)
+
   if (props.data) props.attributes = processKMeans(props.data)
   else props.attributes.stateIndex = _.range(277678 / 2)
+
+      console.log(props)
   window.props = props
   window.regl = ( window.regl || (props.regl = createRegl(props.canvas)))
   return creategraph(props)

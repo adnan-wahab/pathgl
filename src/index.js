@@ -179,6 +179,7 @@ const creategraph = (options) => {
   onHover = options.onHover || NOOP,
   onClick = options.onClick || NOOP,
   attributes = options.attributes;
+  window.attr= attributes
   const scratch = new Float32Array(16);
   let mousePosition  = [0, 0];
   window.getMousePosition = () => mousePosition
@@ -467,7 +468,7 @@ const creategraph = (options) => {
 
       attributes: {
         pos: {
-          buffer: attributes.position,
+          buffer: () => attributes.position,
           size: 3
         },
         color: {
@@ -842,8 +843,6 @@ const creategraph = (options) => {
 
   const initCamera = () => {
     camera = createDom2dCamera(canvas)
-
-    window.camera = camera
     if (initialView) camera.set(mat4.clone(initialView))
     else camera.lookAt([...initialTarget], initialDistance, initialRotation)
   }
@@ -908,7 +907,15 @@ const creategraph = (options) => {
   }
 
   return {
-    changeData: (attributes) => {
+    setState: (props) => {
+      console.log('setSTATE', props)
+      let points = props.data.points = {};
+      props.data.nodes.forEach(d => points[d.uuid || d.id] = d)
+      console.log('points', points)
+      if (props.data) props.attributes = processKMeans(props.data)
+
+      props.attributes.stateIndex = _.range(277678 / 2)
+      _.each(props.attributes, (k,v) => { attributes[v] = k })
 
     },
     deselect,
@@ -960,10 +967,10 @@ let getNode = (id) => {
 
     let edges = new Array(data.edges.length * 4).fill(0);
     data.edges.forEach((edge, idx) => {
-      edges[idx*4] = clip(getNode(edge.source).x)
-      edges[idx*4+1] = clip(getNode(edge.source).y)
-      edges[idx*4+2] = clip(getNode(edge.target).x)
-      edges[idx*4+3] = clip(getNode(edge.target).y)
+      edges[idx*4] = clip(getNode(edge.source)?.x)
+      edges[idx*4+1] = clip(getNode(edge.source)?.y)
+      edges[idx*4+2] = clip(getNode(edge.target)?.x)
+      edges[idx*4+3] = clip(getNode(edge.target)?.y)
     });
 
     let edgeColors = new Array(data.edges.length * 3).fill(0);
@@ -976,7 +983,7 @@ let getNode = (id) => {
       })
     } else {
       data.edges.forEach((edge, idx) => {
-      let color = data.nodes[edge.source].color
+      let color = data.nodes[edge.source]?.color
       let c = d3.rgb(color);
       edgeColors[idx*4+1] = c.r / 255
       edgeColors[idx*4+2] = c.g / 255
@@ -1019,14 +1026,12 @@ let getNode = (id) => {
 
 const init = (props) => {
   let points = props.data.points = {}
-      props.data.nodes.forEach(d => points[d.uuid] = d)
+      props.data.nodes.forEach(d => points[d.uuid || d.id] = d)
 
   if (props.data) props.attributes = processKMeans(props.data)
   else props.attributes.stateIndex = _.range(277678 / 2)
 
-      console.log(props)
-  window.props = props
-  window.regl = ( window.regl || (props.regl = createRegl(props.canvas)))
+  props.regl = createRegl(props.canvas)
   return creategraph(props)
 }
 

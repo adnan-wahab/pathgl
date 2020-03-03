@@ -66,7 +66,7 @@ function createDrawLines (regl, options, getModel, getProjection, getView) {
       depth: { enable: true },
 
       attributes: {
-        position:  attributes.edges,
+        position:  () =>attributes.edges,
           color: attributes.edgeColors
       },
 

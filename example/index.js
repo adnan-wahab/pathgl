@@ -8,7 +8,7 @@ let url = [
   // 'philippines',
   // 'sfcommute',
   // 'world',
-  'dataKMeans.json',
+  'thecut.json',
   'mobile-banking.json',
   'd.tsv'
 
@@ -39,13 +39,11 @@ let main = () => {
   .attr('href', (d) => `./data/${d}`)
   .on('click', d => {
     if (d3.event.target.href.includes('tsv')) loadTSV()
-    else
-    load(d3.event.target.href)
+    else load(d3.event.target.href)
     d3.event.preventDefault()
   })
-
-  //load('./data/dataKMeans.json')
-  load('./data/mobile-banking.json')
+  load('./data/thecut.json')
+  //load('./data/mobile-banking.json')
   //loadTSV()
 
   document.title = 'what'
@@ -90,10 +88,13 @@ let load = (url) => {
   fetch(url)
     .then((body)=>{ return body.json() })
     .then((json)=>{
-      json.nodes = json.nodes.slice(0, 100)
+      //json.nodes = json.nodes.slice(0, 100)
       //json.edges = []
-      graph = GraphRenderer.init({ data: json, canvas: canvas,
-       })
+      if (! graph)
+        graph = GraphRenderer.init({ data: json, canvas: canvas,})
+      else {
+        graph.setState({ data: json })
+      }
     })
 }
 d3.select(window).on('load', main)

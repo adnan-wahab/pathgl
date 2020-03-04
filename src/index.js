@@ -353,7 +353,7 @@ const creategraph = (options) => {
     const clickDist = dist(...currentMousePosition, ...mouseDownPosition)
     const clostestPoint = raycast()
     if (clostestPoint >= 0) select([clostestPoint])
-    if (clostestPoint >= 0) onClick(pointList[clostestPoint], clostestPoint)
+    if (clostestPoint >= 0) onClick(pointList[clostestPoint], clostestPoint, event)
   }
 
   const mouseDblClickHandler = () => {
@@ -574,7 +574,7 @@ const creategraph = (options) => {
   }
 
   const drawFavorites = () => {
-    const idx = state.favorites;
+    const idx = state.favorites[0];
     const numOutlinedPoints = state.favorites.length
 
     let  xy = _.flatten(state.favorites.map((idx) => pointList[idx].slice( 0, 2)))
@@ -586,7 +586,6 @@ const creategraph = (options) => {
       [.3, .3, .3]
     ]
     let colors = (i) => {
-      return c[1]
       return state.favorites.map(() => c[i])
     }
     window.tt = colors

@@ -102,8 +102,8 @@ let load = (url) => {
       console.log(json)
       if (! graph)
         graph = GraphRenderer.init({ data: json, canvas: canvas,
-          onClick: (point, idx) => {
-            favorites = favorites.concat(idx)
+          onClick: (point, idx, events) => {
+            if (events.shiftKey)favorites = favorites.concat(idx)
             window.fav = favorites
             graph.setState({favorites})
           }

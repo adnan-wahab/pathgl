@@ -4,10 +4,7 @@ import GraphRenderer from '../src';
 import * as d3 from 'd3'
 
 let url = [
-  // 'eastwestcommute',
-  // 'philippines',
-  // 'sfcommute',
-  // 'world',
+
   'thecut.json',
   'mobile-banking.json',
   'd.tsv'
@@ -43,7 +40,7 @@ let main = () => {
     window.location.hash = d
     d3.event.preventDefault()
   })
-  load(`./data/${window.location.hash.slice(1)}`)
+  load(`./data/${window.location.hash.slice(1) || 'thecut.json'}`)
 
   document.title = 'what'
 }
@@ -58,30 +55,33 @@ let loadTSV = async () => {
   window.color = color
   let tsv = await d3.tsv("./data/d.tsv", d3.autoType);
   tsv.forEach(d => {
-    position.push(d.x / 10, d.y / 10, 0)
-    color.push.apply(color,
-      toColor(d.sentiment)
-    )
+    position.push(d.x, d.y )
+    color.push.apply(color, toColor(d.sentiment))
   })
 
   if (! graph)
     graph = GraphRenderer.init({attributes: {position, color}, canvas: canvas })
   else {
-    graph.setState({attributes: {position, color }})
+    graph.setProps({attributes: {position, color }})
   }
 }
 
 d3.select('#size').on('change', () => {
   console.log(d3.event.target.value / 100);
-  graph.update({sizeAttenuation: d3.event.target.value / 100});
+  graph.setState({sizeAttenuation: d3.event.target.value / 100});
 })
 
 d3.select('#nodes').on('change', () => {
-  graph.update({showNodes: d3.event.target.checked });
+  graph.setState({showNodes: d3.event.target.checked });
 })
 
+d3.select('#line-colors').on('change', () => {
+  graph.setState({edgeColors: d3.event.target.checked });
+})
+
+
 d3.select('#lines').on('change', () => {
-  graph.update({showLines: d3.event.target.checked});
+  graph.setState({showLines: d3.event.target.checked});
 })
 
 let makeRandom = () => {
@@ -89,6 +89,8 @@ let makeRandom = () => {
 }
 
 let graph
+
+let favorites = []
 
 let load = (url) => {
   if (url.includes('.tsv')) loadTSV(window.location.tsv)
@@ -99,9 +101,15 @@ let load = (url) => {
       //json.edges = []
       console.log(json)
       if (! graph)
-        graph = GraphRenderer.init({ data: json, canvas: canvas,})
+        graph = GraphRenderer.init({ data: json, canvas: canvas,
+          onClick: (point, idx) => {
+            favorites = favorites.concat(idx)
+            window.fav = favorites
+            graph.setState({favorites})
+          }
+        })
       else {
-        graph.setState({ data: json })
+        graph.setProps({ data: json })
       }
     })
 }

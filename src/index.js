@@ -121,7 +121,7 @@ uniform mat4 projection;
 uniform mat4 model;
 uniform mat4 view;
 
-attribute vec3 pos;
+attribute vec2 pos;
 attribute vec3 color;
 attribute float stateIndex;
 
@@ -156,7 +156,9 @@ const creategraph = (options) => {
     showLines: true,
     showNodes: true,
     flatSize: true,
-    selectedCluster: -1
+    edgeColors: false,
+    selectedCluster: -1,
+    favorites: []
   };
 
   let initialRegl = options.regl,
@@ -201,6 +203,7 @@ const creategraph = (options) => {
   let mouseDownPosition = [0, 0]
   let numPoints = 0
   let selection = []
+
   let searchIndex
   let viewAspectRatio
   const dataAspectRatio = DEFAULT_DATA_ASPECT_RATIO
@@ -350,7 +353,7 @@ const creategraph = (options) => {
     const clickDist = dist(...currentMousePosition, ...mouseDownPosition)
     const clostestPoint = raycast()
     if (clostestPoint >= 0) select([clostestPoint])
-    if (clostestPoint >= 0) onClick(pointList[clostestPoint])
+    if (clostestPoint >= 0) onClick(pointList[clostestPoint], clostestPoint)
   }
 
   const mouseDblClickHandler = () => {
@@ -431,7 +434,7 @@ const creategraph = (options) => {
       attributes: {
         pos: {
           buffer: () => attributes.position,
-          size: 3
+          size: 2
         },
         color: {
           buffer: () => attributes.color,
@@ -453,8 +456,8 @@ const creategraph = (options) => {
         scaling: getScaling,
         pointSize: getPointSize,
         pointSizeExtra: getPointSizeExtra,
-        sizeAttenuation: () => state.sizeAttenuation,
-        flatSize: () => {return state.flatSize }
+        sizeAttenuation: regl.prop('sizeAttenuation'),
+        flatSize: regl.prop('flatSize')
       },
 
       count: getNumPoints,
@@ -487,7 +490,7 @@ const creategraph = (options) => {
         attributes: {
           pos: {
             buffer: getPos,
-            size: 3
+            size: 2
           },
           color: {
             buffer: getColors,
@@ -538,7 +541,7 @@ const creategraph = (options) => {
     const idx = hoveredPoint
 
     const numOutlinedPoints = 1
-    const xy = searchIndex.points[idx].concat(0)
+    const xy = searchIndex.points[idx].slice(0,2)
     const c = [
       [1, 1, 1],
       [1, 0, 1],
@@ -548,6 +551,7 @@ const creategraph = (options) => {
     const colors = (i) => {
       return c[i]
     }
+    window.qq = xy
 
     drawPoints(
       xy,
@@ -567,6 +571,65 @@ const creategraph = (options) => {
       colors(1)
     )()
 
+  }
+
+  const drawFavorites = () => {
+    const idx = state.favorites;
+    const numOutlinedPoints = state.favorites.length
+
+    let  xy = _.flatten(state.favorites.map((idx) => pointList[idx].slice( 0, 2)))
+    console.log(state.favorites)
+    window.xy = xy
+    const c = [
+      [.5, .3, .2],
+      [.3, .5, .3],
+      [.3, .3, .3]
+    ]
+    let colors = (i) => {
+      return c[1]
+      return state.favorites.map(() => c[i])
+    }
+    window.tt = colors
+    //xy = [0,0]
+    // const idx = hoveredPoint
+    // if (! idx) return
+    // const numOutlinedPoints = 1
+    // const xy = searchIndex.points[idx].concat(0)
+    // const c = [
+    //   [1, 1, 1],
+    //   [1, 0, 1],
+    //   [1, 1, 0]
+    // ]
+    //
+    // const colors = (i) => {
+    //   return c[i]
+    // }
+
+    // Draw outer outline
+    drawPoints(
+      xy,
+
+      () =>
+        (pointSizeSelected + pointOutlineWidth * 2 + 1) * window.devicePixelRatio,
+      () => numOutlinedPoints,
+      colors(0)
+    )()
+    c
+    // Draw inner outline
+    drawPoints(
+      xy,
+      () => (pointSizeSelected + pointOutlineWidth * 1 + 1) * window.devicePixelRatio,
+      () => numOutlinedPoints,
+      colors(1)
+    )()
+
+    // Draw body
+    drawPoints(
+      xy,
+      () => 10,
+      () => 10,
+      colors(2)
+    )()
   }
 
   const drawSelectedPoint = () => {
@@ -695,7 +758,7 @@ const creategraph = (options) => {
     console.log('hee', newPoints)
     isInit = false
     pointList = newPoints
-    numPoints = newPoints.length / 2
+    numPoints = newPoints.length
 
     searchIndex = new KDBush(newPoints, p => p[0], p => p[1], 16)
 
@@ -716,11 +779,12 @@ const creategraph = (options) => {
     if (backgroundImage) {
       drawBackgroundImage()
     }
-    if (state.showLines) drawLines()
-    if (state.showNodes) drawPointBodies();
-    //drawRecticle();
-    //if (hoveredPoint >= 0) drawHoveredPoint();
-    //if (selection.length) drawSelectedPoint();
+    if (state.showLines) drawLines(state)
+    if (state.showNodes) drawPointBodies(state);
+    drawRecticle();
+    if (hoveredPoint >= 0) drawHoveredPoint(state);
+    if (selection.length) drawSelectedPoint(state);
+    drawFavorites(state);
     // Publish camera change
     // if (isViewChanged) pubSub.publish('view', camera.view)
   }
@@ -836,15 +900,15 @@ const creategraph = (options) => {
 
   init(canvas)
 
-  const update = (options) => {
-
+  const setState = (options) => {
+    console.log(options)
     drawRaf()
     _.each(options, (k,v) => { state[v] = k })
 
   }
 
   return {
-    setState: (props) => {
+    setProps: (props) => {
       props.attributes = processData(props)
       props.attributes.stateIndex = _.range(277678 / 2)
 
@@ -856,6 +920,7 @@ const creategraph = (options) => {
     },
     deselect,
     destroy,
+
     draw: drawRaf,
     repaint: () => {
       withDraw(reset)();
@@ -870,7 +935,7 @@ const creategraph = (options) => {
     reset: withDraw(reset),
     select,
     selectCluster,
-    update
+    setState
   }
 }
 

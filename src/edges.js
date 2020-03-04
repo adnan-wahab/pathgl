@@ -8,19 +8,20 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
     lineWidth = regl.limits.lineWidthDims[1]
   }
 
-  const drawLines =
-    regl({
+    let draw = regl({
       frag: `
       precision mediump float;
       varying vec3 v_color;
       varying vec3 wow;
       uniform float opacity;
+      uniform bool edgeColors;
 
 
       void main() {
-
+        if ( edgeColors)
       gl_FragColor = vec4(v_color, .5);
-      //gl_FragColor = vec4(1,1,1, 1);
+      else
+      gl_FragColor = vec4(1,1,1, 1);
       }`,
 
       vert: `
@@ -76,6 +77,7 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
       },
 
       uniforms: {
+        edgeColors: regl.prop('edgeColors'),
         scale: 1,
         offset: [0, 0.0],
         phase: 0.0,
@@ -91,14 +93,12 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
       },
 
       lineWidth: lineWidth,
-      count: () => console.log('butt') || attributes.position.length /1 ,
+      count: () => attributes.position.length /1 ,
       primitive: 'lines',
       offset: 1,
     })
 
-
-
-  return drawLines
+    return draw
 }
 
 export default createDrawLines

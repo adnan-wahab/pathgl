@@ -37,12 +37,11 @@ let processData = (props) => {
     return points[id]
   }
 
-
  let colors = data.nodes.map(d => {
    return [Math.random(), ]
  })
 
-  let position = _.flatten(data.nodes.map(d => [clip(d.x), clip(d.y), d.size]))
+  let position = _.flatten(data.nodes.map(d => [clip(d.x), clip(d.y)]))
   var accent = d3.scaleOrdinal(d3.schemeAccent);
 
   let sentimentValue = _.flatten(data.nodes.map((d) => {
@@ -58,7 +57,7 @@ let processData = (props) => {
     let edges = new Array(data.edges.length * 4).fill(0);
     data.edges.forEach((edge, idx) => {
       let source = getNode(edge.source), target = getNode(edge.target);
-      if( ! source || ! target ) debugger
+      //if( ! source || ! target ) debugger
       edges[idx*4] = clip(source.x)
       edges[idx*4+1] = clip(source.y)
       edges[idx*4+2] = clip(target.x)

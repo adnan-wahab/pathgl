@@ -156,7 +156,7 @@ const creategraph = (options) => {
     showLines: true,
     showNodes: true,
     flatSize: true,
-    edgeColors: false,
+    edgeColors: true,
     selectedCluster: -1,
     favorites: []
   };

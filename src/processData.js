@@ -6,20 +6,35 @@ const clip = (d) => {
 
 
 let processData = (props) => {
+
+
+  let pointList
+  if (props.data ) {
+    pointList = props.data.nodes
+      .map((d, idx) => {
+        return [clip(d.x), clip(d.y), d.uuid || d.id]
+      })
+  } else {
+    pointList = new Array(props.attributes.position.length / 2 | 0).fill(1)
+    .map((d, i) => {
+      let a = []
+      a[0] = props.attributes.position[i*2]
+      a[1] = props.attributes.position[i*2+1]
+      a[2] = i
+      return a
+    })
+  }
+
+  window.pointList = pointList
+  props.pointList = pointList
+
   let data = props.data
-
-  const points = props.data ? props.data.nodes
-    .map((d, idx) => {
-      return [clip(d.x), clip(d.y), d.uuid]
-    }) : new Array(1e5).fill(10)
-
-  props.data.points = {}
+  if (! data) return props.attributes
+  let points = {}
   props.data.nodes.forEach(d => points[d.uuid || d.id] = d)
 
-  data.points = points;
-
   let getNode = (id) => {
-    return data.points[id]
+    return points[id]
   }
 
 
@@ -39,7 +54,6 @@ let processData = (props) => {
   data.edges.forEach(d => {
     counts[d.target] = counts[d.target]
   })
-  console.log('counts', counts)
 
     let edges = new Array(data.edges.length * 4).fill(0);
     data.edges.forEach((edge, idx) => {
@@ -50,8 +64,6 @@ let processData = (props) => {
       edges[idx*4+2] = clip(target.x)
       edges[idx*4+3] = clip(target.y)
     });
-    window.x = data.edges
-    window.points = points
 
     let edgeColors = new Array(data.edges.length * 3).fill(0);
     if (data.kmeans) {
@@ -63,7 +75,7 @@ let processData = (props) => {
       })
     } else {
       data.edges.forEach((edge, idx) => {
-      let color = data.nodes[edge.source]?.color
+      let color = data.nodes[edge.target]?.color
       let c = d3.rgb(color);
       edgeColors[idx*4+1] = c.r / 255
       edgeColors[idx*4+2] = c.g / 255

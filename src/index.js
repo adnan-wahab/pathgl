@@ -154,7 +154,7 @@ const creategraph = (options) => {
     scaling: .4,
     numNodes: 1,
     showLines: true,
-    showNodes: false,
+    showNodes: true,
     flatSize: true,
     selectedCluster: -1
   };
@@ -218,38 +218,6 @@ const creategraph = (options) => {
 
   let hoveredPoint
   let isMouseInCanvas = false
-
-//   // REMOVE OLD CAMERA FIRST
-//   let d3_zoom =   d3.zoom()
-//         .extent([[0, 0], [width, height]])
-//         .scaleExtent([1, 8])
-//         .on("zoom", zoomed)
-//
-//   d3.select(initialCanvas).call(d3_zoom)
-//
-//   function zoomed() {
-//     let t = d3.event.transform
-//     let scale = t.k;
-//     let x = -(t.x - innerWidth/2) / scale;
-//     let y = (t.y - height/2) / scale;
-//     let z = getZFromScale(scale);
-//     console.log(x,y,z)
-//     window.camera = camera
-//     //camera.reset([x,y], z)
-//     camera.lookAt([x, y], z)
-//
-//     }
-//     function toRadians (angle) {
-//       return angle * (Math.PI / 180);
-//     }
-//     function getZFromScale(scale) {
-//       let fov = 40
-//   let half_fov = fov/2;
-//   let half_fov_radians = toRadians(half_fov);
-//   let scale_height = height / scale;
-//   let camera_z_position = scale_height / (2 * Math.tan(half_fov_radians));
-//   return camera_z_position;
-// }
 
   // Get a copy of the current mouse position
   const getMousePos = () => mousePosition.slice()
@@ -339,17 +307,13 @@ const creategraph = (options) => {
     if (state.selectedCluster === n) state.selectedCluster = -n
     else state.selectedCluster = n
     //state.selectedCluster = n
-
-    // console.log( points.map(point => pointList.findIndex(d => d[2] === point)))
     // selection = points.map(point => pointList.findIndex(d => d[2] === point))
-
     drawRaf() // eslint-disable-line no-use-before-define
   }
 
   const select = (points ) => {
-      if (typeof points === 'string') selection = [pointList.findIndex(d => d[2] === points)]
-      else selection = points
-
+    if (typeof points === 'string') selection = [pointList.findIndex(d => d[2] === points)]
+    else selection = points
     drawRaf() // eslint-disable-line no-use-before-define
   }
 
@@ -728,9 +692,10 @@ const creategraph = (options) => {
   }
 
   const setPoints = newPoints => {
+    console.log('hee', newPoints)
     isInit = false
     pointList = newPoints
-    numPoints = newPoints.length
+    numPoints = newPoints.length / 2
 
     searchIndex = new KDBush(newPoints, p => p[0], p => p[1], 16)
 
@@ -741,7 +706,6 @@ const creategraph = (options) => {
     if (!isInit) return
 
     regl.clear({
-      // background color (transparent)
       color: BG_COLOR,
       depth: 1
     })
@@ -753,19 +717,10 @@ const creategraph = (options) => {
       drawBackgroundImage()
     }
     if (state.showLines) drawLines()
-    //drawNodes({view: getView(), projection: getView()})
-
-    // The draw order of the following calls is important!
-    //if (state.showNodes) drawHalo()
     if (state.showNodes) drawPointBodies();
-
-    drawRecticle();
-
-    if (hoveredPoint >= 0) drawHoveredPoint();
-
-    if (selection.length) drawSelectedPoint();
-
-
+    //drawRecticle();
+    //if (hoveredPoint >= 0) drawHoveredPoint();
+    //if (selection.length) drawSelectedPoint();
     // Publish camera change
     // if (isViewChanged) pubSub.publish('view', camera.view)
   }
@@ -863,30 +818,17 @@ const creategraph = (options) => {
     // Set dimensions
     set({ width, height })
 
-    // Setup event handler
-    //window.addEventListener('blur', blurHandler, false);
     window.addEventListener('mousedown', mouseDownHandler, false)
     window.addEventListener('mouseup', mouseUpHandler, false)
     window.addEventListener('mousemove', mouseMoveHandler, false)
     canvas.addEventListener('mouseenter', mouseEnterCanvasHandler, false)
     canvas.addEventListener('mouseleave', mouseLeaveCanvasHandler, false)
     canvas.addEventListener('click', mouseClickHandler, false)
-    // canvas.addEventListener('dblclick', mouseDblClickHandler, false);
     canvas.addEventListener('wheel', wheelHandler);
-
-
-    setPoints(options.data.points)
+    setPoints(options.pointList)
   }
 
   const destroy = () => {
-    // window.removeEventListener('blur', blurHandler, false);
-    // window.removeEventListener('mousedown', mouseDownHandler, false);
-    // window.removeEventListener('mouseup', mouseUpHandler, false);
-    // window.removeEventListener('mousemove', mouseMoveHandler, false);
-    // canvas.removeEventListener('mouseenter', mouseEnterCanvasHandler, false);
-    // canvas.removeEventListener('mouseleave', mouseLeaveCanvasHandler, false);
-    // canvas.removeEventListener('click', mouseClickHandler, false);
-    // canvas.removeEventListener('dblclick', mouseDblClickHandler, false);
     canvas = undefined
     camera = undefined
     regl = undefined
@@ -903,19 +845,14 @@ const creategraph = (options) => {
 
   return {
     setState: (props) => {
-      console.log('setSTATE', props)
-
-      if (props.data) props.attributes = processData(props)
-
-
+      props.attributes = processData(props)
       props.attributes.stateIndex = _.range(277678 / 2)
+
       _.each(props.attributes, (k,v) => { attributes[v] = k })
 
-
-      setPoints(props.data.points)
-
-        drawRaf()
-
+      setPoints(props.pointList)
+      hoveredPoint = 0
+      drawRaf()
     },
     deselect,
     destroy,
@@ -938,10 +875,10 @@ const creategraph = (options) => {
 }
 
 
-
 const init = (props) => {
-  if (props.data) props.attributes = processData(props)
-  else props.attributes.stateIndex = _.range(277678 / 2)
+  props.attributes = processData(props)
+  props.attributes.stateIndex = _.range(277678 / 2)
+  window.props = props
 
   props.regl = createRegl(props.canvas)
   return creategraph(props)

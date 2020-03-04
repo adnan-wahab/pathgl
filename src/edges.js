@@ -19,8 +19,8 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
 
       void main() {
 
-        gl_FragColor = vec4(v_color, 1);
-        //gl_FragColor = vec4(1,1,1, .1);
+      gl_FragColor = vec4(v_color, .5);
+      //gl_FragColor = vec4(1,1,1, 1);
       }`,
 
       vert: `
@@ -65,11 +65,14 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
           dstAlpha: 'one minus src alpha'
         }
       },
-      depth: { enable: true },
+      //depth: { enable: true },
 
       attributes: {
         position:  () => attributes.edges,
-          color: () => attributes.edgeColors
+          color: {
+            buffer: () => attributes.edgeColors,
+            offset: 0
+          }
       },
 
       uniforms: {
@@ -88,7 +91,7 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
       },
 
       lineWidth: lineWidth,
-      count: () => attributes.position.length /1 ,
+      count: () => console.log('butt') || attributes.position.length /1 ,
       primitive: 'lines',
       offset: 1,
     })

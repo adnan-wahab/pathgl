@@ -40,11 +40,10 @@ let main = () => {
   .on('click', d => {
     if (d3.event.target.href.includes('tsv')) loadTSV()
     else load(d3.event.target.href)
+    window.location.hash = d
     d3.event.preventDefault()
   })
-  //load('./data/thecut.json')
-  load('./data/mobile-banking.json')
-  //loadTSV()
+  load(`./data/${window.location.hash.slice(1)}`)
 
   document.title = 'what'
 }
@@ -92,6 +91,7 @@ let makeRandom = () => {
 let graph
 
 let load = (url) => {
+  if (url.includes('.tsv')) loadTSV(window.location.tsv)
   fetch(url)
     .then((body)=>{ return body.json() })
     .then((json)=>{

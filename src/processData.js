@@ -75,7 +75,7 @@ let processData = (props) => {
       })
     } else {
       data.edges.forEach((edge, idx) => {
-      let color = data.nodes[edge.target]?.color
+      let color = data.nodes[edge.target].color
       let c = d3.rgb(color);
       edgeColors[idx*4+1] = c.r / 255
       edgeColors[idx*4+2] = c.g / 255

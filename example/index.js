@@ -42,8 +42,8 @@ let main = () => {
     else load(d3.event.target.href)
     d3.event.preventDefault()
   })
-  load('./data/thecut.json')
-  //load('./data/mobile-banking.json')
+  //load('./data/thecut.json')
+  load('./data/mobile-banking.json')
   //loadTSV()
 
   document.title = 'what'
@@ -65,18 +65,25 @@ let loadTSV = async () => {
     )
   })
 
-  let graph = GraphRenderer.init({ attributes: {
-    position, color
-  }, canvas: canvas,
-
- })
-
-
- d3.select('#size').on('change', () =>
- graph.update({sizeAttenuation: d3.event.target.value / 100})
-)
-
+  if (! graph)
+    graph = GraphRenderer.init({attributes: {position, color}, canvas: canvas })
+  else {
+    graph.setState({attributes: {position, color }})
+  }
 }
+
+d3.select('#size').on('change', () => {
+  console.log(d3.event.target.value / 100);
+  graph.update({sizeAttenuation: d3.event.target.value / 100});
+})
+
+d3.select('#nodes').on('change', () => {
+  graph.update({showNodes: d3.event.target.checked });
+})
+
+d3.select('#lines').on('change', () => {
+  graph.update({showLines: d3.event.target.checked});
+})
 
 let makeRandom = () => {
   return new Date(2019, Math.random() * 12 | 0, Math.random() * 30 | 0)
@@ -90,6 +97,7 @@ let load = (url) => {
     .then((json)=>{
       //json.nodes = json.nodes.slice(0, 100)
       //json.edges = []
+      console.log(json)
       if (! graph)
         graph = GraphRenderer.init({ data: json, canvas: canvas,})
       else {

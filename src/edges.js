@@ -1,7 +1,7 @@
-function createDrawLines (regl, options, getModel, getProjection, getView) {
-  const attributes = options.attributes
-
+function createDrawLines (regl, attributes, getModel, getProjection, getView) {
+  window.attr = attributes
   if (! attributes.edges) return () => {}
+  //attributes.edges = attributes.edges.filter((d, i) => )
   // make sure to respect system limitations.
   var lineWidth = 10
   if (lineWidth > regl.limits.lineWidthDims[1]) {
@@ -18,7 +18,9 @@ function createDrawLines (regl, options, getModel, getProjection, getView) {
 
 
       void main() {
-        gl_FragColor = vec4(1);
+
+        gl_FragColor = vec4(v_color, 1);
+        //gl_FragColor = vec4(1,1,1, .1);
       }`,
 
       vert: `
@@ -48,7 +50,7 @@ function createDrawLines (regl, options, getModel, getProjection, getView) {
         // if (selection.x < dates && dates < selection.y )
         // wow = vec3(0);
         // else wow = vec3(1);
-        // v_color = color;
+        v_color = color;
 
         // translate
         p += offset;
@@ -66,8 +68,8 @@ function createDrawLines (regl, options, getModel, getProjection, getView) {
       depth: { enable: true },
 
       attributes: {
-        position:  () =>attributes.edges,
-          color: attributes.edgeColors
+        position:  () => attributes.edges,
+          color: () => attributes.edgeColors
       },
 
       uniforms: {
@@ -86,8 +88,9 @@ function createDrawLines (regl, options, getModel, getProjection, getView) {
       },
 
       lineWidth: lineWidth,
-      count: attributes.position.length /4 ,
-      primitive: 'lines'
+      count: () => attributes.position.length /1 ,
+      primitive: 'lines',
+      offset: 1,
     })
 
 

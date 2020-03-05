@@ -121,9 +121,13 @@ uniform mat4 projection;
 uniform mat4 model;
 uniform mat4 view;
 
+uniform vec2 dateFilter;
+
 attribute vec2 pos;
 attribute vec3 color;
 attribute float stateIndex;
+attribute float dates;
+
 
 uniform float selectedCluster;
 
@@ -133,6 +137,7 @@ uniform bool flatSize;
 varying vec4 vColor;
 
 void main() {
+  if (! (dates > dateFilter.x && dates < dateFilter.y)) return;
   gl_Position = projection * view * model * vec4(pos.xy, 0.0, 1.0);
 
   vColor = vec4(color, 1.);
@@ -158,8 +163,10 @@ const creategraph = (options) => {
     flatSize: true,
     edgeColors: true,
     selectedCluster: -1,
-    favorites: []
+    favorites: [],
+    dateFilter: [0,Infinity]
   };
+  window.state = state
 
   let initialRegl = options.regl,
   initialBackground = DEFAULT_COLOR_BG,
@@ -444,12 +451,17 @@ const creategraph = (options) => {
         stateIndex: {
           buffer: () => attributes.stateIndex,
           size:1
+        },
+        dates: {
+          buffer: () => attributes.dates,
+          size: 1
         }
       },
 
       uniforms: {
         projection: getProjection,
         time: () => Date.now() / 1000,
+        dateFilter: regl.prop('dateFilter'),
         selectedCluster: () => (attributes.position.length < 1 ? state.selectedCluster : -100 ),
         model: getModel,
         view: getView,
@@ -574,12 +586,16 @@ const creategraph = (options) => {
   }
 
   const drawFavorites = () => {
-    const idx = state.favorites[0];
     const numOutlinedPoints = state.favorites.length
 
-    let  xy = _.flatten(state.favorites.map((idx) => pointList[idx].slice( 0, 2)))
-    console.log(state.favorites)
-    window.xy = xy
+    let  xy = _.flatten(state.favorites.map((idx) => {
+      return (typeof idx === 'string' ?
+      pointList.find(d => d[2] === idx):
+      pointList[idx]
+    ).slice( 0, 2)
+
+  }))
+
     const c = [
       [.5, .3, .2],
       [.3, .5, .3],
@@ -754,7 +770,6 @@ const creategraph = (options) => {
   }
 
   const setPoints = newPoints => {
-    console.log('hee', newPoints)
     isInit = false
     pointList = newPoints
     numPoints = newPoints.length
@@ -783,7 +798,8 @@ const creategraph = (options) => {
     drawRecticle();
     if (hoveredPoint >= 0) drawHoveredPoint(state);
     if (selection.length) drawSelectedPoint(state);
-    drawFavorites(state);
+
+    //drawFavorites(state);
     // Publish camera change
     // if (isViewChanged) pubSub.publish('view', camera.view)
   }
@@ -900,7 +916,7 @@ const creategraph = (options) => {
   init(canvas)
 
   const setState = (options) => {
-    console.log(options)
+    //console.log(options)
     drawRaf()
     _.each(options, (k,v) => { state[v] = k })
 
@@ -927,8 +943,7 @@ const creategraph = (options) => {
     hoverPoint: (uuid) => {
       console.log('uid', uuid,  pointList.findIndex(d => d[2] === uuid))
       hoveredPoint = pointList.findIndex(d => d[2] === uuid)
-      console.log(hoveredPoint)
-          draw()
+      draw()
     },
     refresh,
     reset: withDraw(reset),

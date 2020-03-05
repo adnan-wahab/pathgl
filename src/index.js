@@ -166,7 +166,7 @@ const creategraph = (options) => {
     favorites: [],
     dateFilter: [0,Infinity]
   };
-  window.state = state
+
 
   let initialRegl = options.regl,
   initialBackground = DEFAULT_COLOR_BG,
@@ -512,11 +512,15 @@ const creategraph = (options) => {
           stateIndex: {
             buffer: () => attributes.stateIndex,
             size:1
+          }, dates: {
+            buffer: () => attributes.dates,
+            size: 1
           }
         },
 
         uniforms: {
           projection: getProjection,
+          dateFilter: regl.prop('dateFilter'),
           selectedCluster: () => (getPos.length < 1 ? state.selectedCluster : -100 ),
           model: getModel,
           view: getView,
@@ -549,7 +553,7 @@ const creategraph = (options) => {
    )
 
 
-  const drawHoveredPoint = () => {
+  const drawHoveredPoint = (state) => {
     const idx = hoveredPoint
 
     const numOutlinedPoints = 1
@@ -572,7 +576,7 @@ const creategraph = (options) => {
         (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
       () => numOutlinedPoints,
       colors(0)
-    )()
+    )(state)
 
     drawPoints(
       xy,
@@ -581,7 +585,7 @@ const creategraph = (options) => {
         pointSizeSelected,
       () => numOutlinedPoints,
       colors(1)
-    )()
+    )(state)
 
   }
 
@@ -628,15 +632,15 @@ const creategraph = (options) => {
         (pointSizeSelected + pointOutlineWidth * 2 + 1) * window.devicePixelRatio,
       () => numOutlinedPoints,
       colors(0)
-    )()
-    c
+    )(state)
+
     // Draw inner outline
     drawPoints(
       xy,
       () => (pointSizeSelected + pointOutlineWidth * 1 + 1) * window.devicePixelRatio,
       () => numOutlinedPoints,
       colors(1)
-    )()
+    )(state)
 
     // Draw body
     drawPoints(
@@ -644,7 +648,7 @@ const creategraph = (options) => {
       () => 10,
       () => 10,
       colors(2)
-    )()
+    )(state)
   }
 
   const drawSelectedPoint = () => {
@@ -669,7 +673,7 @@ const creategraph = (options) => {
         (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
       () => numOutlinedPoints,
       colors(0)
-    )()
+    )(state)
 
     // Draw inner outline
     drawPoints(
@@ -677,7 +681,7 @@ const creategraph = (options) => {
       () => (pointSizeSelected + pointOutlineWidth) * window.devicePixelRatio,
       () => numOutlinedPoints,
       colors(1)
-    )()
+    )(state)
 
     // Draw body
     drawPoints(
@@ -685,7 +689,7 @@ const creategraph = (options) => {
       () => pointSizeSelected,
       () => numOutlinedPoints,
       colors(2)
-    )()
+    )(state)
   }
 
   const drawBackgroundImage = regl({
@@ -720,7 +724,7 @@ const creategraph = (options) => {
 
   }
 
-  const drawRecticle = () => {
+  const drawRecticle = (state) => {
     if (!(hoveredPoint >= 0)) return
 
     const [x, y] = searchIndex.points[hoveredPoint].slice(0, 2)
@@ -758,7 +762,7 @@ const creategraph = (options) => {
         (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
       () => 1,
       () => fromage[0]
-    )()
+    )(state)
 
     // Draw inner outline
     drawPoints(
@@ -766,7 +770,7 @@ const creategraph = (options) => {
       () => (pointSizeSelected + pointOutlineWidth) * window.devicePixelRatio,
       () => 1,
       () => fromage[1]
-    )()
+    )(state)
   }
 
   const setPoints = newPoints => {
@@ -795,11 +799,11 @@ const creategraph = (options) => {
     }
     if (state.showLines) drawLines(state)
     if (state.showNodes) drawPointBodies(state);
-    drawRecticle();
+    drawRecticle(state);
     if (hoveredPoint >= 0) drawHoveredPoint(state);
     if (selection.length) drawSelectedPoint(state);
 
-    //drawFavorites(state);
+    if (state.favorites.length) drawFavorites(state);
     // Publish camera change
     // if (isViewChanged) pubSub.publish('view', camera.view)
   }

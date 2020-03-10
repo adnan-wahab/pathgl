@@ -97,14 +97,11 @@ let load = (url) => {
   fetch(url)
     .then((body)=>{ return body.json() })
     .then((json)=>{
-      //json.nodes = json.nodes.slice(0, 100)
-      //json.edges = []
-      console.log(json)
       if (! graph)
         graph = GraphRenderer.init({ data: json, canvas: canvas,
           onClick: (point, idx, events) => {
             if (events.shiftKey)favorites = favorites.concat(idx)
-            window.fav = favorites
+
             graph.setState({favorites})
           }
         })

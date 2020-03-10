@@ -78,7 +78,7 @@ let processData = (props) => {
 
       data.edges.forEach((edge, idx) => {
         //console.log(`%c ${edge.target}`, 'background: green;');
-        let color = (data.nodes[edge.target] ? data.nodes[edge.target] : getNode(edge.source)).color
+        let color = (data.nodes[edge.source] ? data.nodes[edge.source] : getNode(edge.target)).color
         let c = d3.rgb(color);
         edgeColors[idx*3] = c.r / 255
         edgeColors[idx*3+1] = c.g / 255
@@ -86,7 +86,7 @@ let processData = (props) => {
     });
 
     let dates = data.nodes.map((d, idx) => {
-      return d.create_time
+      return d.create_time || (Math.random() * new Date());
     })
     let color = _.flatten(data.nodes.map((d) => {
       let c = d3.color(d.color || 'pink');

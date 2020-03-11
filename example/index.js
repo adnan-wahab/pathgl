@@ -10,7 +10,9 @@ let url = [
   'd.tsv'
 
 ]
-
+const clip = (d) => {
+return d / 3000
+}
 let canvas = document.createElement('canvas')
 
 let main = () => {
@@ -42,7 +44,7 @@ let main = () => {
   })
   load(`./data/${window.location.hash.slice(1) || 'thecut.json'}`)
 
-  document.title = 'what'
+  document.title = 'REGL NETWORK VIS'
 }
 let colorscale = d3.scaleLinear().domain([-0.15, 0, 0.15]).range([d3.interpolatePuOr(0), d3.interpolatePuOr(.5), d3.interpolatePuOr(1)]).clamp(true)
 let toColor = (color) => {
@@ -58,9 +60,13 @@ let loadTSV = async () => {
     position.push(d.x, d.y )
     color.push.apply(color, toColor(d.sentiment))
   })
+  let pointList = position
+  .map((d, idx) => {
+    return [clip(d.x), clip(d.y), d.uuid || d.id]
+  })
 
   if (! graph)
-    graph = GraphRenderer.init({attributes: {position, color}, canvas: canvas })
+    graph = GraphRenderer.init({attributes: {position, color, pointList}, canvas: canvas })
   else {
     graph.setProps({attributes: {position, color }})
   }
@@ -92,13 +98,113 @@ let graph
 
 let favorites = []
 
+let processData = (data) => {
+
+  let pointList = data.nodes
+      .map((d, idx) => {
+        return [clip(d.x), clip(d.y), d.uuid || d.id]
+      })
+  data.pointList = pointList
+
+  let points = {}
+  data.nodes.forEach(d => points[d.uuid || d.id] = d)
+
+  let getNode = (id) => {
+    return points[id]
+  }
+
+ let colors = data.nodes.map(d => {
+   return [Math.random(), ]
+ })
+
+  let position = _.flatten(data.nodes.map(d => [clip(d.x), clip(d.y)]))
+  var accent = d3.scaleOrdinal(d3.schemeAccent);
+
+  let sentimentValue = _.flatten(data.nodes.map((d) => {
+    let c = d3.rgb(d3.interpolateSpectral(+ d.attributes ? d.attributes.SentimentVal : Math.random()));
+    return [c.r /255 , c.g /255 , c.b /255];
+  }));
+
+  let counts = {}
+  data.edges.forEach(d => {
+    counts[d.target] = counts[d.target]
+  })
+
+    let edges = new Array(data.edges.length * 4).fill(0);
+    data.edges.forEach((edge, idx) => {
+      let source = getNode(edge.source), target = getNode(edge.target);
+      //if( ! source || ! target ) debugger
+      edges[idx*4] = clip(source.x)
+      edges[idx*4+1] = clip(source.y)
+      edges[idx*4+2] = clip(target.x)
+      edges[idx*4+3] = clip(target.y)
+    });
+
+    let edgeColors = new Array(data.edges.length * 3).fill(0);
+    if (data.kmeans) {
+      let x = Object.entries(data.kmeans)
+      x.map(tup => {
+        let {color, nodes} = tup[1]
+        nodes.forEach(id => getNode(id).color = color)
+
+      })
+    }
+
+      data.edges.forEach((edge, idx) => {
+        //console.log(`%c ${edge.target}`, 'background: green;');
+        let color = (data.nodes[edge.source] ? data.nodes[edge.source] : getNode(edge.target)).color
+        let c = d3.rgb(color);
+        edgeColors[idx*3] = c.r / 255
+        edgeColors[idx*3+1] = c.g / 255
+        edgeColors[idx*3+2] = c.b / 255
+    });
+
+    let dates = data.nodes.map((d, idx) => {
+      return d.create_time || (Math.random() * new Date());
+    })
+    let color = _.flatten(data.nodes.map((d) => {
+      let c = d3.color(d.color || 'pink');
+      return [c.r /255 , c.g /255 , c.b /255];
+    }));
+
+    let legend = Object.entries(data.kmeans || {}).map(d => d[1].color);
+
+    let stateIndex = _.flatten(data.nodes.map((d) => {
+      let c = d.color
+      return legend.indexOf(c);
+    }));
+
+
+
+    return {
+      position,
+      counts,
+      edges,
+      edgeColors,
+      color,
+      dates,
+      sentimentValue,
+      stateIndex,
+      pointList
+
+  }
+}
+
+let processTSV = () => {
+
+}
+
 let load = (url) => {
   if (url.includes('.tsv')) loadTSV(window.location.tsv)
   fetch(url)
     .then((body)=>{ return body.json() })
     .then((json)=>{
+      let attributes = processData(json)
+
       if (! graph)
-        graph = GraphRenderer.init({ data: json, canvas: canvas,
+        graph = GraphRenderer.init({
+          attributes,
+          canvas: canvas,
           onClick: (point, idx, events) => {
             if (events.shiftKey)favorites = favorites.concat(idx)
 
@@ -106,7 +212,8 @@ let load = (url) => {
           }
         })
       else {
-        graph.setProps({ data: json })
+        graph.setState({favorites: favorites = []})
+        graph.setProps({ attributes })
       }
     })
 }

@@ -543,16 +543,6 @@ const creategraph = (options) => {
     getNormalNumPoints
     )
 
-  const drawHalo = drawPoints(
-    getPositionBuffer,
-    () => 20,
-    getNormalNumPoints,
-    () => {
-      let x = _.flatten(options.data.nodes.map(() => [36, 39, 48].map(d => d / 255) ))
-      return  x}
-   )
-
-
   const drawHoveredPoint = (state) => {
     const idx = hoveredPoint
 
@@ -567,7 +557,6 @@ const creategraph = (options) => {
     const colors = (i) => {
       return c[i]
     }
-    window.qq = xy
 
     drawPoints(
       xy,
@@ -601,28 +590,13 @@ const creategraph = (options) => {
   }))
 
     const c = [
-      [.5, .3, .2],
-      [.3, .5, .3],
-      [.3, .3, .3]
+      [1, 1, 1],
+      [.3, .3, .3],
+      [1, 1, 1]
     ]
     let colors = (i) => {
       return state.favorites.map(() => c[i])
     }
-    window.tt = colors
-    //xy = [0,0]
-    // const idx = hoveredPoint
-    // if (! idx) return
-    // const numOutlinedPoints = 1
-    // const xy = searchIndex.points[idx].concat(0)
-    // const c = [
-    //   [1, 1, 1],
-    //   [1, 0, 1],
-    //   [1, 1, 0]
-    // ]
-    //
-    // const colors = (i) => {
-    //   return c[i]
-    // }
 
     // Draw outer outline
     drawPoints(
@@ -646,7 +620,7 @@ const creategraph = (options) => {
     drawPoints(
       xy,
       () => 10,
-      () => 10,
+      () => numOutlinedPoints,
       colors(2)
     )(state)
   }
@@ -908,7 +882,7 @@ const creategraph = (options) => {
     canvas.addEventListener('mouseleave', mouseLeaveCanvasHandler, false)
     canvas.addEventListener('click', mouseClickHandler, false)
     canvas.addEventListener('wheel', wheelHandler);
-    setPoints(options.pointList)
+    setPoints(attributes.pointList)
   }
 
   const destroy = () => {
@@ -928,12 +902,8 @@ const creategraph = (options) => {
 
   return {
     setProps: (props) => {
-      props.attributes = processData(props)
-      props.attributes.stateIndex = _.range(277678 / 2)
-
       _.each(props.attributes, (k,v) => { attributes[v] = k })
-
-      setPoints(props.pointList)
+      if (props.attributes && props.attributes.pointList) setPoints(props.attributes.pointList)
       hoveredPoint = 0
       drawRaf()
     },
@@ -959,12 +929,10 @@ const creategraph = (options) => {
 
 
 const init = (props) => {
-  props.attributes = processData(props)
-  props.attributes.stateIndex = _.range(277678 / 2)
-  window.props = props
-
   props.regl = createRegl(props.canvas)
-  return creategraph(props)
+  let graph = creategraph(props)
+  graph._data = props
+  return graph
 }
 
 export default { init }

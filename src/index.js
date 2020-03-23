@@ -4,11 +4,14 @@ import withThrottle from 'lodash-es/throttle'
 import withRaf from 'with-raf'
 import { mat4, vec4 } from 'gl-matrix'
 import _ from 'lodash'
+
 import createLine from './lines'
 import createDrawLines from './edges'
+
+import createArcs from './arc-layer'
+
 import createDrawNodes from './nodes'
 
-import processData from './processData';
 
 import {
   COLOR_ACTIVE_IDX,
@@ -416,7 +419,9 @@ const creategraph = (options) => {
     hi = prop
     drawRaf()
   }
-  let drawLines = createDrawLines(options.regl, attributes, getModel, getProjection, getView)
+  let drawLines = options.drawCurves ?
+  createArcs(options.regl, attributes, getModel, getProjection, getView) :
+    createDrawLines(options.regl, attributes, getModel, getProjection, getView);
 
   const drawAllPoints = (
     getPointSizeExtra,
@@ -460,7 +465,7 @@ const creategraph = (options) => {
 
       uniforms: {
         projection: getProjection,
-        time: () => Date.now() / 1000,
+        time: (ctx) => {console.log(ctx.time, ctx.tick); return ctx.time },
         dateFilter: regl.prop('dateFilter'),
         selectedCluster: () => (attributes.position.length < 1 ? state.selectedCluster : -100 ),
         model: getModel,
@@ -698,6 +703,7 @@ const creategraph = (options) => {
 
   }
 
+window.getView = getView
   const drawRecticle = (state) => {
     if (!(hoveredPoint >= 0)) return
 
@@ -849,6 +855,7 @@ const creategraph = (options) => {
   }
   const wheelHandler = () => {
     drawRaf();
+    refresh()
   };
 
   const initCamera = () => {
@@ -902,6 +909,7 @@ const creategraph = (options) => {
 
   return {
     setProps: (props) => {
+      console.log(props)
       _.each(props.attributes, (k,v) => { attributes[v] = k })
       if (props.attributes && props.attributes.pointList) setPoints(props.attributes.pointList)
       hoveredPoint = 0

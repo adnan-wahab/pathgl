@@ -39,7 +39,9 @@ export const createRegl = canvas => {
 
   // Needed to run the tests properly as the headless-gl doesn't support all
   // extensions, which is fine for the functional tests.
+
   GL_EXTENSIONS.forEach(EXTENSION => {
+    console.log(EXTENSION)
     if (gl.getExtension(EXTENSION)) {
       extensions.push(EXTENSION)
     } else {

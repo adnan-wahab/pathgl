@@ -4,14 +4,10 @@ import withThrottle from 'lodash-es/throttle'
 import withRaf from 'with-raf'
 import { mat4, vec4 } from 'gl-matrix'
 import _ from 'lodash'
-
 import createLine from './lines'
 import createDrawLines from './edges'
-
 import createArcs from './arc-layer'
-
 import createDrawNodes from './nodes'
-
 
 import {
   COLOR_ACTIVE_IDX,
@@ -157,8 +153,10 @@ void main() {
 const NOOP = () => {}
 
 const creategraph = (options) => {
+  //props schema - make external
   let state = {
     sizeAttenuation: .1,
+
     scaling: .4,
     numNodes: 1,
     showLines: true,
@@ -413,12 +411,12 @@ const creategraph = (options) => {
   const getScaling = () => state.scaling
   const getNormalNumPoints = () => numPoints * state.numNodes | 0
 
-  let hi = 'cluster'
   window.onStyleChange = (prop) => {
     console.log('onStyleChange', hi)
     hi = prop
     drawRaf()
   }
+  options.drawCurves = false
   let drawLines = options.drawCurves ?
   createArcs(options.regl, attributes, getModel, getProjection, getView) :
     createDrawLines(options.regl, attributes, getModel, getProjection, getView);
@@ -703,7 +701,6 @@ const creategraph = (options) => {
 
   }
 
-window.getView = getView
   const drawRecticle = (state) => {
     if (!(hoveredPoint >= 0)) return
 
@@ -777,15 +774,14 @@ window.getView = getView
     if (backgroundImage) {
       drawBackgroundImage()
     }
-    if (state.showLines) drawLines(state)
+    //if (state.showLines) drawLines(state)
     if (state.showNodes) drawPointBodies(state);
-    drawRecticle(state);
     if (hoveredPoint >= 0) drawHoveredPoint(state);
     if (selection.length) drawSelectedPoint(state);
 
-    if (state.favorites.length) drawFavorites(state);
-    // Publish camera change
-    // if (isViewChanged) pubSub.publish('view', camera.view)
+    if (state.favorites.length) drawFavorites(state); //pass in image for the star
+    drawRecticle(state);
+
   }
 
   const drawRaf = withRaf(draw)
@@ -889,7 +885,7 @@ window.getView = getView
     canvas.addEventListener('mouseleave', mouseLeaveCanvasHandler, false)
     canvas.addEventListener('click', mouseClickHandler, false)
     canvas.addEventListener('wheel', wheelHandler);
-    setPoints(attributes.pointList)
+    setPoints(attributes.pointList) //create Index
   }
 
   const destroy = () => {
@@ -901,15 +897,12 @@ window.getView = getView
   init(canvas)
 
   const setState = (options) => {
-    //console.log(options)
     drawRaf()
     _.each(options, (k,v) => { state[v] = k })
-
   }
-
+  //context
   return {
     setProps: (props) => {
-      console.log(props)
       _.each(props.attributes, (k,v) => { attributes[v] = k })
       if (props.attributes && props.attributes.pointList) setPoints(props.attributes.pointList)
       hoveredPoint = 0
@@ -930,7 +923,6 @@ window.getView = getView
     refresh,
     reset: withDraw(reset),
     select,
-    selectCluster,
     setState
   }
 }

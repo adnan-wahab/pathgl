@@ -8,6 +8,8 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
     lineWidth = regl.limits.lineWidthDims[1]
   }
 
+  console.log(attributes)
+
     let draw = regl({
       frag: `
       precision mediump float;
@@ -28,7 +30,7 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
       varying vec3 v_color;
 
       precision mediump float;
-      attribute vec2 position;
+      attribute vec2 sourcePositions, targetPositions;
       attribute vec3 color;
 
       uniform mat4 projection, view;
@@ -46,7 +48,7 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
       uniform vec2 selection;
 
       void main() {
-        vec2 p  = position;
+        vec2 p  = sourcePositions;
 
         // if (selection.x < dates && dates < selection.y )
         // wow = vec3(0);
@@ -69,7 +71,8 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
       //depth: { enable: true },
 
       attributes: {
-        position:  () => attributes.edges,
+        sourcePositions:  () => attributes.edges.sourcePositions,
+        targetPositions: () => attributes.edges.targetPositions,
           color: {
             buffer: () => attributes.edgeColors,
             offset: 0

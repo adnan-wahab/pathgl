@@ -18561,6 +18561,8 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
     lineWidth = regl.limits.lineWidthDims[1];
   }
 
+  console.log(attributes);
+
     let draw = regl({
       frag: `
       precision mediump float;
@@ -18581,7 +18583,7 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
       varying vec3 v_color;
 
       precision mediump float;
-      attribute vec2 position;
+      attribute vec2 sourcePositions, targetPositions;
       attribute vec3 color;
 
       uniform mat4 projection, view;
@@ -18599,7 +18601,7 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
       uniform vec2 selection;
 
       void main() {
-        vec2 p  = position;
+        vec2 p  = sourcePositions;
 
         // if (selection.x < dates && dates < selection.y )
         // wow = vec3(0);
@@ -18622,7 +18624,8 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
       //depth: { enable: true },
 
       attributes: {
-        position:  () => attributes.edges,
+        sourcePositions:  () => attributes.edges.sourcePositions,
+        targetPositions: () => attributes.edges.targetPositions,
           color: {
             buffer: () => attributes.edgeColors,
             offset: 0
@@ -18652,6 +18655,283 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
     });
 
     return draw
+}
+
+function createArcs (regl, attributes, getModel, getProjection, getView) {
+
+ //  let positions = [];
+ // const NUM_SEGMENTS = 10;
+ // /*
+ //  *  (0, -1)-------------_(1, -1)
+ //  *       |          _,-"  |
+ //  *       o      _,-"      o
+ //  *       |  _,-"          |
+ //  *   (0, 1)"-------------(1, 1)
+ //  */
+ // for (let i = 0; i < NUM_SEGMENTS; i++) {
+ //   positions = positions.concat([i, -1, 0, i, 1, 0]);
+ // }
+
+ let positions = [
+   -0.5,0.5,0.0,
+   -0.5,-0.5,0.0,
+   0.5,-0.5,0.0,
+   0.5,0.5,0.0
+];
+
+  if (! attributes.edges) return () => {}
+  //attributes.edges = attributes.edges.filter((d, i) => )
+  // make sure to respect system limitations.
+  // positions = [];
+  //   const NUM_SEGMENTS = 50;
+  //   /*
+  //    *  (0, -1)-------------_(1, -1)
+  //    *       |          _,-"  |
+  //    *       o      _,-"      o
+  //    *       |  _,-"          |
+  //    *   (0, 1)"-------------(1, 1)
+  //    */
+  //   for (let i = 0; i < NUM_SEGMENTS; i++) {
+  //     console.log(i)
+  //     positions = positions.concat([i, -1, 0, i, 1, 0]);
+  //   }
+    window.positions= positions;
+  let N = attributes.edges.sourcePositions.length;
+  let x = [{x: -1, y: 1, z: 0},
+ {x: -0.75, y: 1, z: 0},
+ {x: -0.5, y: 1, z: 0},
+ {x: -0.25, y: 1, z: 0},
+ {x: 0, y: 1, z: 0},
+ {x: 0.25, y: 1, z: 0},
+ {x: 0.5, y: 1, z: 0},
+ {x: 0.75, y: 1, z: 0},
+ {x: 1, y: 1, z: 0},
+ {x: -1, y: -1, z: 0},
+ {x: -0.75, y: -1, z: 0},
+ {x: -0.5, y: -1, z: 0},
+ {x: -0.25, y: -1, z: 0},
+ {x: 0, y: -1, z: 0},
+ {x: 0.25, y: -1, z: 0},
+ {x: 0.5, y: -1, z: 0},
+ {x: 0.75, y: -1, z: 0},
+ {x: 1, y: -1, z: 0}].map(d =>  [d.x, d.y]);
+window.N = N;
+    let draw = regl({
+      frag: `
+      #extension GL_OES_standard_derivatives : enable
+
+      precision mediump float;
+      varying vec3 v_color;
+      varying vec2 vCoord;
+
+      uniform float opacity;
+      uniform float time;
+      uniform bool edgeColors;
+      float aastep (float threshold, float value) {
+        float afwidth = fwidth(value) * 0.5;
+        return smoothstep(threshold - afwidth, threshold + afwidth, value);
+      }
+
+      void main() {
+        float repeat = 100.0;
+
+// How big is the gap between each dash
+float gapSize = 0.25;
+
+// Create a dashed line
+float dash = abs(fract(vCoord.x * repeat) - 0.5);
+
+// Smooth the dashed line to sharp/crisp anti-aliasing
+dash = 1.0 - aastep(gapSize, dash);
+
+gl_FragColor = vec4(vec3(dash).rg, sin(time), 1.0);
+      }`,
+
+      vert: `
+      varying vec3 v_color;
+      varying vec2 vCoord;
+
+      precision mediump float;
+      attribute vec2 position;
+      attribute vec3 color;
+
+      uniform mat4 projection, view;
+      uniform mat4 model;
+
+      uniform float numSegments;
+      uniform float opacity;
+
+attribute vec2 sourcePositions;
+attribute vec2 targetPositions;
+
+uniform vec2 project_uViewportSize;
+
+      float paraboloid(vec3 source, vec3 target, float ratio) {
+  // d: distance on the xy plane
+  // r: ratio of the current point
+  // p: ratio of the peak of the arc
+  // h: height multiplier
+  // z = f(r) = sqrt(r * (p * 2 - r)) * d * h
+  // f(0) = 0
+  // f(1) = dz
+  vec3 delta = target - source;
+  float dh = length(delta.xy) * 1.;
+  float unitZ = delta.z / dh;
+  float p2 = unitZ * unitZ + 1.0;
+  // sqrt does not deal with negative values, manually flip source and target if delta.z < 0
+  float dir = step(delta.z, 0.0);
+  float z0 = mix(source.z, target.z, dir);
+  float r = mix(ratio, 1.0 - ratio, dir);
+  return sqrt(r * (p2 - r)) * dh + z0;
+}
+
+
+      vec2 getExtrusionOffset(vec2 line_clipspace, float offset_direction, float width) {
+        // normalized direction of the line
+        vec2 dir_screenspace = normalize(line_clipspace * project_uViewportSize);
+        // rotate by 90 degrees
+        dir_screenspace = vec2(-dir_screenspace.y, dir_screenspace.x);
+        return dir_screenspace * offset_direction * width / 2.0;
+      }
+
+      float getSegmentRatio(float index) {
+        return smoothstep(0.0, 1.0, index / (numSegments - 1.0));
+      }
+      vec3 getPos(vec3 source, vec3 target, float segmentRatio) {
+        float z = paraboloid(source, target, segmentRatio);
+        float tiltAngle = radians(1.);
+        vec2 tiltDirection = normalize(target.xy - source.xy);
+        vec2 tilt = vec2(-tiltDirection.y, tiltDirection.x) * z * sin(tiltAngle);
+        return vec3(
+          mix(source.xy, target.xy, segmentRatio) + tilt,
+          z * cos(tiltAngle)
+        );
+      }
+      #define PI 3.14
+      uniform vec2 start;
+      uniform vec2 end;
+      uniform vec2 control;
+
+      vec3 sample (float t) {
+        // We can also adjust the per-vertex curve thickness by modifying this 0..1 number
+        //float volume = 1.0;
+
+        // Try replacing the above with:
+         float volume = 1.0 * sin(t * PI);
+
+        // Solve the quadratic curve with the start, control and end points:
+        float dt = (1.0 - t);
+        float dtSq = dt * dt;
+        float tSq = t * t;
+        float x = dtSq * start.x + 2.0 * dt * t * control.x + tSq * end.x;
+        float y = dtSq * start.y + 2.0 * dt * t * control.y + tSq * end.y;
+        return vec3(x, y, volume);
+
+        // Alternatively, you can replace the above with a linear mix() operation
+        // This will produce a straight line between the start and end points
+        // return vec3(mix(start, end, t), volume);
+      }
+
+
+
+
+      void main() {
+        vec2 p  = position;
+        float subdivisions = 50.;
+        float thickness = .1;
+
+        v_color = color;
+        v_color.x = position.x;
+        //vec4 color = mix(instanceSourceColors, instanceTargetColors, segmentRatio);
+
+        vec4 source = projection * view * model * vec4(sourcePositions, 0, 1);
+        vec4 target = projection * view * model * vec4(targetPositions, 0, 1);
+        gl_Position = projection * view * model * vec4(position, 0, 1);
+
+
+
+        float arclen = (position.x * 0.5 + 0.5);
+
+          // How far to offset the line thickness for this vertex in -1..1 space
+          float extrusion = position.y;
+
+          // Find next sample along curve
+          float nextArclen = arclen + (1.0 / subdivisions);
+
+          // Sample the curve in two places
+          // XY is the 2D position, and the Z component is the thickness at that vertex
+          vec3 current = sample(arclen);
+          vec3 next = sample(nextArclen);
+
+          // Now find the 2D perpendicular to form our line segment
+          vec2 direction = normalize(next.xy - current.xy);
+          vec2 perpendicular = vec2(-direction.y, direction.x);
+
+          // Extrude
+          float computedExtrusion = extrusion * (thickness / 2.0) * current.z;
+          vec3 offset = current.xyz + vec3(perpendicular.xy, 0.0) * computedExtrusion;
+
+          gl_Position = projection * view * model * vec4(offset.xyz, 1.0);
+            vCoord = position.xy;
+          //gl_Position = projectionMatrix * modelViewMatrix * vec4(offset.xyz, 1.0);
+
+      }`,
+      blend: {
+        enable: true,
+        func: {
+          srcRGB: 'src alpha',
+          srcAlpha: 'src alpha',
+          dstRGB: 'one minus src alpha',
+          dstAlpha: 'one minus src alpha'
+        }
+      },
+      //depth: { enable: true },
+
+      attributes: {
+        sourcePositions: {
+          buffer: attributes.edges.sourcePositions,
+
+        },
+        targetPositions: {
+          buffer: attributes.edges.targetPositions,
+        },
+        position:  {
+          buffer:     x
+        },
+          color: {
+            buffer: () => attributes.edgeColors,
+            offset: 0
+          }
+      },
+
+      uniforms: {
+        time: ({time}) => time,
+        thickness:  (time) => { return (Math.sin(Date.now()) * 0.5 + 0.5) * 0.1 + 0.01 },
+        end: [0.5, 0.5],
+        start: [.25,.25],
+        control : (...args) => {
+          let temp = args[0];
+          let time = temp.tick;
+          const angle = time * 0.5 + Math.PI * 2;
+          const radius = (Math.sin(time) * 0.5 + 0.5) * 2.0;
+          console.log([ Math.cos(angle) * radius, Math.sin(angle) * radius ]);
+          return [ Math.cos(angle) * radius, Math.sin(angle) * radius ];
+        },
+        edgeColors: regl.prop('edgeColors'),
+        opacity: 0.5,
+        view: getView,
+        projection: getProjection,
+        model: getModel,
+      },
+
+      count: () => 4,
+      instances: N,
+      primitive: 'triangle strip'
+    });
+    window.attributes = attributes;
+    return (...args) => {
+      draw();
+    }
 }
 
 function ascending(a, b) {
@@ -18775,435 +19055,6 @@ function set(type, name, callback) {
   return type;
 }
 
-function define(constructor, factory, prototype) {
-  constructor.prototype = factory.prototype = prototype;
-  prototype.constructor = constructor;
-}
-
-function extend(parent, definition) {
-  var prototype = Object.create(parent.prototype);
-  for (var key in definition) prototype[key] = definition[key];
-  return prototype;
-}
-
-function Color() {}
-
-var darker = 0.7;
-var brighter = 1 / darker;
-
-var reI = "\\s*([+-]?\\d+)\\s*",
-    reN = "\\s*([+-]?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?)\\s*",
-    reP = "\\s*([+-]?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?)%\\s*",
-    reHex = /^#([0-9a-f]{3,8})$/,
-    reRgbInteger = new RegExp("^rgb\\(" + [reI, reI, reI] + "\\)$"),
-    reRgbPercent = new RegExp("^rgb\\(" + [reP, reP, reP] + "\\)$"),
-    reRgbaInteger = new RegExp("^rgba\\(" + [reI, reI, reI, reN] + "\\)$"),
-    reRgbaPercent = new RegExp("^rgba\\(" + [reP, reP, reP, reN] + "\\)$"),
-    reHslPercent = new RegExp("^hsl\\(" + [reN, reP, reP] + "\\)$"),
-    reHslaPercent = new RegExp("^hsla\\(" + [reN, reP, reP, reN] + "\\)$");
-
-var named = {
-  aliceblue: 0xf0f8ff,
-  antiquewhite: 0xfaebd7,
-  aqua: 0x00ffff,
-  aquamarine: 0x7fffd4,
-  azure: 0xf0ffff,
-  beige: 0xf5f5dc,
-  bisque: 0xffe4c4,
-  black: 0x000000,
-  blanchedalmond: 0xffebcd,
-  blue: 0x0000ff,
-  blueviolet: 0x8a2be2,
-  brown: 0xa52a2a,
-  burlywood: 0xdeb887,
-  cadetblue: 0x5f9ea0,
-  chartreuse: 0x7fff00,
-  chocolate: 0xd2691e,
-  coral: 0xff7f50,
-  cornflowerblue: 0x6495ed,
-  cornsilk: 0xfff8dc,
-  crimson: 0xdc143c,
-  cyan: 0x00ffff,
-  darkblue: 0x00008b,
-  darkcyan: 0x008b8b,
-  darkgoldenrod: 0xb8860b,
-  darkgray: 0xa9a9a9,
-  darkgreen: 0x006400,
-  darkgrey: 0xa9a9a9,
-  darkkhaki: 0xbdb76b,
-  darkmagenta: 0x8b008b,
-  darkolivegreen: 0x556b2f,
-  darkorange: 0xff8c00,
-  darkorchid: 0x9932cc,
-  darkred: 0x8b0000,
-  darksalmon: 0xe9967a,
-  darkseagreen: 0x8fbc8f,
-  darkslateblue: 0x483d8b,
-  darkslategray: 0x2f4f4f,
-  darkslategrey: 0x2f4f4f,
-  darkturquoise: 0x00ced1,
-  darkviolet: 0x9400d3,
-  deeppink: 0xff1493,
-  deepskyblue: 0x00bfff,
-  dimgray: 0x696969,
-  dimgrey: 0x696969,
-  dodgerblue: 0x1e90ff,
-  firebrick: 0xb22222,
-  floralwhite: 0xfffaf0,
-  forestgreen: 0x228b22,
-  fuchsia: 0xff00ff,
-  gainsboro: 0xdcdcdc,
-  ghostwhite: 0xf8f8ff,
-  gold: 0xffd700,
-  goldenrod: 0xdaa520,
-  gray: 0x808080,
-  green: 0x008000,
-  greenyellow: 0xadff2f,
-  grey: 0x808080,
-  honeydew: 0xf0fff0,
-  hotpink: 0xff69b4,
-  indianred: 0xcd5c5c,
-  indigo: 0x4b0082,
-  ivory: 0xfffff0,
-  khaki: 0xf0e68c,
-  lavender: 0xe6e6fa,
-  lavenderblush: 0xfff0f5,
-  lawngreen: 0x7cfc00,
-  lemonchiffon: 0xfffacd,
-  lightblue: 0xadd8e6,
-  lightcoral: 0xf08080,
-  lightcyan: 0xe0ffff,
-  lightgoldenrodyellow: 0xfafad2,
-  lightgray: 0xd3d3d3,
-  lightgreen: 0x90ee90,
-  lightgrey: 0xd3d3d3,
-  lightpink: 0xffb6c1,
-  lightsalmon: 0xffa07a,
-  lightseagreen: 0x20b2aa,
-  lightskyblue: 0x87cefa,
-  lightslategray: 0x778899,
-  lightslategrey: 0x778899,
-  lightsteelblue: 0xb0c4de,
-  lightyellow: 0xffffe0,
-  lime: 0x00ff00,
-  limegreen: 0x32cd32,
-  linen: 0xfaf0e6,
-  magenta: 0xff00ff,
-  maroon: 0x800000,
-  mediumaquamarine: 0x66cdaa,
-  mediumblue: 0x0000cd,
-  mediumorchid: 0xba55d3,
-  mediumpurple: 0x9370db,
-  mediumseagreen: 0x3cb371,
-  mediumslateblue: 0x7b68ee,
-  mediumspringgreen: 0x00fa9a,
-  mediumturquoise: 0x48d1cc,
-  mediumvioletred: 0xc71585,
-  midnightblue: 0x191970,
-  mintcream: 0xf5fffa,
-  mistyrose: 0xffe4e1,
-  moccasin: 0xffe4b5,
-  navajowhite: 0xffdead,
-  navy: 0x000080,
-  oldlace: 0xfdf5e6,
-  olive: 0x808000,
-  olivedrab: 0x6b8e23,
-  orange: 0xffa500,
-  orangered: 0xff4500,
-  orchid: 0xda70d6,
-  palegoldenrod: 0xeee8aa,
-  palegreen: 0x98fb98,
-  paleturquoise: 0xafeeee,
-  palevioletred: 0xdb7093,
-  papayawhip: 0xffefd5,
-  peachpuff: 0xffdab9,
-  peru: 0xcd853f,
-  pink: 0xffc0cb,
-  plum: 0xdda0dd,
-  powderblue: 0xb0e0e6,
-  purple: 0x800080,
-  rebeccapurple: 0x663399,
-  red: 0xff0000,
-  rosybrown: 0xbc8f8f,
-  royalblue: 0x4169e1,
-  saddlebrown: 0x8b4513,
-  salmon: 0xfa8072,
-  sandybrown: 0xf4a460,
-  seagreen: 0x2e8b57,
-  seashell: 0xfff5ee,
-  sienna: 0xa0522d,
-  silver: 0xc0c0c0,
-  skyblue: 0x87ceeb,
-  slateblue: 0x6a5acd,
-  slategray: 0x708090,
-  slategrey: 0x708090,
-  snow: 0xfffafa,
-  springgreen: 0x00ff7f,
-  steelblue: 0x4682b4,
-  tan: 0xd2b48c,
-  teal: 0x008080,
-  thistle: 0xd8bfd8,
-  tomato: 0xff6347,
-  turquoise: 0x40e0d0,
-  violet: 0xee82ee,
-  wheat: 0xf5deb3,
-  white: 0xffffff,
-  whitesmoke: 0xf5f5f5,
-  yellow: 0xffff00,
-  yellowgreen: 0x9acd32
-};
-
-define(Color, color, {
-  copy: function(channels) {
-    return Object.assign(new this.constructor, this, channels);
-  },
-  displayable: function() {
-    return this.rgb().displayable();
-  },
-  hex: color_formatHex, // Deprecated! Use color.formatHex.
-  formatHex: color_formatHex,
-  formatHsl: color_formatHsl,
-  formatRgb: color_formatRgb,
-  toString: color_formatRgb
-});
-
-function color_formatHex() {
-  return this.rgb().formatHex();
-}
-
-function color_formatHsl() {
-  return hslConvert(this).formatHsl();
-}
-
-function color_formatRgb() {
-  return this.rgb().formatRgb();
-}
-
-function color(format) {
-  var m, l;
-  format = (format + "").trim().toLowerCase();
-  return (m = reHex.exec(format)) ? (l = m[1].length, m = parseInt(m[1], 16), l === 6 ? rgbn(m) // #ff0000
-      : l === 3 ? new Rgb((m >> 8 & 0xf) | (m >> 4 & 0xf0), (m >> 4 & 0xf) | (m & 0xf0), ((m & 0xf) << 4) | (m & 0xf), 1) // #f00
-      : l === 8 ? new Rgb(m >> 24 & 0xff, m >> 16 & 0xff, m >> 8 & 0xff, (m & 0xff) / 0xff) // #ff000000
-      : l === 4 ? new Rgb((m >> 12 & 0xf) | (m >> 8 & 0xf0), (m >> 8 & 0xf) | (m >> 4 & 0xf0), (m >> 4 & 0xf) | (m & 0xf0), (((m & 0xf) << 4) | (m & 0xf)) / 0xff) // #f000
-      : null) // invalid hex
-      : (m = reRgbInteger.exec(format)) ? new Rgb(m[1], m[2], m[3], 1) // rgb(255, 0, 0)
-      : (m = reRgbPercent.exec(format)) ? new Rgb(m[1] * 255 / 100, m[2] * 255 / 100, m[3] * 255 / 100, 1) // rgb(100%, 0%, 0%)
-      : (m = reRgbaInteger.exec(format)) ? rgba(m[1], m[2], m[3], m[4]) // rgba(255, 0, 0, 1)
-      : (m = reRgbaPercent.exec(format)) ? rgba(m[1] * 255 / 100, m[2] * 255 / 100, m[3] * 255 / 100, m[4]) // rgb(100%, 0%, 0%, 1)
-      : (m = reHslPercent.exec(format)) ? hsla(m[1], m[2] / 100, m[3] / 100, 1) // hsl(120, 50%, 50%)
-      : (m = reHslaPercent.exec(format)) ? hsla(m[1], m[2] / 100, m[3] / 100, m[4]) // hsla(120, 50%, 50%, 1)
-      : named.hasOwnProperty(format) ? rgbn(named[format]) // eslint-disable-line no-prototype-builtins
-      : format === "transparent" ? new Rgb(NaN, NaN, NaN, 0)
-      : null;
-}
-
-function rgbn(n) {
-  return new Rgb(n >> 16 & 0xff, n >> 8 & 0xff, n & 0xff, 1);
-}
-
-function rgba(r, g, b, a) {
-  if (a <= 0) r = g = b = NaN;
-  return new Rgb(r, g, b, a);
-}
-
-function rgbConvert(o) {
-  if (!(o instanceof Color)) o = color(o);
-  if (!o) return new Rgb;
-  o = o.rgb();
-  return new Rgb(o.r, o.g, o.b, o.opacity);
-}
-
-function rgb(r, g, b, opacity) {
-  return arguments.length === 1 ? rgbConvert(r) : new Rgb(r, g, b, opacity == null ? 1 : opacity);
-}
-
-function Rgb(r, g, b, opacity) {
-  this.r = +r;
-  this.g = +g;
-  this.b = +b;
-  this.opacity = +opacity;
-}
-
-define(Rgb, rgb, extend(Color, {
-  brighter: function(k) {
-    k = k == null ? brighter : Math.pow(brighter, k);
-    return new Rgb(this.r * k, this.g * k, this.b * k, this.opacity);
-  },
-  darker: function(k) {
-    k = k == null ? darker : Math.pow(darker, k);
-    return new Rgb(this.r * k, this.g * k, this.b * k, this.opacity);
-  },
-  rgb: function() {
-    return this;
-  },
-  displayable: function() {
-    return (-0.5 <= this.r && this.r < 255.5)
-        && (-0.5 <= this.g && this.g < 255.5)
-        && (-0.5 <= this.b && this.b < 255.5)
-        && (0 <= this.opacity && this.opacity <= 1);
-  },
-  hex: rgb_formatHex, // Deprecated! Use color.formatHex.
-  formatHex: rgb_formatHex,
-  formatRgb: rgb_formatRgb,
-  toString: rgb_formatRgb
-}));
-
-function rgb_formatHex() {
-  return "#" + hex(this.r) + hex(this.g) + hex(this.b);
-}
-
-function rgb_formatRgb() {
-  var a = this.opacity; a = isNaN(a) ? 1 : Math.max(0, Math.min(1, a));
-  return (a === 1 ? "rgb(" : "rgba(")
-      + Math.max(0, Math.min(255, Math.round(this.r) || 0)) + ", "
-      + Math.max(0, Math.min(255, Math.round(this.g) || 0)) + ", "
-      + Math.max(0, Math.min(255, Math.round(this.b) || 0))
-      + (a === 1 ? ")" : ", " + a + ")");
-}
-
-function hex(value) {
-  value = Math.max(0, Math.min(255, Math.round(value) || 0));
-  return (value < 16 ? "0" : "") + value.toString(16);
-}
-
-function hsla(h, s, l, a) {
-  if (a <= 0) h = s = l = NaN;
-  else if (l <= 0 || l >= 1) h = s = NaN;
-  else if (s <= 0) h = NaN;
-  return new Hsl(h, s, l, a);
-}
-
-function hslConvert(o) {
-  if (o instanceof Hsl) return new Hsl(o.h, o.s, o.l, o.opacity);
-  if (!(o instanceof Color)) o = color(o);
-  if (!o) return new Hsl;
-  if (o instanceof Hsl) return o;
-  o = o.rgb();
-  var r = o.r / 255,
-      g = o.g / 255,
-      b = o.b / 255,
-      min = Math.min(r, g, b),
-      max = Math.max(r, g, b),
-      h = NaN,
-      s = max - min,
-      l = (max + min) / 2;
-  if (s) {
-    if (r === max) h = (g - b) / s + (g < b) * 6;
-    else if (g === max) h = (b - r) / s + 2;
-    else h = (r - g) / s + 4;
-    s /= l < 0.5 ? max + min : 2 - max - min;
-    h *= 60;
-  } else {
-    s = l > 0 && l < 1 ? 0 : h;
-  }
-  return new Hsl(h, s, l, o.opacity);
-}
-
-function hsl(h, s, l, opacity) {
-  return arguments.length === 1 ? hslConvert(h) : new Hsl(h, s, l, opacity == null ? 1 : opacity);
-}
-
-function Hsl(h, s, l, opacity) {
-  this.h = +h;
-  this.s = +s;
-  this.l = +l;
-  this.opacity = +opacity;
-}
-
-define(Hsl, hsl, extend(Color, {
-  brighter: function(k) {
-    k = k == null ? brighter : Math.pow(brighter, k);
-    return new Hsl(this.h, this.s, this.l * k, this.opacity);
-  },
-  darker: function(k) {
-    k = k == null ? darker : Math.pow(darker, k);
-    return new Hsl(this.h, this.s, this.l * k, this.opacity);
-  },
-  rgb: function() {
-    var h = this.h % 360 + (this.h < 0) * 360,
-        s = isNaN(h) || isNaN(this.s) ? 0 : this.s,
-        l = this.l,
-        m2 = l + (l < 0.5 ? l : 1 - l) * s,
-        m1 = 2 * l - m2;
-    return new Rgb(
-      hsl2rgb(h >= 240 ? h - 240 : h + 120, m1, m2),
-      hsl2rgb(h, m1, m2),
-      hsl2rgb(h < 120 ? h + 240 : h - 120, m1, m2),
-      this.opacity
-    );
-  },
-  displayable: function() {
-    return (0 <= this.s && this.s <= 1 || isNaN(this.s))
-        && (0 <= this.l && this.l <= 1)
-        && (0 <= this.opacity && this.opacity <= 1);
-  },
-  formatHsl: function() {
-    var a = this.opacity; a = isNaN(a) ? 1 : Math.max(0, Math.min(1, a));
-    return (a === 1 ? "hsl(" : "hsla(")
-        + (this.h || 0) + ", "
-        + (this.s || 0) * 100 + "%, "
-        + (this.l || 0) * 100 + "%"
-        + (a === 1 ? ")" : ", " + a + ")");
-  }
-}));
-
-/* From FvD 13.37, CSS Color Module Level 3 */
-function hsl2rgb(h, m1, m2) {
-  return (h < 60 ? m1 + (m2 - m1) * h / 60
-      : h < 180 ? m2
-      : h < 240 ? m1 + (m2 - m1) * (240 - h) / 60
-      : m1) * 255;
-}
-
-function basis(t1, v0, v1, v2, v3) {
-  var t2 = t1 * t1, t3 = t2 * t1;
-  return ((1 - 3 * t1 + 3 * t2 - t3) * v0
-      + (4 - 6 * t2 + 3 * t3) * v1
-      + (1 + 3 * t1 + 3 * t2 - 3 * t3) * v2
-      + t3 * v3) / 6;
-}
-
-function basis$1(values) {
-  var n = values.length - 1;
-  return function(t) {
-    var i = t <= 0 ? (t = 0) : t >= 1 ? (t = 1, n - 1) : Math.floor(t * n),
-        v1 = values[i],
-        v2 = values[i + 1],
-        v0 = i > 0 ? values[i - 1] : 2 * v1 - v2,
-        v3 = i < n - 1 ? values[i + 2] : 2 * v2 - v1;
-    return basis((t - i / n) * n, v0, v1, v2, v3);
-  };
-}
-
-function rgbSpline(spline) {
-  return function(colors) {
-    var n = colors.length,
-        r = new Array(n),
-        g = new Array(n),
-        b = new Array(n),
-        i, color;
-    for (i = 0; i < n; ++i) {
-      color = rgb(colors[i]);
-      r[i] = color.r || 0;
-      g[i] = color.g || 0;
-      b[i] = color.b || 0;
-    }
-    r = spline(r);
-    g = spline(g);
-    b = spline(b);
-    color.opacity = 1;
-    return function(t) {
-      color.r = r(t);
-      color.g = g(t);
-      color.b = b(t);
-      return color + "";
-    };
-  };
-}
-
-var rgbBasis = rgbSpline(basis$1);
-
 var emptyOn = dispatch("start", "end", "cancel", "interrupt");
 
 var prefix = "$";
@@ -19316,205 +19167,7 @@ function set$1(object, f) {
   return set;
 }
 
-function initRange(domain, range) {
-  switch (arguments.length) {
-    case 0: break;
-    case 1: this.range(domain); break;
-    default: this.range(range).domain(domain); break;
-  }
-  return this;
-}
-
-var array = Array.prototype;
-var slice = array.slice;
-
-var implicit = {name: "implicit"};
-
-function ordinal() {
-  var index = map(),
-      domain = [],
-      range = [],
-      unknown = implicit;
-
-  function scale(d) {
-    var key = d + "", i = index.get(key);
-    if (!i) {
-      if (unknown !== implicit) return unknown;
-      index.set(key, i = domain.push(d));
-    }
-    return range[(i - 1) % range.length];
-  }
-
-  scale.domain = function(_) {
-    if (!arguments.length) return domain.slice();
-    domain = [], index = map();
-    var i = -1, n = _.length, d, key;
-    while (++i < n) if (!index.has(key = (d = _[i]) + "")) index.set(key, domain.push(d));
-    return scale;
-  };
-
-  scale.range = function(_) {
-    return arguments.length ? (range = slice.call(_), scale) : range.slice();
-  };
-
-  scale.unknown = function(_) {
-    return arguments.length ? (unknown = _, scale) : unknown;
-  };
-
-  scale.copy = function() {
-    return ordinal(domain, range).unknown(unknown);
-  };
-
-  initRange.apply(scale, arguments);
-
-  return scale;
-}
-
-function colors(specifier) {
-  var n = specifier.length / 6 | 0, colors = new Array(n), i = 0;
-  while (i < n) colors[i] = "#" + specifier.slice(i * 6, ++i * 6);
-  return colors;
-}
-
-var Accent = colors("7fc97fbeaed4fdc086ffff99386cb0f0027fbf5b17666666");
-
-function ramp(scheme) {
-  return rgbBasis(scheme[scheme.length - 1]);
-}
-
-var scheme = new Array(3).concat(
-  "fc8d59ffffbf99d594",
-  "d7191cfdae61abdda42b83ba",
-  "d7191cfdae61ffffbfabdda42b83ba",
-  "d53e4ffc8d59fee08be6f59899d5943288bd",
-  "d53e4ffc8d59fee08bffffbfe6f59899d5943288bd",
-  "d53e4ff46d43fdae61fee08be6f598abdda466c2a53288bd",
-  "d53e4ff46d43fdae61fee08bffffbfe6f598abdda466c2a53288bd",
-  "9e0142d53e4ff46d43fdae61fee08be6f598abdda466c2a53288bd5e4fa2",
-  "9e0142d53e4ff46d43fdae61fee08bffffbfe6f598abdda466c2a53288bd5e4fa2"
-).map(colors);
-
-var Spectral = ramp(scheme);
-
-const clip = (d) => {
-  return d / 3000
-};
-
-
-let processData = (props) => {
-
-
-  let pointList;
-  if (props.data ) {
-    pointList = props.data.nodes
-      .map((d, idx) => {
-        return [clip(d.x), clip(d.y), d.uuid || d.id]
-      });
-  } else {
-    pointList = new Array(props.attributes.position.length / 2 | 0).fill(1)
-    .map((d, i) => {
-      let a = [];
-      a[0] = props.attributes.position[i*2];
-      a[1] = props.attributes.position[i*2+1];
-      a[2] = i;
-      return a
-    });
-  }
-
-  window.pointList = pointList;
-  props.pointList = pointList;
-
-  let data = props.data;
-  if (! data) return props.attributes
-  let points = {};
-  props.data.nodes.forEach(d => points[d.uuid || d.id] = d);
-
-  let getNode = (id) => {
-    return points[id]
-  };
-
- let colors = data.nodes.map(d => {
-   return [Math.random(), ]
- });
-
-  let position = _.flatten(data.nodes.map(d => [clip(d.x), clip(d.y)]));
-  var accent = ordinal(Accent);
-
-  let sentimentValue = _.flatten(data.nodes.map((d) => {
-    let c = rgb(Spectral(+ d.attributes ? d.attributes.SentimentVal : Math.random()));
-    return [c.r /255 , c.g /255 , c.b /255];
-  }));
-
-  let counts = {};
-  data.edges.forEach(d => {
-    counts[d.target] = counts[d.target];
-  });
-
-    let edges = new Array(data.edges.length * 4).fill(0);
-    data.edges.forEach((edge, idx) => {
-      let source = getNode(edge.source), target = getNode(edge.target);
-      //if( ! source || ! target ) debugger
-      edges[idx*4] = clip(source.x);
-      edges[idx*4+1] = clip(source.y);
-      edges[idx*4+2] = clip(target.x);
-      edges[idx*4+3] = clip(target.y);
-    });
-
-    let edgeColors = new Array(data.edges.length * 3).fill(0);
-    if (data.kmeans) {
-      let x = Object.entries(data.kmeans);
-      x.map(tup => {
-        let {color, nodes} = tup[1];
-        nodes.forEach(id => getNode(id).color = color);
-
-      });
-    } else {
-      data.edges.forEach((edge, idx) => {
-      let color = data.nodes[edge.target].color;
-      let c = rgb(color);
-      edgeColors[idx*4+1] = c.r / 255;
-      edgeColors[idx*4+2] = c.g / 255;
-      edgeColors[idx*4+3] = c.b / 255;
-    });
-  }
-
-    let dates = data.nodes.map((edge, idx) => {
-      return (edge.attributes || {}).date
-    });
-    let color$1 = _.flatten(data.nodes.map((d) => {
-      let c = color(d.color || 'pink');
-      return [c.r /255 , c.g /255 , c.b /255];
-    }));
-
-    let legend = Object.entries(data.kmeans || {}).map(d => d[1].color);
-
-    let stateIndex = _.flatten(data.nodes.map((d) => {
-      let c = d.color;
-      return legend.indexOf(c);
-    }));
-
-
-    let fboColor = color$1.map((d, i) => {
-      return i / color$1.length
-    });
-
-
-
-    return {
-      position,
-      counts,
-      edges,
-      edgeColors,
-      color: color$1,
-      //dates,
-      //
-      fboColor,
-      sentimentValue,
-      stateIndex
-    }
-  };
-
-const GL_EXTENSIONS = ['OES_standard_derivatives', 'OES_texture_float'];
+const GL_EXTENSIONS = ['OES_standard_derivatives', 'OES_texture_float', 'ANGLE_instanced_arrays'];
 
 // Default attribute
 const DEFAULT_DATA_ASPECT_RATIO = 1;
@@ -19526,29 +19179,32 @@ const DEFAULT_POINT_SIZE = 30;
 const DEFAULT_POINT_SIZE_SELECTED = 2;
 const DEFAULT_COLOR_BG = [0, 0, 0, 1];
 
+
 // Default view
 const DEFAULT_TARGET = [0, 0];
 const DEFAULT_DISTANCE = 100000.5;
 const DEFAULT_ROTATION = 0;
 // prettier-ignore
-const DEFAULT_VIEW = new Float32Array([
-  0.08111818879842758,
-  0,
-  0,
-  0,
-  0,
-  0.08111818879842758,
-  0,
-  0,
-  0,
-  0,
-  1,
-  0,
-  0.34380045533180237,
-  -0.2859039008617401,
-  0,
-  1
-]);
+
+const DEFAULT_VIEW = new Float32Array([5.554607391357422, 0, 0, 0, 0, 5.554607391357422, 0, 0, 0, 0, 1, 0, -0.527761697769165, 0.8586031794548035, 0, 1]);
+// export const DEFAULT_VIEW = new Float32Array([
+//   0.08111818879842758,
+//   0,
+//   0,
+//   0,
+//   0,
+//   0.08111818879842758,
+//   0,
+//   0,
+//   0,
+//   0,
+//   1,
+//   0,
+//   0.34380045533180237,
+//   -0.2859039008617401,
+//   0,
+//   1
+// ])
 
 // Default misc
 const DEFAULT_BACKGROUND_IMAGE = null;
@@ -19591,7 +19247,9 @@ const createRegl = canvas => {
 
   // Needed to run the tests properly as the headless-gl doesn't support all
   // extensions, which is fine for the functional tests.
+
   GL_EXTENSIONS.forEach(EXTENSION => {
+    console.log(EXTENSION);
     if (gl.getExtension(EXTENSION)) {
       extensions.push(EXTENSION);
     } else {
@@ -19860,9 +19518,13 @@ uniform mat4 projection;
 uniform mat4 model;
 uniform mat4 view;
 
+uniform vec2 dateFilter;
+
 attribute vec2 pos;
 attribute vec3 color;
 attribute float stateIndex;
+attribute float dates;
+
 
 uniform float selectedCluster;
 
@@ -19872,6 +19534,7 @@ uniform bool flatSize;
 varying vec4 vColor;
 
 void main() {
+  if (! (dates > dateFilter.x && dates < dateFilter.y)) return;
   gl_Position = projection * view * model * vec4(pos.xy, 0.0, 1.0);
 
   vColor = vec4(color, 1.);
@@ -19888,8 +19551,10 @@ void main() {
 const NOOP = () => {};
 
 const creategraph = (options) => {
+  //props schema - make external
   let state = {
     sizeAttenuation: .1,
+
     scaling: .4,
     numNodes: 1,
     showLines: true,
@@ -19897,8 +19562,10 @@ const creategraph = (options) => {
     flatSize: true,
     edgeColors: true,
     selectedCluster: -1,
-    favorites: []
+    favorites: [],
+    dateFilter: [0,Infinity]
   };
+
 
   let initialRegl = options.regl,
   initialBackground = DEFAULT_COLOR_BG,
@@ -20029,13 +19696,6 @@ const creategraph = (options) => {
     //   drawRaf() // eslint-disable-line no-use-before-define
     // }
   };
-  const selectCluster = (n) => {
-    if (state.selectedCluster === n) state.selectedCluster = -n;
-    else state.selectedCluster = n;
-    //state.selectedCluster = n
-    // selection = points.map(point => pointList.findIndex(d => d[2] === point))
-    drawRaf(); // eslint-disable-line no-use-before-define
-  };
 
   const select = (points ) => {
     if (typeof points === 'string') selection = [pointList.findIndex(d => d[2] === points)];
@@ -20114,20 +19774,19 @@ const creategraph = (options) => {
   const getNormalPointSizeExtra = () => 0;
   const getProjection = () => projection;
   const getView = () => camera.view;
-  const getPositionBuffer = () => {
-    return attributes.position
-  };
   const getModel = () => model;
   const getScaling = () => state.scaling;
   const getNormalNumPoints = () => numPoints * state.numNodes | 0;
 
-  let hi = 'cluster';
   window.onStyleChange = (prop) => {
     console.log('onStyleChange', hi);
     hi = prop;
     drawRaf();
   };
-  let drawLines = createDrawLines(options.regl, attributes, getModel, getProjection, getView);
+  options.drawCurves = false;
+  let drawLines = options.drawCurves ?
+  createArcs(options.regl, attributes, getModel, getProjection, getView) :
+    createDrawLines(options.regl, attributes, getModel, getProjection, getView);
 
   const drawAllPoints = (
     getPointSizeExtra,
@@ -20162,12 +19821,17 @@ const creategraph = (options) => {
         stateIndex: {
           buffer: () => attributes.stateIndex,
           size:1
+        },
+        dates: {
+          buffer: () => attributes.dates,
+          size: 1
         }
       },
 
       uniforms: {
         projection: getProjection,
-        time: () => Date.now() / 1000,
+        time: (ctx) => {console.log(ctx.time, ctx.tick); return ctx.time },
+        dateFilter: regl.prop('dateFilter'),
         selectedCluster: () => (attributes.position.length < 1 ? state.selectedCluster : -100 ),
         model: getModel,
         view: getView,
@@ -20218,11 +19882,15 @@ const creategraph = (options) => {
           stateIndex: {
             buffer: () => attributes.stateIndex,
             size:1
+          }, dates: {
+            buffer: () => attributes.dates,
+            size: 1
           }
         },
 
         uniforms: {
           projection: getProjection,
+          dateFilter: regl.prop('dateFilter'),
           selectedCluster: () => (getPos.length < 1 ? state.selectedCluster : -100 ),
           model: getModel,
           view: getView,
@@ -20245,17 +19913,7 @@ const creategraph = (options) => {
     getNormalNumPoints
     );
 
-  const drawHalo = drawPoints(
-    getPositionBuffer,
-    () => 20,
-    getNormalNumPoints,
-    () => {
-      let x = lodash.flatten(options.data.nodes.map(() => [36, 39, 48].map(d => d / 255) ));
-      return  x}
-   );
-
-
-  const drawHoveredPoint = () => {
+  const drawHoveredPoint = (state) => {
     const idx = hoveredPoint;
 
     const numOutlinedPoints = 1;
@@ -20269,7 +19927,6 @@ const creategraph = (options) => {
     const colors = (i) => {
       return c[i]
     };
-    window.qq = xy;
 
     drawPoints(
       xy,
@@ -20278,7 +19935,7 @@ const creategraph = (options) => {
         (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
       () => numOutlinedPoints,
       colors(0)
-    )();
+    )(state);
 
     drawPoints(
       xy,
@@ -20287,40 +19944,29 @@ const creategraph = (options) => {
         pointSizeSelected,
       () => numOutlinedPoints,
       colors(1)
-    )();
+    )(state);
 
   };
 
   const drawFavorites = () => {
-    const idx = state.favorites[0];
     const numOutlinedPoints = state.favorites.length;
 
-    let  xy = lodash.flatten(state.favorites.map((idx) => pointList[idx].slice( 0, 2)));
-    console.log(state.favorites);
-    window.xy = xy;
+    let  xy = lodash.flatten(state.favorites.map((idx) => {
+      return (typeof idx === 'string' ?
+      pointList.find(d => d[2] === idx):
+      pointList[idx]
+    ).slice( 0, 2)
+
+  }));
+
     const c = [
-      [.5, .3, .2],
-      [.3, .5, .3],
-      [.3, .3, .3]
+      [1, 1, 1],
+      [.3, .3, .3],
+      [1, 1, 1]
     ];
     let colors = (i) => {
       return state.favorites.map(() => c[i])
     };
-    window.tt = colors;
-    //xy = [0,0]
-    // const idx = hoveredPoint
-    // if (! idx) return
-    // const numOutlinedPoints = 1
-    // const xy = searchIndex.points[idx].concat(0)
-    // const c = [
-    //   [1, 1, 1],
-    //   [1, 0, 1],
-    //   [1, 1, 0]
-    // ]
-    //
-    // const colors = (i) => {
-    //   return c[i]
-    // }
 
     // Draw outer outline
     drawPoints(
@@ -20330,22 +19976,23 @@ const creategraph = (options) => {
         (pointSizeSelected + pointOutlineWidth * 2 + 1) * window.devicePixelRatio,
       () => numOutlinedPoints,
       colors(0)
-    )();
+    )(state);
+
     // Draw inner outline
     drawPoints(
       xy,
       () => (pointSizeSelected + pointOutlineWidth * 1 + 1) * window.devicePixelRatio,
       () => numOutlinedPoints,
       colors(1)
-    )();
+    )(state);
 
     // Draw body
     drawPoints(
       xy,
       () => 10,
-      () => 10,
+      () => numOutlinedPoints,
       colors(2)
-    )();
+    )(state);
   };
 
   const drawSelectedPoint = () => {
@@ -20370,7 +20017,7 @@ const creategraph = (options) => {
         (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
       () => numOutlinedPoints,
       colors(0)
-    )();
+    )(state);
 
     // Draw inner outline
     drawPoints(
@@ -20378,7 +20025,7 @@ const creategraph = (options) => {
       () => (pointSizeSelected + pointOutlineWidth) * window.devicePixelRatio,
       () => numOutlinedPoints,
       colors(1)
-    )();
+    )(state);
 
     // Draw body
     drawPoints(
@@ -20386,7 +20033,7 @@ const creategraph = (options) => {
       () => pointSizeSelected,
       () => numOutlinedPoints,
       colors(2)
-    )();
+    )(state);
   };
 
   const drawBackgroundImage = regl({
@@ -20421,7 +20068,7 @@ const creategraph = (options) => {
 
   };
 
-  const drawRecticle = () => {
+  const drawRecticle = (state) => {
     if (!(hoveredPoint >= 0)) return
 
     const [x, y] = searchIndex.points[hoveredPoint].slice(0, 2);
@@ -20459,7 +20106,7 @@ const creategraph = (options) => {
         (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
       () => 1,
       () => fromage[0]
-    )();
+    )(state);
 
     // Draw inner outline
     drawPoints(
@@ -20467,11 +20114,10 @@ const creategraph = (options) => {
       () => (pointSizeSelected + pointOutlineWidth) * window.devicePixelRatio,
       () => 1,
       () => fromage[1]
-    )();
+    )(state);
   };
 
   const setPoints = newPoints => {
-    console.log('hee', newPoints);
     isInit = false;
     pointList = newPoints;
     numPoints = newPoints.length;
@@ -20491,14 +20137,14 @@ const creategraph = (options) => {
 
     // Update camera
     isViewChanged = camera.tick();
-    if (state.showLines) drawLines(state);
+    //if (state.showLines) drawLines(state)
     if (state.showNodes) drawPointBodies(state);
-    drawRecticle();
-    if (hoveredPoint >= 0) drawHoveredPoint();
+    if (hoveredPoint >= 0) drawHoveredPoint(state);
     if (selection.length) drawSelectedPoint();
-    drawFavorites();
-    // Publish camera change
-    // if (isViewChanged) pubSub.publish('view', camera.view)
+
+    if (state.favorites.length) drawFavorites(); //pass in image for the star
+    drawRecticle(state);
+
   };
 
   const drawRaf = withRaf(draw);
@@ -20560,6 +20206,7 @@ const creategraph = (options) => {
   };
   const wheelHandler = () => {
     drawRaf();
+    refresh();
   };
 
   const initCamera = () => {
@@ -20593,7 +20240,7 @@ const creategraph = (options) => {
     canvas.addEventListener('mouseleave', mouseLeaveCanvasHandler, false);
     canvas.addEventListener('click', mouseClickHandler, false);
     canvas.addEventListener('wheel', wheelHandler);
-    setPoints(options.pointList);
+    setPoints(attributes.pointList); //create Index
   };
 
   const destroy = () => {
@@ -20605,20 +20252,14 @@ const creategraph = (options) => {
   init();
 
   const setState = (options) => {
-    console.log(options);
     drawRaf();
     lodash.each(options, (k,v) => { state[v] = k; });
-
   };
-
+  //context
   return {
     setProps: (props) => {
-      props.attributes = processData(props);
-      props.attributes.stateIndex = lodash.range(277678 / 2);
-
       lodash.each(props.attributes, (k,v) => { attributes[v] = k; });
-
-      setPoints(props.pointList);
+      if (props.attributes && props.attributes.pointList) setPoints(props.attributes.pointList);
       hoveredPoint = 0;
       drawRaf();
     },
@@ -20632,25 +20273,21 @@ const creategraph = (options) => {
     hoverPoint: (uuid) => {
       console.log('uid', uuid,  pointList.findIndex(d => d[2] === uuid));
       hoveredPoint = pointList.findIndex(d => d[2] === uuid);
-      console.log(hoveredPoint);
-          draw();
+      draw();
     },
     refresh,
     reset: withDraw(reset),
     select,
-    selectCluster,
     setState
   }
 };
 
 
 const init = (props) => {
-  props.attributes = processData(props);
-  props.attributes.stateIndex = lodash.range(277678 / 2);
-  window.props = props;
-
   props.regl = createRegl(props.canvas);
-  return creategraph(props)
+  let graph = creategraph(props);
+  graph._data = props;
+  return graph
 };
 
 var index = { init };

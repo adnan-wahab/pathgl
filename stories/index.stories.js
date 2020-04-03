@@ -1,12 +1,20 @@
+import React from 'react'
 import GraphRenderer from '../src';
 import * as d3 from 'd3'
 export default { title: 'Initial Test' };
 
-export const withText = () => <button>Hello Button</button>;
+export const withText = () => {
+
+  let button = document.createElement('button')
+  button.innerText = '😀 😎 👍 💯';
+
+  return button
+}
 
 export const withEmoji = () => {
+  console.log('hii')
   let url = [
-    'thecut.json',
+    'http://tightfisted-whistle.surge.sh/data/thecut.json',
     'mobile-banking.json',
     'd.tsv',
     '10samps.json'
@@ -40,7 +48,7 @@ export const withEmoji = () => {
       window.location.hash = d
       d3.event.preventDefault()
     })
-    load(`./data/${window.location.hash.slice(1) || 'thecut.json'}`)
+    load('thecut.json')
 
     document.title = 'REGL NETWORK VIS'
   }

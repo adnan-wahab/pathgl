@@ -14,7 +14,7 @@ export const withText = () => {
 export const withEmoji = () => {
   console.log('hii')
   let url = [
-    'http://tightfisted-whistle.surge.sh/data/thecut.json',
+    'public/thecut.json',
     'mobile-banking.json',
     'd.tsv',
     '10samps.json'
@@ -25,7 +25,7 @@ export const withEmoji = () => {
   }
 
   let canvas = document.createElement('canvas')
-
+  console.log(canvas)
   let main = () => {
     document.body.appendChild(canvas)
 
@@ -48,7 +48,7 @@ export const withEmoji = () => {
       window.location.hash = d
       d3.event.preventDefault()
     })
-    load('thecut.json')
+    load(`/public/thecut.json`)
 
     document.title = 'REGL NETWORK VIS'
   }

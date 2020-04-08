@@ -4,9 +4,11 @@ import withThrottle from 'lodash-es/throttle'
 import withRaf from 'with-raf'
 import { mat4, vec4 } from 'gl-matrix'
 import _ from 'lodash'
+
+
 import createLine from './lines'
 import createDrawLines from './edges'
-import createArcs from './arc-layer'
+import createCurves from './curves'
 import createDrawNodes from './nodes'
 
 import {
@@ -418,7 +420,7 @@ const creategraph = (options) => {
   }
   options.drawCurves = false
   let drawLines = options.drawCurves ?
-  createArcs(options.regl, attributes, getModel, getProjection, getView) :
+  createCurves(options.regl, attributes, getModel, getProjection, getView) :
     createDrawLines(options.regl, attributes, getModel, getProjection, getView);
 
   const drawAllPoints = (
@@ -774,12 +776,11 @@ const creategraph = (options) => {
     if (backgroundImage) {
       drawBackgroundImage()
     }
-    //if (state.showLines) drawLines(state)
+    if (state.showLines) drawLines(state)
     if (state.showNodes) drawPointBodies(state);
-    if (hoveredPoint >= 0) drawHoveredPoint(state);
-    if (selection.length) drawSelectedPoint(state);
-
-    if (state.favorites.length) drawFavorites(state); //pass in image for the star
+    // if (hoveredPoint >= 0) drawHoveredPoint(state);
+    // if (selection.length) drawSelectedPoint(state);
+    //if (state.favorites.length) drawFavorites(state)
     drawRecticle(state);
 
   }

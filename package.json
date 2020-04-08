@@ -74,7 +74,7 @@
     "@babel/preset-react": "^7.9.4",
     "angle-normals": "^1.0.0",
     "babel-preset-env": "^1.7.0",
-    "bezier-js": "^2.5.1",
+    "bezier-js": "^2.6.1",
     "budo": "^9.4.7",
     "bunny": "^1.0.1",
     "camera-2d-simple": "~2.0.1",

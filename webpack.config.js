@@ -7,6 +7,7 @@ module.exports = (env, argv) => ({
   },
   output: {
     path: `${__dirname}/docs`,
+    publicPath: "/assets/",
     publicPath: argv.mode === 'production' ? './' : '/'
   },
   devServer: {

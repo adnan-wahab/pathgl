@@ -128,6 +128,7 @@ attribute vec2 pos;
 attribute vec3 color;
 attribute float stateIndex;
 attribute float dates;
+attribute float counts;
 
 
 uniform float selectedCluster;
@@ -139,7 +140,7 @@ varying vec4 vColor;
 
 void main() {
   if (! (dates > dateFilter.x && dates < dateFilter.y)) return;
-  gl_Position = projection * view * model * vec4(pos.xy, 0.0, 1.0);
+  gl_Position = projection * view * model * vec4(pos.xy, 0.0, counts);
 
   vColor = vec4(color, 1.);
 
@@ -148,6 +149,9 @@ void main() {
 
   if (selectedCluster > -.1 && selectedCluster != stateIndex) finalScaling = 0.;
 
+  finalScaling += counts;
+
+
   gl_PointSize = finalScaling + pointSizeExtra;
 
 }
@@ -155,22 +159,7 @@ void main() {
 const NOOP = () => {}
 
 const creategraph = (options) => {
-  //props schema - make external
-  let state = {
-    sizeAttenuation: .1,
-
-    scaling: .4,
-    numNodes: 1,
-    showLines: true,
-    showNodes: true,
-    flatSize: true,
-    edgeColors: true,
-    selectedCluster: -1,
-    favorites: [],
-    dateFilter: [0,Infinity]
-  };
-
-
+  console.log('yay')
   let initialRegl = options.regl,
   initialBackground = DEFAULT_COLOR_BG,
   initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE,
@@ -194,6 +183,53 @@ const creategraph = (options) => {
   let mousePosition  = [0, 0];
   window.getMousePosition = () => mousePosition
   let pointList = []
+
+  let schema = {}
+
+  schema.attributes = {
+        pos: {
+          buffer: () => attributes.position,
+          size: 2
+        },
+        color: {
+          buffer: () => attributes.color,
+          size: 3
+
+        },
+        stateIndex: {
+          buffer: () => attributes.stateIndex,
+          size:1
+        },
+        dates: {
+          buffer: () => attributes.dates,
+          size: 1
+        },
+        counts: {
+          buffer: () => attributes.counts,
+          size: 1
+        }
+      }
+
+      window.attributes = attributes
+      console.log('omg', attributes)
+  //props schema - make external
+  let state = {
+    sizeAttenuation: .1,
+
+    scaling: .4,
+    numNodes: 1,
+    showLines: true,
+    showNodes: true,
+    flatSize: true,
+    edgeColors: true,
+    selectedCluster: -1,
+    favorites: [],
+    dateFilter: [0,Infinity]
+  };
+
+  _.extend(state, options.initialState)
+
+
 
   checkReglExtensions(initialRegl)
 
@@ -441,27 +477,9 @@ const creategraph = (options) => {
         }
       },
 
-      depth: { enable: false },
+    
 
-      attributes: {
-        pos: {
-          buffer: () => attributes.position,
-          size: 2
-        },
-        color: {
-          buffer: () => attributes.color,
-          size: 3
-
-        },
-        stateIndex: {
-          buffer: () => attributes.stateIndex,
-          size:1
-        },
-        dates: {
-          buffer: () => attributes.dates,
-          size: 1
-        }
-      },
+      attributes: schema.attributes,
 
       uniforms: {
         projection: getProjection,
@@ -476,6 +494,8 @@ const creategraph = (options) => {
         sizeAttenuation: regl.prop('sizeAttenuation'),
         flatSize: regl.prop('flatSize')
       },
+
+
 
       count: getNumPoints,
 
@@ -504,24 +524,7 @@ const creategraph = (options) => {
 
         depth: { enable: false },
 
-        attributes: {
-          pos: {
-            buffer: getPos,
-            size: 2
-          },
-          color: {
-            buffer: getColors,
-            size: 3
-
-          },
-          stateIndex: {
-            buffer: () => attributes.stateIndex,
-            size:1
-          }, dates: {
-            buffer: () => attributes.dates,
-            size: 1
-          }
-        },
+        attributes: schema.attributes,
 
         uniforms: {
           projection: getProjection,
@@ -604,30 +607,30 @@ const creategraph = (options) => {
     }
 
     // Draw outer outline
-    drawPoints(
-      xy,
-
-      () =>
-        (pointSizeSelected + pointOutlineWidth * 2 + 1) * window.devicePixelRatio,
-      () => numOutlinedPoints,
-      colors(0)
-    )(state)
-
-    // Draw inner outline
-    drawPoints(
-      xy,
-      () => (pointSizeSelected + pointOutlineWidth * 1 + 1) * window.devicePixelRatio,
-      () => numOutlinedPoints,
-      colors(1)
-    )(state)
-
-    // Draw body
-    drawPoints(
-      xy,
-      () => 10,
-      () => numOutlinedPoints,
-      colors(2)
-    )(state)
+    // drawPoints(
+    //   xy,
+    //
+    //   () =>
+    //     (pointSizeSelected + pointOutlineWidth * 2 + 1) * window.devicePixelRatio,
+    //   () => numOutlinedPoints,
+    //   colors(0)
+    // )(state)
+    //
+    // // Draw inner outline
+    // drawPoints(
+    //   xy,
+    //   () => (pointSizeSelected + pointOutlineWidth * 1 + 1) * window.devicePixelRatio,
+    //   () => numOutlinedPoints,
+    //   colors(1)
+    // )(state)
+    //
+    // // Draw body
+    // drawPoints(
+    //   xy,
+    //   () => 10,
+    //   () => numOutlinedPoints,
+    //   colors(2)
+    // )(state)
   }
 
   const drawSelectedPoint = () => {
@@ -735,21 +738,21 @@ const creategraph = (options) => {
     ]
 
     // Draw outer outline
-    drawPoints(
-      () => [x, y],
-      () =>
-        (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
-      () => 1,
-      () => fromage[0]
-    )(state)
-
-    // Draw inner outline
-    drawPoints(
-      () => [x, y],
-      () => (pointSizeSelected + pointOutlineWidth) * window.devicePixelRatio,
-      () => 1,
-      () => fromage[1]
-    )(state)
+    // drawPoints(
+    //   () => [x, y],
+    //   () =>
+    //     (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
+    //   () => 1,
+    //   () => fromage[0]
+    // )(state)
+    //
+    // // Draw inner outline
+    // drawPoints(
+    //   () => [x, y],
+    //   () => (pointSizeSelected + pointOutlineWidth) * window.devicePixelRatio,
+    //   () => 1,
+    //   () => fromage[1]
+    // )(state)
   }
 
   const setPoints = newPoints => {
@@ -773,10 +776,10 @@ const creategraph = (options) => {
     // Update camera
     isViewChanged = camera.tick()
 
-    if (backgroundImage) {
-      drawBackgroundImage()
-    }
-    if (state.showLines) drawLines(state)
+    // if (backgroundImage) {
+    //   drawBackgroundImage()
+    // }
+    //if (state.showLines) drawLines(state)
     if (state.showNodes) drawPointBodies(state);
     // if (hoveredPoint >= 0) drawHoveredPoint(state);
     // if (selection.length) drawSelectedPoint(state);

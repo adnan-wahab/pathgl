@@ -113,7 +113,6 @@ let processData = (data) => {
    return [Math.random(), ]
  })
 
-  let position = _.flatten(data.nodes.map(d => [clip(d.x), clip(d.y)]))
   var accent = d3.scaleOrdinal(d3.schemeAccent);
 
   let sentimentValue = _.flatten(data.nodes.map((d) => {
@@ -123,12 +122,18 @@ let processData = (data) => {
 
   let counts = {}
   data.edges.forEach(d => {
-    counts[d.target] = counts[d.target]
+    counts[d.target] = (counts[d.target] || 0) + 1
+    counts[d.source] = (counts[d.source] || 0) + 1
+
   })
+
+  let position = _.flatten(data.nodes.map(d => [clip(d.x), clip(d.y), counts[d.id]]))
+
 
     let edges = {
       sourcePositions: new Array(data.edges.length * 2).fill(0),
       targetPositions: new Array(data.edges.length * 2).fill(0),
+      curves: new Array(data.edges.length * 2).fill(0)
     };
     data.edges.forEach((edge, idx) => {
       let source = getNode(edge.source), target = getNode(edge.target);
@@ -137,6 +142,13 @@ let processData = (data) => {
       edges.sourcePositions[idx*2+1] = clip(source.y)
       edges.targetPositions[idx*2] = clip(target.x)
       edges.targetPositions[idx*2+1] = clip(target.y)
+
+      edges.curves[idx] = {
+        x1: clip(source.x),
+        y1: clip(source.y),
+        x2: clip(target.x),
+        y2: clip(target.y),
+      }
     });
 
     let edgeColors = new Array(data.edges.length * 3).fill(0);
@@ -174,10 +186,10 @@ let processData = (data) => {
     }));
 
 
-
+    console.log('why', counts)
     return {
       position,
-      counts,
+      sizes: counts,
       edges,
       edgeColors,
       color,
@@ -203,6 +215,7 @@ let load = (url) => {
       if (! graph)
         graph = GraphRenderer.init({
           attributes,
+          drawCurves: true,
           canvas: canvas,
           onClick: (point, idx, events) => {
             if (events.shiftKey)favorites = favorites.concat(idx)

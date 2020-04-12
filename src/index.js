@@ -124,11 +124,11 @@ uniform mat4 view;
 
 uniform vec2 dateFilter;
 
-attribute vec2 pos;
+attribute vec3 pos;
 attribute vec3 color;
 attribute float stateIndex;
 attribute float dates;
-attribute float counts;
+
 
 
 uniform float selectedCluster;
@@ -140,7 +140,7 @@ varying vec4 vColor;
 
 void main() {
   if (! (dates > dateFilter.x && dates < dateFilter.y)) return;
-  gl_Position = projection * view * model * vec4(pos.xy, 0.0, counts);
+  gl_Position = projection * view * model * vec4(pos.xy, 0.0, 1.);
 
   vColor = vec4(color, 1.);
 
@@ -149,7 +149,7 @@ void main() {
 
   if (selectedCluster > -.1 && selectedCluster != stateIndex) finalScaling = 0.;
 
-  finalScaling += counts;
+  //finalScaling += pos.z;
 
 
   gl_PointSize = finalScaling + pointSizeExtra;
@@ -189,7 +189,7 @@ const creategraph = (options) => {
   schema.attributes = {
         pos: {
           buffer: () => attributes.position,
-          size: 2
+          size: 3
         },
         color: {
           buffer: () => attributes.color,
@@ -203,12 +203,9 @@ const creategraph = (options) => {
         dates: {
           buffer: () => attributes.dates,
           size: 1
-        },
-        counts: {
-          buffer: () => attributes.counts,
-          size: 1
         }
       }
+
 
       window.attributes = attributes
       console.log('omg', attributes)
@@ -454,7 +451,7 @@ const creategraph = (options) => {
     hi = prop
     drawRaf()
   }
-  options.drawCurves = false
+  //options.drawCurves = false
   let drawLines = options.drawCurves ?
   createCurves(options.regl, attributes, getModel, getProjection, getView) :
     createDrawLines(options.regl, attributes, getModel, getProjection, getView);
@@ -477,7 +474,7 @@ const creategraph = (options) => {
         }
       },
 
-    
+
 
       attributes: schema.attributes,
 
@@ -606,38 +603,38 @@ const creategraph = (options) => {
       return state.favorites.map(() => c[i])
     }
 
-    // Draw outer outline
-    // drawPoints(
-    //   xy,
-    //
-    //   () =>
-    //     (pointSizeSelected + pointOutlineWidth * 2 + 1) * window.devicePixelRatio,
-    //   () => numOutlinedPoints,
-    //   colors(0)
-    // )(state)
-    //
-    // // Draw inner outline
-    // drawPoints(
-    //   xy,
-    //   () => (pointSizeSelected + pointOutlineWidth * 1 + 1) * window.devicePixelRatio,
-    //   () => numOutlinedPoints,
-    //   colors(1)
-    // )(state)
-    //
-    // // Draw body
-    // drawPoints(
-    //   xy,
-    //   () => 10,
-    //   () => numOutlinedPoints,
-    //   colors(2)
-    // )(state)
+    //Draw outer outline
+    drawPoints(
+      xy,
+
+      () =>
+        (pointSizeSelected + pointOutlineWidth * 2 + 1) * window.devicePixelRatio,
+      () => numOutlinedPoints,
+      colors(0)
+    )(state)
+
+    // Draw inner outline
+    drawPoints(
+      xy,
+      () => (pointSizeSelected + pointOutlineWidth * 1 + 1) * window.devicePixelRatio,
+      () => numOutlinedPoints,
+      colors(1)
+    )(state)
+
+    // Draw body
+    drawPoints(
+      xy,
+      () => 10,
+      () => numOutlinedPoints,
+      colors(2)
+    )(state)
   }
 
   const drawSelectedPoint = () => {
     const idx = selection[0]
     const numOutlinedPoints = selection.length
     const xy = searchIndex.points[idx]
-
+    console.log(xy[2] = 5)
     const c = [
       [1, 1, 1],
       [1, 0, 1],
@@ -738,21 +735,21 @@ const creategraph = (options) => {
     ]
 
     // Draw outer outline
-    // drawPoints(
-    //   () => [x, y],
-    //   () =>
-    //     (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
-    //   () => 1,
-    //   () => fromage[0]
-    // )(state)
+    drawPoints(
+      () => [x, y],
+      () =>
+        (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
+      () => 1,
+      () => fromage[0]
+    )(state)
     //
     // // Draw inner outline
-    // drawPoints(
-    //   () => [x, y],
-    //   () => (pointSizeSelected + pointOutlineWidth) * window.devicePixelRatio,
-    //   () => 1,
-    //   () => fromage[1]
-    // )(state)
+    drawPoints(
+      () => [x, y],
+      () => (pointSizeSelected + pointOutlineWidth) * window.devicePixelRatio,
+      () => 1,
+      () => fromage[1]
+    )(state)
   }
 
   const setPoints = newPoints => {
@@ -779,11 +776,12 @@ const creategraph = (options) => {
     // if (backgroundImage) {
     //   drawBackgroundImage()
     // }
-    //if (state.showLines) drawLines(state)
+    if (state.showLines) drawLines(state)
+    console.log()
     if (state.showNodes) drawPointBodies(state);
-    // if (hoveredPoint >= 0) drawHoveredPoint(state);
-    // if (selection.length) drawSelectedPoint(state);
-    //if (state.favorites.length) drawFavorites(state)
+    if (hoveredPoint >= 0) drawHoveredPoint(state);
+    if (selection.length) drawSelectedPoint(state);
+    if (state.favorites.length) drawFavorites(state)
     drawRecticle(state);
 
   }

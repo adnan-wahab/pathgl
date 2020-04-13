@@ -17,7 +17,6 @@ import {
   COLOR_HOVER_IDX,
   COLOR_NORMAL_IDX,
   COLOR_NUM_STATES,
-  DEFAULT_BACKGROUND_IMAGE,
   DEFAULT_COLOR_BG,
   DEFAULT_COLOR_BY,
   DEFAULT_COLORS,
@@ -124,10 +123,14 @@ uniform mat4 view;
 
 uniform vec2 dateFilter;
 
-attribute vec3 pos;
+attribute vec4 pos;
 attribute vec3 color;
-attribute float stateIndex;
+attribute vec2 stateIndex;
 attribute float dates;
+
+uniform float hoveredPoint;
+uniform float selectedPoint;
+uniform vec2 dimensions;
 
 
 
@@ -139,19 +142,23 @@ uniform bool flatSize;
 varying vec4 vColor;
 
 void main() {
-  if (! (dates > dateFilter.x && dates < dateFilter.y)) return;
-  gl_Position = projection * view * model * vec4(pos.xy, 0.0, 1.);
+  vec2 position = pos.xy;
+  // position.x = position.x / dimensions.x;
+  // position.y = position.y / dimensions.y;
 
-  vColor = vec4(color, 1.);
+  //if (! (dates > dateFilter.x && dates < dateFilter.y)) return;
+
+  gl_Position = projection * view * model * vec4(position.xy, 0.0, 1.);
+
+  vColor = vec4(1.);
 
   float finalScaling = pow(sizeAttenuation, scaling);
   finalScaling = 4. + pow(pointSize, sizeAttenuation);
 
-  if (selectedCluster > -.1 && selectedCluster != stateIndex) finalScaling = 0.;
+  //if (selectedCluster > -.1 && selectedCluster != stateIndex.x) finalScaling = 0.;
 
   //finalScaling += pos.z;
-
-
+  finalScaling = 10.;
   gl_PointSize = finalScaling + pointSizeExtra;
 
 }
@@ -159,10 +166,8 @@ void main() {
 const NOOP = () => {}
 
 const creategraph = (options) => {
-  console.log('yay')
   let initialRegl = options.regl,
-  initialBackground = DEFAULT_COLOR_BG,
-  initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE,
+
   initialCanvas = options.canvas,
   initialShowRecticle = DEFAULT_SHOW_RECTICLE,
   initialRecticleColor = DEFAULT_RECTICLE_COLOR,
@@ -181,7 +186,6 @@ const creategraph = (options) => {
   attributes = options.attributes;
   const scratch = new Float32Array(16);
   let mousePosition  = [0, 0];
-  window.getMousePosition = () => mousePosition
   let pointList = []
 
   let schema = {}
@@ -189,7 +193,7 @@ const creategraph = (options) => {
   schema.attributes = {
         pos: {
           buffer: () => attributes.position,
-          size: 3
+          size: 4
         },
         color: {
           buffer: () => attributes.color,
@@ -198,17 +202,14 @@ const creategraph = (options) => {
         },
         stateIndex: {
           buffer: () => attributes.stateIndex,
-          size:1
+          size: 2
         },
         dates: {
           buffer: () => attributes.dates,
           size: 1
         }
       }
-
-
-      window.attributes = attributes
-      console.log('omg', attributes)
+  window.attributes = attributes
   //props schema - make external
   let state = {
     sizeAttenuation: .1,
@@ -230,8 +231,6 @@ const creategraph = (options) => {
 
   checkReglExtensions(initialRegl)
 
-  const background = toRgba(initialBackground, true)
-  const backgroundImage = initialBackgroundImage
   let canvas = initialCanvas
   let width = initialWidth
   let height = initialHeight
@@ -320,7 +319,7 @@ const creategraph = (options) => {
       x + xNormalizedScaledPointSize,
       y + yNormalizedScaledPointSize
     )
-
+    console.log(pointsInBBox)
     // Find the closest point
     let minDist = scaledPointSize
     let clostestPoint
@@ -399,10 +398,6 @@ const creategraph = (options) => {
     if (clostestPoint >= 0) onClick(pointList[clostestPoint], clostestPoint, event)
   }
 
-  const mouseDblClickHandler = () => {
-    deselect()
-  }
-
   const mouseMoveHandler = event => {
     if (!isInit) return
 
@@ -410,6 +405,7 @@ const creategraph = (options) => {
     // Only ray cast if the mouse cursor is inside
     //if (isMouseInCanvas && !mouseDownShift) {
       const clostestPoint = raycast()
+      console.log(clostestPoint)
       hover(clostestPoint) // eslint-disable-line no-use-before-define
     //}
     // Always redraw when mouse as the user might have panned
@@ -434,17 +430,17 @@ const creategraph = (options) => {
     canvas.width = width * window.devicePixelRatio
   }
 
-  const getBackgroundImage = () => backgroundImage
   const getPointSize = () => pointSize * window.devicePixelRatio
   const getNormalPointSizeExtra = () => 0
   const getProjection = () => projection
   const getView = () => camera.view
+
   const getPositionBuffer = () => {
     return attributes.position
   }
   const getModel = () => model
   const getScaling = () => state.scaling
-  const getNormalNumPoints = () => numPoints * state.numNodes | 0
+  const getNormalNumPoints = () => numPoints
 
   window.onStyleChange = (prop) => {
     console.log('onStyleChange', hi)
@@ -479,6 +475,7 @@ const creategraph = (options) => {
       attributes: schema.attributes,
 
       uniforms: {
+        dimensions: [window.innerWidth, window.innerHeight],
         projection: getProjection,
         time: (ctx) => {console.log(ctx.time, ctx.tick); return ctx.time },
         dateFilter: regl.prop('dateFilter'),
@@ -492,54 +489,9 @@ const creategraph = (options) => {
         flatSize: regl.prop('flatSize')
       },
 
-
-
-      count: getNumPoints,
-
+      count: attributes.nodes.length,
       primitive: 'points'
     })
-
-    const drawPoints = (
-      getPos,
-      getPointSizeExtra,
-      getNumPoints,
-      getColors = () => hi == 'cluster' ? attributes.color : attributes.sentimentValue
-    ) =>
-      regl({
-        frag: POINT_FS,
-        vert: POINT_VS,
-
-        blend: {
-          enable: true,
-          func: {
-            srcRGB: 'src alpha',
-            srcAlpha: 'one',
-            dstRGB: 'one minus src alpha',
-            dstAlpha: 'one minus src alpha'
-          }
-        },
-
-        depth: { enable: false },
-
-        attributes: schema.attributes,
-
-        uniforms: {
-          projection: getProjection,
-          dateFilter: regl.prop('dateFilter'),
-          selectedCluster: () => (getPos.length < 1 ? state.selectedCluster : -100 ),
-          model: getModel,
-          view: getView,
-          scaling: getScaling,
-          pointSize: getPointSize,
-          pointSizeExtra: getPointSizeExtra,
-          sizeAttenuation: () => state.sizeAttenuation,
-          flatSize: () => {return state.flatSize }
-        },
-
-        count: getNumPoints,
-
-        primitive: 'points'
-      })
 
 
 
@@ -547,147 +499,6 @@ const creategraph = (options) => {
     getNormalPointSizeExtra,
     getNormalNumPoints
     )
-
-  const drawHoveredPoint = (state) => {
-    const idx = hoveredPoint
-
-    const numOutlinedPoints = 1
-    const xy = searchIndex.points[idx].slice(0,2)
-    const c = [
-      [1, 1, 1],
-      [1, 0, 1],
-      [1, 1, 0]
-    ]
-
-    const colors = (i) => {
-      return c[i]
-    }
-
-    drawPoints(
-      xy,
-
-      () =>
-        (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
-      () => numOutlinedPoints,
-      colors(0)
-    )(state)
-
-    drawPoints(
-      xy,
-
-      () =>
-        pointSizeSelected,
-      () => numOutlinedPoints,
-      colors(1)
-    )(state)
-
-  }
-
-  const drawFavorites = () => {
-    const numOutlinedPoints = state.favorites.length
-
-    let  xy = _.flatten(state.favorites.map((idx) => {
-      return (typeof idx === 'string' ?
-      pointList.find(d => d[2] === idx):
-      pointList[idx]
-    ).slice( 0, 2)
-
-  }))
-
-    const c = [
-      [1, 1, 1],
-      [.3, .3, .3],
-      [1, 1, 1]
-    ]
-    let colors = (i) => {
-      return state.favorites.map(() => c[i])
-    }
-
-    //Draw outer outline
-    drawPoints(
-      xy,
-
-      () =>
-        (pointSizeSelected + pointOutlineWidth * 2 + 1) * window.devicePixelRatio,
-      () => numOutlinedPoints,
-      colors(0)
-    )(state)
-
-    // Draw inner outline
-    drawPoints(
-      xy,
-      () => (pointSizeSelected + pointOutlineWidth * 1 + 1) * window.devicePixelRatio,
-      () => numOutlinedPoints,
-      colors(1)
-    )(state)
-
-    // Draw body
-    drawPoints(
-      xy,
-      () => 10,
-      () => numOutlinedPoints,
-      colors(2)
-    )(state)
-  }
-
-  const drawSelectedPoint = () => {
-    const idx = selection[0]
-    const numOutlinedPoints = selection.length
-    const xy = searchIndex.points[idx]
-    console.log(xy[2] = 5)
-    const c = [
-      [1, 1, 1],
-      [1, 0, 1],
-      [1, 1, 1]
-    ]
-
-    const colors = (i) => {
-      return c[i]
-    }
-    // Draw outer outline
-    drawPoints(
-      xy,
-
-      () =>
-        (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
-      () => numOutlinedPoints,
-      colors(0)
-    )(state)
-
-    // Draw inner outline
-    drawPoints(
-      xy,
-      () => (pointSizeSelected + pointOutlineWidth) * window.devicePixelRatio,
-      () => numOutlinedPoints,
-      colors(1)
-    )(state)
-
-    // Draw body
-    drawPoints(
-      xy,
-      () => pointSizeSelected,
-      () => numOutlinedPoints,
-      colors(2)
-    )(state)
-  }
-
-  const drawBackgroundImage = regl({
-    frag: BG_FS,
-    vert: BG_VS,
-
-    attributes: {
-      position: [0, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0]
-    },
-
-    uniforms: {
-      projection: getProjection,
-      model: getModel,
-      view: getView,
-      texture: getBackgroundImage
-    },
-
-    count: 6
-  })
 
   window.tooltip = (x, y) => {
 
@@ -729,27 +540,6 @@ const creategraph = (options) => {
     recticleHLine.draw()
     recticleVLine.draw()
 
-    const fromage = [
-      [1, 1, 1],
-      [1, 0, 1]
-    ]
-
-    // Draw outer outline
-    drawPoints(
-      () => [x, y],
-      () =>
-        (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
-      () => 1,
-      () => fromage[0]
-    )(state)
-    //
-    // // Draw inner outline
-    drawPoints(
-      () => [x, y],
-      () => (pointSizeSelected + pointOutlineWidth) * window.devicePixelRatio,
-      () => 1,
-      () => fromage[1]
-    )(state)
   }
 
   const setPoints = newPoints => {
@@ -773,16 +563,9 @@ const creategraph = (options) => {
     // Update camera
     isViewChanged = camera.tick()
 
-    // if (backgroundImage) {
-    //   drawBackgroundImage()
-    // }
-    if (state.showLines) drawLines(state)
-    console.log()
-    if (state.showNodes) drawPointBodies(state);
-    if (hoveredPoint >= 0) drawHoveredPoint(state);
-    if (selection.length) drawSelectedPoint(state);
-    if (state.favorites.length) drawFavorites(state)
+    //if (state.showLines) drawLines(state)
     drawRecticle(state);
+    if (state.showNodes) drawPointBodies(state);
 
   }
 
@@ -887,7 +670,7 @@ const creategraph = (options) => {
     canvas.addEventListener('mouseleave', mouseLeaveCanvasHandler, false)
     canvas.addEventListener('click', mouseClickHandler, false)
     canvas.addEventListener('wheel', wheelHandler);
-    setPoints(attributes.pointList) //create Index
+    setPoints(attributes.nodes) //create Index
   }
 
   const destroy = () => {
@@ -906,7 +689,7 @@ const creategraph = (options) => {
   return {
     setProps: (props) => {
       _.each(props.attributes, (k,v) => { attributes[v] = k })
-      if (props.attributes && props.attributes.pointList) setPoints(props.attributes.pointList)
+      if (props.attributes && props.attributes.pointList) setPoints(props.attributes.nodes)
       hoveredPoint = 0
       drawRaf()
     },
@@ -925,7 +708,8 @@ const creategraph = (options) => {
     refresh,
     reset: withDraw(reset),
     select,
-    setState
+    setState,
+    getView,
   }
 }
 

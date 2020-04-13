@@ -8,8 +8,6 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
     lineWidth = regl.limits.lineWidthDims[1]
   }
 
-  console.log(attributes)
-
     let draw = regl({
       frag: `
       precision mediump float;

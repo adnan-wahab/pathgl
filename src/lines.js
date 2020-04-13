@@ -199,7 +199,6 @@ const createLine = (
     }
 
     elements = regl.elements()
-    console.log('hi')
     drawLine = regl({
       attributes,
       depth: { enable: !is2d },

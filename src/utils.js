@@ -41,7 +41,6 @@ export const createRegl = canvas => {
   // extensions, which is fine for the functional tests.
 
   GL_EXTENSIONS.forEach(EXTENSION => {
-    console.log(EXTENSION)
     if (gl.getExtension(EXTENSION)) {
       extensions.push(EXTENSION)
     } else {

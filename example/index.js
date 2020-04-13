@@ -11,106 +11,55 @@ let url = [
 ]
 
 const clip = (d) => {
-return d / 3000
+return d / 4000
 }
+// var mouseX = (e.offsetX / canvas.clientWidth)*2-1;
+// var mouseY = ((canvas.clientHeight - e.offsetY) / canvas.clientHeight)*2-1;
+
 
 let canvas = document.createElement('canvas')
 
 let main = () => {
   document.body.appendChild(canvas)
 
-  let container = d3.select('body')
-  .style('overflow', 'hidden')
-  .append('div')
-  .attr('class', 'sidebar')
-
   canvas.height = innerHeight
   canvas.width = innerWidth
-  console.log('hi', container.node())
-
-  container.selectAll('a').data(url).enter()
-  .append('div')
-  .append('a').text((d) => d)
-  .attr('href', (d) => `./data/${d}`)
-  .on('click', d => {
-    if (d3.event.target.href.includes('tsv')) loadTSV()
-    else load(d3.event.target.href)
-    window.location.hash = d
-    d3.event.preventDefault()
-  })
-  load(`./data/${window.location.hash.slice(1) || 'thecut.json'}`)
+  load('mobile-banking.json')
 
   document.title = 'REGL NETWORK VIS'
 }
-let colorscale = d3.scaleLinear().domain([-0.15, 0, 0.15]).range([d3.interpolatePuOr(0), d3.interpolatePuOr(.5), d3.interpolatePuOr(1)]).clamp(true)
-let toColor = (color) => {
-  let c = d3.rgb(colorscale(color))
-  return [c.r / 255, c.g / 255, c.b / 255]
-}
-let loadTSV = async () => {
-  let position = []
-  let color = []
-  window.color = color
-  let tsv = await d3.tsv("./data/d.tsv", d3.autoType);
-  tsv.forEach(d => {
-    position.push(d.x, d.y )
-    color.push.apply(color, toColor(d.sentiment))
-  })
-  let pointList = position
-  .map((d, idx) => {
-    return [clip(d.x), clip(d.y), d.uuid || d.id]
-  })
 
-  if (! graph)
-    graph = GraphRenderer.init({attributes: {position, color, pointList}, canvas: canvas })
-  else {
-    graph.setProps({attributes: {position, color }})
-  }
-}
-
-d3.select('#size').on('change', () => {
-  console.log(d3.event.target.value / 100);
-  graph.setState({sizeAttenuation: d3.event.target.value / 100});
-})
-
-d3.select('#nodes').on('change', () => {
-  graph.setState({showNodes: d3.event.target.checked });
-})
-
-d3.select('#line-colors').on('change', () => {
-  graph.setState({edgeColors: d3.event.target.checked });
-})
-
-
-d3.select('#lines').on('change', () => {
-  graph.setState({showLines: d3.event.target.checked});
-})
-
-let makeRandom = () => {
-  return new Date(2019, Math.random() * 12 | 0, Math.random() * 30 | 0)
-}
 
 let graph
 
-let favorites = []
 
-let processData = (data) => {
+let preprocessData = (d) => {
+  let keys = {}
+  d.nodes.forEach((node, id) => {
+    node.size = 0
+    keys[node.uuid] = id
+  })
 
-  let pointList = data.nodes
-      .map((d, idx) => {
-        return [clip(d.x), clip(d.y), d.uuid || d.id]
-      })
-  data.pointList = pointList
-
-  let points = {}
-  data.nodes.forEach(d => points[d.uuid || d.id] = d)
-
-  let getNode = (id) => {
-    return points[id]
+  d.edges.forEach(d => {
+    d.target = keys[d.target]
+    d.source = keys[d.source]
+  })
+  let normalize = (d, i) => {
+    d.nodes = d.nodes.map(id => keys[id])
   }
 
+  _.each(d.kmeans, normalize)
+  _.each(d.louvain, normalize)
+  _.each(d.greedy, normalize)
+
+}
+
+
+let processData = (data) => {
+preprocessData(data)
+
  let colors = data.nodes.map(d => {
-   return [Math.random(), ]
+   return [Math.random(), Math.random(), Math.random()]
  })
 
   var accent = d3.scaleOrdinal(d3.schemeAccent);
@@ -122,12 +71,12 @@ let processData = (data) => {
 
   let counts = {}
   data.edges.forEach(d => {
-    counts[d.target] = (counts[d.target] || 0) + 1
-    counts[d.source] = (counts[d.source] || 0) + 1
-
+    data.nodes[d.target].size += 1
+    data.nodes[d.source].size += 1
   })
 
-  let position = _.flatten(data.nodes.map(d => [clip(d.x), clip(d.y), counts[d.id]]))
+  let position =
+  (data.nodes.map((d, id) => [clip(d.x), clip(d.y), d.size, id]))
 
 
     let edges = {
@@ -136,8 +85,8 @@ let processData = (data) => {
       curves: new Array(data.edges.length * 2).fill(0)
     };
     data.edges.forEach((edge, idx) => {
-      let source = getNode(edge.source), target = getNode(edge.target);
-      //if( ! source || ! target ) debugger
+      let source = data.nodes[edge.source], target = data.nodes[edge.target];
+
       edges.sourcePositions[idx*2] = clip(source.x)
       edges.sourcePositions[idx*2+1] = clip(source.y)
       edges.targetPositions[idx*2] = clip(target.x)
@@ -156,8 +105,8 @@ let processData = (data) => {
       let x = Object.entries(data.kmeans)
       x.map(tup => {
         let {color, nodes} = tup[1]
-        nodes.forEach(id => getNode(id).color = color)
 
+        data.nodes.forEach(node => { node.color = color })
       })
     }
 
@@ -185,37 +134,32 @@ let processData = (data) => {
       return legend.indexOf(c);
     }));
 
-
-    console.log('why', counts)
     return {
+      nodes: data.nodes,
       position,
-      sizes: counts,
       edges,
       edgeColors,
       color,
       dates,
       sentimentValue,
-      stateIndex,
-      pointList
+      stateIndex
 
   }
 }
 
-let processTSV = () => {
-
-}
-
+let favorites = []
 let load = (url) => {
   if (url.includes('.tsv')) return loadTSV(window.location.tsv)
   fetch(url)
     .then((body)=>{ return body.json() })
     .then((json)=>{
+
       let attributes = processData(json)
 
       if (! graph)
         graph = GraphRenderer.init({
           attributes,
-          drawCurves: true,
+          //drawCurves: true,
           canvas: canvas,
           onClick: (point, idx, events) => {
             if (events.shiftKey)favorites = favorites.concat(idx)
@@ -223,21 +167,7 @@ let load = (url) => {
             graph.setState({favorites})
           }
         })
-      else {
-        graph.setState({favorites: favorites = []})
-        graph.setProps({ attributes })
-      }
+
     })
 }
 d3.select(window).on('load', main)
-
-function brushended() {
-  graph.repaint();
-  const selection = d3.event.selection;
-  if (!d3.event.sourceEvent || !selection) return;
-  const [x0, x1] = selection.map(d => interval.round(x.invert(d)));
-  console.log(x0, x1)
-  window.getAdnan = () => {return [+x0, +x1]}
-
-  d3.select(this).transition().call(brush.move, x1 > x0 ? [x0, x1].map(x) : null);
-}

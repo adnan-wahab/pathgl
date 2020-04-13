@@ -24,14 +24,10 @@ let main = () => {
 
   canvas.height = innerHeight
   canvas.width = innerWidth
-  load('mobile-banking.json')
+  load('data/10samps.json')
 
   document.title = 'REGL NETWORK VIS'
 }
-
-
-let graph
-
 
 let preprocessData = (d) => {
   let keys = {}
@@ -59,6 +55,8 @@ let processData = (data) => {
 preprocessData(data)
 
  let colors = data.nodes.map(d => {
+   d.x = clip(d.x)
+   d.y = clip(d.y)
    return [Math.random(), Math.random(), Math.random()]
  })
 
@@ -75,8 +73,10 @@ preprocessData(data)
     data.nodes[d.source].size += 1
   })
 
+
+
   let position =
-  (data.nodes.map((d, id) => [clip(d.x), clip(d.y), d.size, id]))
+  (data.nodes.map((d, id) => [(d.x), (d.y), d.size, id]))
 
 
     let edges = {
@@ -105,8 +105,8 @@ preprocessData(data)
       let x = Object.entries(data.kmeans)
       x.map(tup => {
         let {color, nodes} = tup[1]
-
-        data.nodes.forEach(node => { node.color = color })
+        console.log(color)
+        nodes.forEach(id => { data.nodes[id].color = color })
       })
     }
 
@@ -134,7 +134,7 @@ preprocessData(data)
       return legend.indexOf(c);
     }));
 
-    return {
+    window.x = {
       nodes: data.nodes,
       position,
       edges,
@@ -145,6 +145,7 @@ preprocessData(data)
       stateIndex
 
   }
+  return window.x
 }
 
 let favorites = []
@@ -156,10 +157,9 @@ let load = (url) => {
 
       let attributes = processData(json)
 
-      if (! graph)
-        graph = GraphRenderer.init({
+        window.graph = GraphRenderer.init({
           attributes,
-          //drawCurves: true,
+          drawCurves: true,
           canvas: canvas,
           onClick: (point, idx, events) => {
             if (events.shiftKey)favorites = favorites.concat(idx)

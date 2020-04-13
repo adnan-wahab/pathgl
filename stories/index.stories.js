@@ -1,7 +1,8 @@
 import React from 'react'
 import GraphRenderer from '../src';
 export default { title: 'Initial Test' };
-import theCutJSON from './public/test123.json';
+import theCutJSON from './public/mobile-banking.json';
+
 import mbJSON from './public/mobile-banking.json';
 
 import processData from './processData';

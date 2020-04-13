@@ -1,6 +1,6 @@
 var Bezier = require('bezier-js')
 
-function createDrawLines (regl, attributes, getModel, getProjection, getView) {
+function createCurves (regl, attributes, getModel, getProjection, getView) {
   window.attr = attributes
   if (! attributes.edges) return () => {}
   //attributes.edges = attributes.edges.filter((d, i) => )
@@ -13,18 +13,17 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
 
   let positions = []
 
+
 attributes.edges.curves.forEach((d, i ) => {
   var curve = new Bezier(d.x1, d.y1 , d.x2, d.y1 , d.x2, d.y2);
   var LUT = curve.getLUT(16);
   LUT.forEach(function(p) { positions.push(p.x, p.y) });
+  //LUT.forEach(function(p) { positions.push(Math.random(), Math.random()) });
 
 })
+
+console.log(positions, 123)
 window.positions = positions
-  // var curve = new Bezier(-1, -1 , 1, -1 , 1, 1);
-  // var b = function() {
-  //   var LUT = curve.getLUT(16);
-  //   LUT.forEach(function(p) { positions.push(p.x, p.y) });
-  // }
 
 
 
@@ -103,4 +102,4 @@ window.positions = positions
     return draw
 }
 
-export default createDrawLines
+export default createCurves

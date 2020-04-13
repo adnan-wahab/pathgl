@@ -4,29 +4,36 @@ const clip = (d) => {
   return d / 3000
 }
 
+let preprocessData = (d) => {
+  let keys = {}
+  d.nodes.forEach((node, id) => {
+    node.size = 0
+    keys[node.uuid] = id
+  })
+
+  d.edges.forEach(d => {
+    d.target = keys[d.target]
+    d.source = keys[d.source]
+  })
+  let normalize = (d, i) => {
+    d.nodes = d.nodes.map(id => keys[id])
+  }
+
+  _.each(d.kmeans, normalize)
+  _.each(d.louvain, normalize)
+  _.each(d.greedy, normalize)
+  console.log(d)
+}
 
 let processData = (data) => {
-  const clip = (d) => {
-    return d / 3000
-  }
-  let pointList = data.nodes
-      .map((d, idx) => {
-        return [clip(d.x), clip(d.y), d.uuid || d.id]
-      })
-  data.pointList = pointList
-
-  let points = {}
-  data.nodes.forEach(d => points[d.uuid || d.id] = d)
-
-  let getNode = (id) => {
-    return points[id]
-  }
+preprocessData(data)
 
  let colors = data.nodes.map(d => {
-   return [Math.random(), ]
+   d.x = clip(d.x)
+   d.y = clip(d.y)
+   return [Math.random(), Math.random(), Math.random()]
  })
 
-  let position = _.flatten(data.nodes.map(d => [clip(d.x), clip(d.y)]))
   var accent = d3.scaleOrdinal(d3.schemeAccent);
 
   let sentimentValue = _.flatten(data.nodes.map((d) => {
@@ -34,19 +41,40 @@ let processData = (data) => {
     return [c.r /255 , c.g /255 , c.b /255];
   }));
 
+  console.log(data)
   let counts = {}
   data.edges.forEach(d => {
-    counts[d.target] = counts[d.target]
+    //debugger
+    //console.log(d)
+    data.nodes[d.target].size += 1
+    data.nodes[d.source].size += 1
   })
 
-    let edges = new Array(data.edges.length * 4).fill(0);
+
+
+  let position =
+  (data.nodes.map((d, id) => [(d.x), (d.y), d.size, id]))
+
+
+    let edges = {
+      sourcePositions: new Array(data.edges.length * 2).fill(0),
+      targetPositions: new Array(data.edges.length * 2).fill(0),
+      curves: new Array(data.edges.length * 2).fill(0)
+    };
     data.edges.forEach((edge, idx) => {
-      let source = getNode(edge.source), target = getNode(edge.target);
-      //if( ! source || ! target ) debugger
-      edges[idx*4] = clip(source.x)
-      edges[idx*4+1] = clip(source.y)
-      edges[idx*4+2] = clip(target.x)
-      edges[idx*4+3] = clip(target.y)
+      let source = data.nodes[edge.source], target = data.nodes[edge.target];
+
+      edges.sourcePositions[idx*2] = clip(source.x)
+      edges.sourcePositions[idx*2+1] = clip(source.y)
+      edges.targetPositions[idx*2] = clip(target.x)
+      edges.targetPositions[idx*2+1] = clip(target.y)
+
+      edges.curves[idx] = {
+        x1: clip(source.x),
+        y1: clip(source.y),
+        x2: clip(target.x),
+        y2: clip(target.y),
+      }
     });
 
     let edgeColors = new Array(data.edges.length * 3).fill(0);
@@ -54,8 +82,8 @@ let processData = (data) => {
       let x = Object.entries(data.kmeans)
       x.map(tup => {
         let {color, nodes} = tup[1]
-        nodes.forEach(id => getNode(id).color = color)
-
+        console.log(color)
+        nodes.forEach(id => { data.nodes[id].color = color })
       })
     }
 
@@ -83,17 +111,15 @@ let processData = (data) => {
       return legend.indexOf(c);
     }));
 
-
     return {
+      nodes: data.nodes,
       position,
-      sizes:sizes,
       edges,
       edgeColors,
       color,
       dates,
       sentimentValue,
-      stateIndex,
-      pointList
+      stateIndex
 
   }
 }

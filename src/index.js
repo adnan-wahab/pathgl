@@ -85,18 +85,15 @@ const POINT_FS = `
 #ifdef GL_OES_standard_derivatives
 #extension GL_OES_standard_derivatives : enable
 #endif
-
 precision mediump float;
+
 uniform vec2 selection;
 
 varying vec4 vColor;
+varying vec3 borderColor;
 
 void main() {
-  const vec3 bgColor= vec3(
-    0.1411764705882353,
-  0.15294117647058825,
-  0.18823529411764706
-  );
+
   float r = 0.0, delta = 0.0, alpha = 1.0;
   vec2 cxy = 2.0 * gl_PointCoord - 1.0;
   r = dot(cxy, cxy);
@@ -106,7 +103,8 @@ void main() {
     alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
   #endif
 
-  vec3 color =   (r < 0.75) ? vColor.rgb : bgColor;
+  vec3 color =   (r < 0.75) ? vColor.rgb : borderColor;
+  if (r > .95) discard;
   gl_FragColor = vec4(color, alpha * vColor.a);
 }
 `
@@ -134,31 +132,46 @@ uniform vec2 dimensions;
 
 
 
+
 uniform float selectedCluster;
 
 uniform bool flatSize;
 
 // variables to send to the fragment shader
 varying vec4 vColor;
+varying vec3 borderColor;
 
 void main() {
   vec2 position = pos.xy;
   // position.x = position.x / dimensions.x;
   // position.y = position.y / dimensions.y;
 
+
   //if (! (dates > dateFilter.x && dates < dateFilter.y)) return;
 
   gl_Position = projection * view * model * vec4(position.xy, 0.0, 1.);
 
-  vColor = vec4(1.);
+  vColor = vec4(color, 1.);
 
   float finalScaling = pow(sizeAttenuation, scaling);
   finalScaling = 4. + pow(pointSize, sizeAttenuation);
 
   //if (selectedCluster > -.1 && selectedCluster != stateIndex.x) finalScaling = 0.;
 
-  //finalScaling += pos.z;
+
   finalScaling = 10.;
+
+  if (pos.w == hoveredPoint) finalScaling = 20.;
+  if (pos.w == hoveredPoint) borderColor = vec3(1);
+  else borderColor = vec3(0.1411764705882353, 0.15294117647058825, 0.18823529411764706);
+
+  if (pos.w == selectedPoint) finalScaling = 30.;
+  if (pos.w == selectedPoint) vColor = vec4(1);
+
+  if (pos.w == hoveredPoint) gl_Position.z -= .1;
+  if (pos.w == selectedPoint) gl_Position.z -= .2;
+
+  finalScaling += pos.z;
   gl_PointSize = finalScaling + pointSizeExtra;
 
 }
@@ -261,7 +274,7 @@ const creategraph = (options) => {
 
   const opacity = 1
 
-  let hoveredPoint
+  let hoveredPoint = -1
   let isMouseInCanvas = false
 
   // Get a copy of the current mouse position
@@ -300,8 +313,9 @@ const creategraph = (options) => {
 
   const raycast = () => {
     let pointSize = 100; //MAD HACKS
-    const [x, y] = getScatterGlPos()
+    const [mouseX, mouseY] = getScatterGlPos()
     const scaling = 1 || camera.scaling
+    //console.log(x,y, width, height)
 
     const scaledPointSize =
       2 *
@@ -314,19 +328,19 @@ const creategraph = (options) => {
 
     // Get all points within a close range
     const pointsInBBox = searchIndex.range(
-      x - xNormalizedScaledPointSize,
-      y - yNormalizedScaledPointSize,
-      x + xNormalizedScaledPointSize,
-      y + yNormalizedScaledPointSize
+      mouseX - xNormalizedScaledPointSize,
+      mouseY - yNormalizedScaledPointSize,
+      mouseX + xNormalizedScaledPointSize,
+      mouseY + yNormalizedScaledPointSize
     )
-    console.log(pointsInBBox)
+    //console.log('pointsinbbox', pointsInBBox)
     // Find the closest point
     let minDist = scaledPointSize
     let clostestPoint
 
     pointsInBBox.forEach(idx => {
-      const [ptX, ptY] = searchIndex.points[idx]
-      const d = dist(ptX, ptY, x, y)
+      const {x, y} = searchIndex.points[idx]
+      const d = dist(x, y, mouseX, mouseY)
       if (d < minDist) {
         minDist = d
         clostestPoint = idx
@@ -357,6 +371,7 @@ const creategraph = (options) => {
   }
 
   const select = (points ) => {
+
     if (typeof points === 'string') selection = [pointList.findIndex(d => d[2] === points)]
     else selection = points
     drawRaf() // eslint-disable-line no-use-before-define
@@ -405,7 +420,7 @@ const creategraph = (options) => {
     // Only ray cast if the mouse cursor is inside
     //if (isMouseInCanvas && !mouseDownShift) {
       const clostestPoint = raycast()
-      console.log(clostestPoint)
+      //console.log('lostestpoint', clostestPoint)
       hover(clostestPoint) // eslint-disable-line no-use-before-define
     //}
     // Always redraw when mouse as the user might have panned
@@ -452,9 +467,9 @@ const creategraph = (options) => {
   createCurves(options.regl, attributes, getModel, getProjection, getView) :
     createDrawLines(options.regl, attributes, getModel, getProjection, getView);
 
+console.log(options.drawCurves, options)
   const drawAllPoints = (
     getPointSizeExtra,
-    getNumPoints
   ) =>
     regl({
       frag: POINT_FS,
@@ -475,6 +490,8 @@ const creategraph = (options) => {
       attributes: schema.attributes,
 
       uniforms: {
+        hoveredPoint: () => hoveredPoint,
+        selectedPoint: () => selection[0] || -1,
         dimensions: [window.innerWidth, window.innerHeight],
         projection: getProjection,
         time: (ctx) => {console.log(ctx.time, ctx.tick); return ctx.time },
@@ -488,8 +505,7 @@ const creategraph = (options) => {
         sizeAttenuation: regl.prop('sizeAttenuation'),
         flatSize: regl.prop('flatSize')
       },
-
-      count: attributes.nodes.length,
+      count: getNormalNumPoints,
       primitive: 'points'
     })
 
@@ -517,8 +533,7 @@ const creategraph = (options) => {
   const drawRecticle = (state) => {
     if (!(hoveredPoint >= 0)) return
 
-    const [x, y] = searchIndex.points[hoveredPoint].slice(0, 2)
-
+    const {x, y} = searchIndex.points[hoveredPoint]
     // Normalized device coordinate of the point
     const v = [x, y, 0, 1]
 
@@ -546,8 +561,8 @@ const creategraph = (options) => {
     isInit = false
     pointList = newPoints
     numPoints = newPoints.length
-
-    searchIndex = new KDBush(newPoints, p => p[0], p => p[1], 16)
+    console.log(newPoints, newPoints.length)
+    searchIndex = new KDBush(newPoints, p => p.x, p => p.y, 16)
 
     isInit = true
   }
@@ -563,8 +578,9 @@ const creategraph = (options) => {
     // Update camera
     isViewChanged = camera.tick()
 
-    //if (state.showLines) drawLines(state)
+    if (state.showLines) drawLines(state)
     drawRecticle(state);
+
     if (state.showNodes) drawPointBodies(state);
 
   }

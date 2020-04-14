@@ -7,13 +7,6 @@ import mbJSON from './public/mobile-banking.json';
 import processData from './processData';
 let favorites = []
 
-
-export const asdf = () => {
-  let button = document.createElement('button')
-  button.innerText = '😀 😎 👍 💯';
-  return button
-}
-
 export const dateFilter = () => {
   let canvas = document.createElement('canvas')
 

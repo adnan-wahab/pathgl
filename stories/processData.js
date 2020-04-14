@@ -11,10 +11,13 @@ let preprocessData = (d) => {
     keys[node.uuid] = id
   })
 
-  d.edges.forEach(d => {
+
+
+  d.edges = d.edges.map((d, i ) => {
     d.target = keys[d.target]
     d.source = keys[d.source]
-  })
+    if (d.source && d.target) return d
+  }).filter(d => d)
   let normalize = (d, i) => {
     d.nodes = d.nodes.map(id => keys[id])
   }
@@ -41,11 +44,11 @@ preprocessData(data)
     return [c.r /255 , c.g /255 , c.b /255];
   }));
 
-  console.log(data)
   let counts = {}
   data.edges.forEach(d => {
     //debugger
     //console.log(d)
+    if (! data.nodes[d.target] ) debugger
     data.nodes[d.target].size += 1
     data.nodes[d.source].size += 1
   })
@@ -82,8 +85,8 @@ preprocessData(data)
       let x = Object.entries(data.kmeans)
       x.map(tup => {
         let {color, nodes} = tup[1]
-        console.log(color)
-        nodes.forEach(id => { data.nodes[id].color = color })
+
+        nodes.forEach(id => { (data.nodes[id] || {}).color = color })
       })
     }
 

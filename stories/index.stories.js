@@ -7,23 +7,7 @@ import mbJSON from './public/mobile-banking.json';
 
 import processData from './processData';
 
-
-export const theCut = () => {
-  let canvas = document.createElement('canvas')
-
-  let attributes = processData(theCutJSON)
-
-  let graph = GraphRenderer.init({
-    attributes,
-    canvas: canvas,
-    onClick: (point, idx, events) => {
-      graph.setState({favorites})
-    }
-  })
-
-  return canvas
-};
-
+let favorites = []
 export const inDegreeSizing = () => {
   let canvas = document.createElement('canvas')
 
@@ -52,7 +36,8 @@ export const flatSizing = () => {
     attributes,
     canvas: canvas,
     initialState: {
-      showLines: false
+      showLines: false,
+      flatSize: true
     },
     onClick: (point, idx, events) => {
       //graph.setState({favorites})

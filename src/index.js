@@ -1,4 +1,3 @@
-import createDom2dCamera from 'dom-2d-camera';
 import KDBush from 'kdbush'
 import withThrottle from 'lodash-es/throttle'
 import withRaf from 'with-raf'
@@ -8,6 +7,8 @@ import _ from 'lodash'
 
 import createLine from './lines'
 import createCurves from './curves'
+import createDom2dCamera from './2d-camera';
+
 
 import {
   COLOR_ACTIVE_IDX,
@@ -128,6 +129,8 @@ const BG_COLOR = [    0.1411764705882353,
     if (pos.w == selectedPoint) gl_Position.z -= .2;
 
     finalScaling += pos.z;
+
+    if (flatSize) finalScaling = 10.;
     gl_PointSize = finalScaling + pointSizeExtra;
 
   }

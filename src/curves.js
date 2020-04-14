@@ -11,24 +11,9 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
     16
   );
 
-  console.log('adnan!',
-
-
-    getModel(), getProjection(), getView()
-  )
-  if (! attributes.edges) return () => {}
-  //attributes.edges = attributes.edges.filter((d, i) => )
-  // make sure to respect system limitations.
-  var lineWidth = 2
-  if (lineWidth > regl.limits.lineWidthDims[1]) {
-    console.log(lineWidth = regl.limits.lineWidthDims[1])
-  }
-
-
   let positions = []
 
-  console.log('wtf ,am', getModel())
-attributes.edges.curves.forEach((d, i ) => {
+  attributes.edges.curves.forEach((d, i ) => {
   var curve = new Bezier(d.x1, d.y1 , d.x2, d.y1 , d.x2, d.y2);
   var LUT = curve.getLUT(50);
   LUT.forEach(function(p) { positions.push([p.x, p.y, 0]) });

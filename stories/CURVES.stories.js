@@ -7,19 +7,19 @@ import samps from './public/10samps.json';
 
 import processData from './processData';
 
-export const InstancedBeziers = () => {
-  let canvas = document.createElement('canvas')
-
-  let attributes = processData(samps)
-
-  let graph = GraphRenderer.init({
-    attributes,
-    drawCurves: true,
-    canvas: canvas,
-    onClick: (point, idx, events) => {
-      graph.setState({favorites})
-    }
-  })
-
-  return canvas
-};
+// export const InstancedBeziers = () => {
+//   let canvas = document.createElement('canvas')
+//
+//   let attributes = processData(samps)
+//
+//   let graph = GraphRenderer.init({
+//     attributes,
+//     drawCurves: true,
+//     canvas: canvas,
+//     onClick: (point, idx, events) => {
+//       graph.setState({favorites})
+//     }
+//   })
+//
+//   return canvas
+// };

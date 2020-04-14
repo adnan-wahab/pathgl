@@ -1,7 +1,11 @@
 var Bezier = require('bezier-js')
 
 function createCurves (regl, attributes, getModel, getProjection, getView) {
-  window.attr = attributes
+  console.log(
+
+
+    getModel(), getProjection(), getView()
+  )
   if (! attributes.edges) return () => {}
   //attributes.edges = attributes.edges.filter((d, i) => )
   // make sure to respect system limitations.
@@ -22,8 +26,7 @@ attributes.edges.curves.forEach((d, i ) => {
 
 })
 
-console.log(positions, 123)
-window.positions = positions
+//window.positions = positions
 
 
 

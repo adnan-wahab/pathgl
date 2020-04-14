@@ -9,7 +9,6 @@ import _ from 'lodash'
 import createLine from './lines'
 import createDrawLines from './edges'
 import createCurves from './curves'
-import createDrawNodes from './nodes'
 
 import {
   COLOR_ACTIVE_IDX,
@@ -39,6 +38,103 @@ const BG_COLOR = [    0.1411764705882353,
   0.15294117647058825,
   0.18823529411764706, 1]
 
+  const POINT_FS = `
+  #ifdef GL_OES_standard_derivatives
+  #extension GL_OES_standard_derivatives : enable
+  #endif
+  precision mediump float;
+
+  uniform vec2 selection;
+
+  varying vec4 vColor;
+  varying vec3 borderColor;
+
+  void main() {
+
+    float r = 0.0, delta = 0.0, alpha = 1.0;
+    vec2 cxy = 2.0 * gl_PointCoord - 1.0;
+    r = dot(cxy, cxy);
+
+    #ifdef GL_OES_standard_derivatives
+      delta = fwidth(r);
+      alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
+    #endif
+
+    vec3 color =   (r < 0.75) ? vColor.rgb : borderColor;
+    if (r > .95) discard;
+    gl_FragColor = vec4(color, alpha * vColor.a);
+  }
+  `
+  const POINT_VS = `
+  precision mediump float;
+  uniform float pointSize;
+  uniform float pointSizeExtra;
+  uniform float numNodes;
+  uniform float scaling;
+  uniform float sizeAttenuation;
+  uniform mat4 projection;
+  uniform mat4 model;
+  uniform mat4 view;
+
+  uniform vec2 dateFilter;
+
+  attribute vec4 pos;
+  attribute vec3 color;
+  attribute vec2 stateIndex;
+  attribute float dates;
+
+  uniform float hoveredPoint;
+  uniform float selectedPoint;
+  uniform vec2 dimensions;
+
+
+
+
+  uniform float selectedCluster;
+
+  uniform bool flatSize;
+
+  // variables to send to the fragment shader
+  varying vec4 vColor;
+  varying vec3 borderColor;
+
+  void main() {
+    vec2 position = pos.xy;
+    // position.x = position.x / dimensions.x;
+    // position.y = position.y / dimensions.y;
+
+
+    //if (! (dates > dateFilter.x && dates < dateFilter.y)) return;
+
+    gl_Position = projection * view * model * vec4(position.xy, 0.0, 1.);
+
+    vColor = vec4(color, 1.);
+
+    float finalScaling = pow(sizeAttenuation, scaling);
+    finalScaling = 4. + pow(pointSize, sizeAttenuation);
+
+    //if (selectedCluster > -.1 && selectedCluster != stateIndex.x) finalScaling = 0.;
+
+
+    finalScaling = 10.;
+
+    if (pos.w == hoveredPoint) finalScaling = 20.;
+    if (pos.w == hoveredPoint) borderColor = vec3(1);
+    else borderColor = vec3(0.1411764705882353, 0.15294117647058825, 0.18823529411764706);
+
+    if (pos.w == selectedPoint) finalScaling = 30.;
+    if (pos.w == selectedPoint) vColor = vec4(1);
+
+    if (pos.w == hoveredPoint) gl_Position.z -= .1;
+    if (pos.w == selectedPoint) gl_Position.z -= .2;
+
+    finalScaling += pos.z;
+    gl_PointSize = finalScaling + pointSizeExtra;
+
+  }
+  `
+
+
 import {
   checkReglExtensions,
   createRegl,
@@ -53,129 +149,9 @@ import {
   min
 } from './utils'
 
-const BG_FS = `
-precision mediump float;
-
-uniform sampler2D texture;
-
-varying vec2 uv;
-
-void main () {
-  gl_FragColor = texture2D(texture, uv);
-}
-`
-const BG_VS = `
-precision mediump float;
-
-uniform mat4 projection;
-uniform mat4 model;
-uniform mat4 view;
-
-attribute vec2 position;
-
-varying vec2 uv;
-
-void main () {
-  uv = position;
-  gl_Position = projection * view * model *  vec4(1.0 - 2.0 * position, 0, 1);
-}
-`
-
-const POINT_FS = `
-#ifdef GL_OES_standard_derivatives
-#extension GL_OES_standard_derivatives : enable
-#endif
-precision mediump float;
-
-uniform vec2 selection;
-
-varying vec4 vColor;
-varying vec3 borderColor;
-
-void main() {
-
-  float r = 0.0, delta = 0.0, alpha = 1.0;
-  vec2 cxy = 2.0 * gl_PointCoord - 1.0;
-  r = dot(cxy, cxy);
-
-  #ifdef GL_OES_standard_derivatives
-    delta = fwidth(r);
-    alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
-  #endif
-
-  vec3 color =   (r < 0.75) ? vColor.rgb : borderColor;
-  if (r > .95) discard;
-  gl_FragColor = vec4(color, alpha * vColor.a);
-}
-`
-const POINT_VS = `
-precision mediump float;
-uniform float pointSize;
-uniform float pointSizeExtra;
-uniform float numNodes;
-uniform float scaling;
-uniform float sizeAttenuation;
-uniform mat4 projection;
-uniform mat4 model;
-uniform mat4 view;
-
-uniform vec2 dateFilter;
-
-attribute vec4 pos;
-attribute vec3 color;
-attribute vec2 stateIndex;
-attribute float dates;
-
-uniform float hoveredPoint;
-uniform float selectedPoint;
-uniform vec2 dimensions;
 
 
 
-
-uniform float selectedCluster;
-
-uniform bool flatSize;
-
-// variables to send to the fragment shader
-varying vec4 vColor;
-varying vec3 borderColor;
-
-void main() {
-  vec2 position = pos.xy;
-  // position.x = position.x / dimensions.x;
-  // position.y = position.y / dimensions.y;
-
-
-  //if (! (dates > dateFilter.x && dates < dateFilter.y)) return;
-
-  gl_Position = projection * view * model * vec4(position.xy, 0.0, 1.);
-
-  vColor = vec4(color, 1.);
-
-  float finalScaling = pow(sizeAttenuation, scaling);
-  finalScaling = 4. + pow(pointSize, sizeAttenuation);
-
-  //if (selectedCluster > -.1 && selectedCluster != stateIndex.x) finalScaling = 0.;
-
-
-  finalScaling = 10.;
-
-  if (pos.w == hoveredPoint) finalScaling = 20.;
-  if (pos.w == hoveredPoint) borderColor = vec3(1);
-  else borderColor = vec3(0.1411764705882353, 0.15294117647058825, 0.18823529411764706);
-
-  if (pos.w == selectedPoint) finalScaling = 30.;
-  if (pos.w == selectedPoint) vColor = vec4(1);
-
-  if (pos.w == hoveredPoint) gl_Position.z -= .1;
-  if (pos.w == selectedPoint) gl_Position.z -= .2;
-
-  finalScaling += pos.z;
-  gl_PointSize = finalScaling + pointSizeExtra;
-
-}
-`
 const NOOP = () => {}
 
 const creategraph = (options) => {
@@ -222,7 +198,7 @@ const creategraph = (options) => {
           size: 1
         }
       }
-  window.attributes = attributes
+
   //props schema - make external
   let state = {
     sizeAttenuation: .1,
@@ -235,8 +211,22 @@ const creategraph = (options) => {
     edgeColors: true,
     selectedCluster: -1,
     favorites: [],
-    dateFilter: [0,Infinity]
+    dateFilter: [0,Infinity],
+    camera:null
   };
+
+  const getPointSize = () => pointSize * window.devicePixelRatio
+  const getNormalPointSizeExtra = () => 0
+  const getProjection = () => projection
+  const getView = () => camera.view
+
+  const getPositionBuffer = () => {
+    return attributes.position
+  }
+  const getModel = () => { return model }
+  const getScaling = () => state.scaling
+  const getNormalNumPoints = () => numPoints
+
 
   _.extend(state, options.initialState)
 
@@ -276,6 +266,13 @@ const creategraph = (options) => {
 
   let hoveredPoint = -1
   let isMouseInCanvas = false
+
+  const initCamera = () => {
+    camera = createDom2dCamera(canvas)
+    if (initialView) camera.set(mat4.clone(initialView))
+    else camera.lookAt([...initialTarget], initialDistance, initialRotation)
+  }
+  initCamera()
 
   // Get a copy of the current mouse position
   const getMousePos = () => mousePosition.slice()
@@ -365,8 +362,6 @@ const creategraph = (options) => {
   const selectCluster = (n) => {
     if (state.selectedCluster === n) state.selectedCluster = -n
     else state.selectedCluster = n
-    //state.selectedCluster = n
-    // selection = points.map(point => pointList.findIndex(d => d[2] === point))
     drawRaf() // eslint-disable-line no-use-before-define
   }
 
@@ -431,6 +426,7 @@ const creategraph = (options) => {
     viewAspectRatio = width / height
     projection = mat4.fromScaling([], [1 / viewAspectRatio, 1, 1])
     model = mat4.fromScaling([], [dataAspectRatio, 1, 1])
+    console.log('updating model', model)
   }
 
   const setHeight = newHeight => {
@@ -445,29 +441,11 @@ const creategraph = (options) => {
     canvas.width = width * window.devicePixelRatio
   }
 
-  const getPointSize = () => pointSize * window.devicePixelRatio
-  const getNormalPointSizeExtra = () => 0
-  const getProjection = () => projection
-  const getView = () => camera.view
-
-  const getPositionBuffer = () => {
-    return attributes.position
-  }
-  const getModel = () => model
-  const getScaling = () => state.scaling
-  const getNormalNumPoints = () => numPoints
-
-  window.onStyleChange = (prop) => {
-    console.log('onStyleChange', hi)
-    hi = prop
-    drawRaf()
-  }
   //options.drawCurves = false
   let drawLines = options.drawCurves ?
   createCurves(options.regl, attributes, getModel, getProjection, getView) :
     createDrawLines(options.regl, attributes, getModel, getProjection, getView);
 
-console.log(options.drawCurves, options)
   const drawAllPoints = (
     getPointSizeExtra,
   ) =>
@@ -655,15 +633,10 @@ console.log(options.drawCurves, options)
     refresh()
   };
 
-  const initCamera = () => {
-    camera = createDom2dCamera(canvas)
-    if (initialView) camera.set(mat4.clone(initialView))
-    else camera.lookAt([...initialTarget], initialDistance, initialRotation)
-  }
+
 
   const init = () => {
     updateViewAspectRatio()
-    initCamera()
 
     recticleHLine = createLine(regl, {
       color: recticleColor,
@@ -701,7 +674,17 @@ console.log(options.drawCurves, options)
     drawRaf()
     _.each(options, (k,v) => { state[v] = k })
   }
-  //context
+
+
+
+  console.log(
+
+
+    getModel(), getProjection(), getView()
+  )
+
+
+
   return {
     setProps: (props) => {
       _.each(props.attributes, (k,v) => { attributes[v] = k })

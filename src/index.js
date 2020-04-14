@@ -312,7 +312,6 @@ const creategraph = (options) => {
     let pointSize = 100; //MAD HACKS
     const [mouseX, mouseY] = getScatterGlPos()
     const scaling = 1 || camera.scaling
-    //console.log(x,y, width, height)
 
     const scaledPointSize =
       2 *
@@ -330,7 +329,6 @@ const creategraph = (options) => {
       mouseX + xNormalizedScaledPointSize,
       mouseY + yNormalizedScaledPointSize
     )
-    //console.log('pointsinbbox', pointsInBBox)
     // Find the closest point
     let minDist = scaledPointSize
     let clostestPoint
@@ -415,7 +413,6 @@ const creategraph = (options) => {
     // Only ray cast if the mouse cursor is inside
     //if (isMouseInCanvas && !mouseDownShift) {
       const clostestPoint = raycast()
-      //console.log('lostestpoint', clostestPoint)
       hover(clostestPoint) // eslint-disable-line no-use-before-define
     //}
     // Always redraw when mouse as the user might have panned
@@ -472,7 +469,7 @@ const creategraph = (options) => {
         selectedPoint: () => selection[0] || -1,
         dimensions: [window.innerWidth, window.innerHeight],
         projection: getProjection,
-        time: (ctx) => {console.log(ctx.time, ctx.tick); return ctx.time },
+        //time: (ctx) => {return ctx.time },
         dateFilter: regl.prop('dateFilter'),
         selectedCluster: () => (attributes.position.length < 1 ? state.selectedCluster : -100 ),
         model: getModel,
@@ -504,8 +501,6 @@ const creategraph = (options) => {
     )
 
     vec4.transformMat4(v, v, scratch)
-    console.log(v)
-
   }
 
   const drawRecticle = (state) => {
@@ -539,7 +534,6 @@ const creategraph = (options) => {
     isInit = false
     pointList = newPoints
     numPoints = newPoints.length
-    console.log(newPoints, newPoints.length)
     searchIndex = new KDBush(newPoints, p => p.x, p => p.y, 16)
 
     isInit = true
@@ -616,7 +610,6 @@ const creategraph = (options) => {
   const reset = () => {
     if (initialView) camera.set(mat4.clone(initialView))
     else camera.lookAt([...initialTarget], initialDistance, initialRotation)
-    //pubSub.publish('view', camera.view)
   }
 
   const mouseEnterCanvasHandler = () => {
@@ -700,8 +693,7 @@ const creategraph = (options) => {
       withDraw(reset)();
     },
     hoverPoint: (uuid) => {
-      console.log('uid', uuid,  pointList.findIndex(d => d[2] === uuid))
-      hoveredPoint = pointList.findIndex(d => d[2] === uuid)
+      hoveredPoint = pointList.findIndex(d => d.uuid === uuid)
       draw()
     },
     refresh,

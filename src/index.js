@@ -7,7 +7,6 @@ import _ from 'lodash'
 
 
 import createLine from './lines'
-import createDrawLines from './edges'
 import createCurves from './curves'
 
 import {
@@ -106,7 +105,7 @@ const BG_COLOR = [    0.1411764705882353,
 
     //if (! (dates > dateFilter.x && dates < dateFilter.y)) return;
 
-    gl_Position = projection * view * model * vec4(position.xy, 0.0, 1.);
+    gl_Position = projection * view * vec4(position.xy, 0.0, 1.);
 
     vColor = vec4(color, 1.);
 
@@ -212,18 +211,21 @@ const creategraph = (options) => {
     selectedCluster: -1,
     favorites: [],
     dateFilter: [0,Infinity],
-    camera:null
+    camera:null,
+    model: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
   };
 
   const getPointSize = () => pointSize * window.devicePixelRatio
   const getNormalPointSizeExtra = () => 0
-  const getProjection = () => projection
-  const getView = () => camera.view
+  let getProjection = () => { return state.projection }
+
+  const getView = () => {
+    return camera.view}
 
   const getPositionBuffer = () => {
     return attributes.position
   }
-  const getModel = () => { return model }
+  const getModel = () => { return state.model }
   const getScaling = () => state.scaling
   const getNormalNumPoints = () => numPoints
 
@@ -252,8 +254,6 @@ const creategraph = (options) => {
   let searchIndex
   let viewAspectRatio
   const dataAspectRatio = DEFAULT_DATA_ASPECT_RATIO
-  let projection
-  let model
   const showRecticle = initialShowRecticle
   let recticleHLine
   let recticleVLine
@@ -297,8 +297,8 @@ const creategraph = (options) => {
       scratch,
       mat4.multiply(
         scratch,
-        projection,
-        mat4.multiply(scratch, camera.view, model)
+          state.projection,
+        mat4.multiply(scratch, camera.view, state.model)
       )
     )
 
@@ -421,9 +421,9 @@ const creategraph = (options) => {
 
   const updateViewAspectRatio = () => {
     viewAspectRatio = width / height
-    projection = mat4.fromScaling([], [1 / viewAspectRatio, 1, 1])
-    model = mat4.fromScaling([], [dataAspectRatio, 1, 1])
-    console.log('updating model', model)
+    state.projection = mat4.fromScaling([], [1 / viewAspectRatio, 1, 1])
+    state.model = mat4.fromScaling([], [dataAspectRatio, 1, 1])
+    //console.log('updating model', model)
   }
 
   const setHeight = newHeight => {
@@ -438,10 +438,8 @@ const creategraph = (options) => {
     canvas.width = width * window.devicePixelRatio
   }
 
-  //options.drawCurves = false
-  let drawLines = options.drawCurves ?
-  createCurves(options.regl, attributes, getModel, getProjection, getView) :
-    createDrawLines(options.regl, attributes, getModel, getProjection, getView);
+
+  let drawLines = createCurves(options.regl, attributes, getModel, getProjection, getView)
 
   const drawAllPoints = (
     getPointSizeExtra,
@@ -496,8 +494,8 @@ const creategraph = (options) => {
     let v = [x, y, 0, 1]
     mat4.multiply(
       scratch,
-      projection,
-      mat4.multiply(scratch, camera.view, model)
+        state.projection,
+      mat4.multiply(scratch, camera.view, state.model)
     )
 
     vec4.transformMat4(v, v, scratch)
@@ -516,8 +514,8 @@ const creategraph = (options) => {
     // entire view container and not within the view of the graph
     mat4.multiply(
       scratch,
-      projection,
-      mat4.multiply(scratch, camera.view, model)
+        state.projection,
+      mat4.multiply(scratch, camera.view, state.model)
     )
 
     vec4.transformMat4(v, v, scratch)
@@ -670,7 +668,7 @@ const creategraph = (options) => {
 
 
 
-  console.log(
+  console.log('adnan',
 
 
     getModel(), getProjection(), getView()

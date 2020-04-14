@@ -64,16 +64,16 @@ preprocessData(data)
     data.edges.forEach((edge, idx) => {
       let source = data.nodes[edge.source], target = data.nodes[edge.target];
 
-      edges.sourcePositions[idx*2] = clip(source.x)
-      edges.sourcePositions[idx*2+1] = clip(source.y)
-      edges.targetPositions[idx*2] = clip(target.x)
-      edges.targetPositions[idx*2+1] = clip(target.y)
+      edges.sourcePositions[idx*2] = (source.x)
+      edges.sourcePositions[idx*2+1] = (source.y)
+      edges.targetPositions[idx*2] = (target.x)
+      edges.targetPositions[idx*2+1] = (target.y)
 
       edges.curves[idx] = {
-        x1: clip(source.x),
-        y1: clip(source.y),
-        x2: clip(target.x),
-        y2: clip(target.y),
+        x1: (source.x),
+        y1: (source.y),
+        x2: (target.x),
+        y2: (target.y),
       }
     });
 

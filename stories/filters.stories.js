@@ -1,40 +1,51 @@
 import React from 'react'
 import GraphRenderer from '../src';
 export default { title: 'Filter Tests' };
-import theCutJSON from './public/thecut.json';
-import mbJSON from './public/mobile-banking.json';
+import createGraphOnce from './singleton';
 
-import processData from './processData';
-let favorites = []
 
 export const dateFilter = () => {
-  let canvas = document.createElement('canvas')
+  let [graph, canvas] = createGraphOnce()
 
-  let attributes = processData(mbJSON)
+  graph.setState({flatSize: true})
+  let div = document.createElement('div')
 
-  let graph = GraphRenderer.init({
-    attributes,
-    canvas: canvas,
-    onClick: (point, idx, events) => {
-      graph.setState({favorites})
-    }
-  })
+  let input = document.createElement('input')
+  input.type = 'date'
+  div.appendChild(input)
 
-  return canvas
+
+  div.appendChild(canvas)
+  console.log(div)
+  return div
 };
 
 export const sentimentFilter = () => {
-  let canvas = document.createElement('canvas')
+  let [graph, canvas] = createGraphOnce()
 
-  let attributes = processData(mbJSON)
+  graph.setState({flatSize: true})
 
-  let graph = GraphRenderer.init({
-    attributes,
-    canvas: canvas,
-    onClick: (point, idx, events) => {
-      graph.setState({favorites})
-    }
-  })
 
-  return canvas
+  let div = document.createElement('div')
+  div.innerHTML = `
+  <div>
+    <input type="radio" id="huey" name="drone" value="huey"
+           checked>
+    <label for="huey">Positive</label>
+  </div>
+
+  <div>
+    <input type="radio" id="dewey" name="drone" value="dewey">
+    <label for="dewey">Negative</label>
+  </div>
+
+  <div>
+    <input type="radio" id="louie" name="drone" value="louie">
+    <label for="louie">Normal</label>
+  </div>
+  `
+
+
+  div.appendChild(canvas)
+  return div
 };

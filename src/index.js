@@ -4,7 +4,7 @@ import withRaf from 'with-raf'
 import { mat4, vec4 } from 'gl-matrix'
 import _ from 'lodash'
 
-
+import processData from './processData';
 import createLine from './lines'
 import createCurves from './curves'
 import createDom2dCamera from './2d-camera';
@@ -215,6 +215,7 @@ const creategraph = (options) => {
     favorites: [],
     dateFilter: [0,Infinity],
     camera:null,
+    projection:  new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
     model: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
   };
 
@@ -296,7 +297,7 @@ const creategraph = (options) => {
 
     // projection^-1 * view^-1 * model^-1 is the same as
     // model * view^-1 * projection
-    const mvp = mat4.invert(
+    let mvp = mat4.invert(
       scratch,
       mat4.multiply(
         scratch,
@@ -306,6 +307,7 @@ const creategraph = (options) => {
     )
 
     // Translate vector
+    if (! mvp) mvp = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] ;
     vec4.transformMat4(v, v, mvp)
 
     return v.slice(0, 2)
@@ -667,25 +669,21 @@ const creategraph = (options) => {
   const setState = (options) => {
     drawRaf()
     _.each(options, (k,v) => { state[v] = k })
+
+
+    if (options.color) {
+      let val = options.color
+      attributes.color = attributes.colorTypes[val] || attributes.colorTypes['kmeans']
+
+
+
+    }
   }
 
 
 
-  console.log('adnan',
-
-
-    getModel(), getProjection(), getView()
-  )
-
-
 
   return {
-    setProps: (props) => {
-      _.each(props.attributes, (k,v) => { attributes[v] = k })
-      if (props.attributes && props.attributes.pointList) setPoints(props.attributes.nodes)
-      hoveredPoint = 0
-      drawRaf()
-    },
     deselect,
     destroy,
 
@@ -707,6 +705,7 @@ const creategraph = (options) => {
 
 
 const init = (props) => {
+  props.attributes = processData(props.data)
   props.regl = createRegl(props.canvas)
   let graph = creategraph(props)
   graph._data = props

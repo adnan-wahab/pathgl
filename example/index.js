@@ -154,11 +154,8 @@ let load = (url) => {
   fetch(url)
     .then((body)=>{ return body.json() })
     .then((json)=>{
-
-      let attributes = processData(json)
-
         window.graph = GraphRenderer.init({
-          attributes,
+          data: json,
           drawCurves: true,
           canvas: canvas,
           onClick: (point, idx, events) => {

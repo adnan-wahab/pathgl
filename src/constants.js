@@ -37,28 +37,28 @@ export const DEFAULT_DISTANCE = 100000.5
 export const DEFAULT_ROTATION = 0
 // prettier-ignore
 
-export const DEFAULT_VIEW =
-
-
-new Float32Array([5.554607391357422, 0, 0, 0, 0, 5.554607391357422, 0, 0, 0, 0, 1, 0, -0.527761697769165, 0.8586031794548035, 0, 1])
-// export const DEFAULT_VIEW = new Float32Array([
-//   0.08111818879842758,
-//   0,
-//   0,
-//   0,
-//   0,
-//   0.08111818879842758,
-//   0,
-//   0,
-//   0,
-//   0,
-//   1,
-//   0,
-//   0.34380045533180237,
-//   -0.2859039008617401,
-//   0,
-//   1
-// ])
+// export const DEFAULT_VIEW =
+//
+//
+// new //Float32Array([5.554607391357422, 0, 0, 0, 0, 5.554607391357422, 0, 0, 0, 0, 1, 0, -0.527761697769165, 0.8586031794548035, 0, 1])
+export const DEFAULT_VIEW = new Float32Array([
+  0.08111818879842758,
+  0,
+  0,
+  0,
+  0,
+  0.08111818879842758,
+  0,
+  0,
+  0,
+  0,
+  1,
+  0,
+  0.34380045533180237,
+  -0.2859039008617401,
+  0,
+  1
+])
 
 // Default misc
 export const DEFAULT_BACKGROUND_IMAGE = null

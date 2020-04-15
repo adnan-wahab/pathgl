@@ -13,7 +13,7 @@ const createCamera = (
   const scratch2 = new Float32Array(16);
 
   let view = mat4.create();
-  console.log('FUCK', initViewCenter)
+  
   let viewCenter = [...initViewCenter.slice(0, 2), 0, 1];
 
   const scaleBounds = [...initScaleBounds];

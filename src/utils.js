@@ -34,7 +34,7 @@ export const checkReglExtensions = regl => {
  * @return  {function}  New Regl instance
  */
 export const createRegl = canvas => {
-  const gl = canvas.getContext('webgl')
+  const gl = canvas.getContext('webgl', {preserveDrawingBuffer: true, antialias: true })
   const extensions = []
 
   // Needed to run the tests properly as the headless-gl doesn't support all

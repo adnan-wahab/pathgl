@@ -8,6 +8,7 @@ let preprocessData = (d) => {
   let keys = {}
   d.nodes.forEach((node, id) => {
     node.size = 0
+
     keys[node.uuid] = id
   })
 
@@ -25,7 +26,6 @@ let preprocessData = (d) => {
   _.each(d.kmeans, normalize)
   _.each(d.louvain, normalize)
   _.each(d.greedy, normalize)
-  console.log(d)
 }
 
 let processData = (data) => {
@@ -40,8 +40,20 @@ let colorTypes = {}
 
   var accent = d3.scaleOrdinal(d3.schemeAccent);
 
-  let sentimentValue = _.flatten(data.nodes.map((d) => {
-    let c = d3.rgb(d3.interpolateSpectral(+ d.attributes ? d.attributes.SentimentVal : Math.random()));
+
+  let sentiment = _.flatten(data.nodes.map((d) => {
+    return + d.sentiment
+  }));
+
+  //console.log('sentiment', sentiment)
+
+  var sentimentScale = d3.scaleLinear()
+  .domain([-1, 1])
+    .range(['red', 'yellow', 'green']);
+
+
+  let sentimentColor = _.flatten(data.nodes.map((d) => {
+    let c = d3.rgb(sentimentScale(+ d.sentiment));
     return [c.r /255 , c.g /255 , c.b /255];
   }));
 
@@ -81,16 +93,39 @@ let colorTypes = {}
       }
     });
 
-    let edgeColors = new Array(data.edges.length * 3).fill(0);
-    if (data.kmeans) {
-      let x = Object.entries(data.kmeans)
-      x.map(tup => {
-        let {color, nodes} = tup[1]
+let edgeColors = new Array(data.edges.length * 3).fill(0);
 
-        nodes.forEach(id => { (data.nodes[id] || {}).color = color })
+
+let parseColor = (rgb) => {
+  let c = d3.rgb(rgb)
+  return [c.r /255 , c.g /255 , c.b /255];
+}
+    let clusters = {}
+    data.cluster_events.forEach((c) => {
+      let stuff = clusters[c.type] = []
+      c.clusters.forEach(cluster => {
+        cluster.nodes.forEach(id => {
+          stuff[id] = parseColor(cluster.color)
+        })
       })
-    }
-    //let kmeans = data.nodes.map(d => d.color)
+
+    })
+
+
+    let stateIndex = new Array(data.nodes.length).fill(0);
+
+    //data.cluster_events.forEach(c => {
+    let c = data.cluster_events[0]
+      c.clusters.forEach(cluster => {
+        //console.log('wat', cluster)
+
+        cluster.nodes.forEach(id => {
+          stateIndex[id] = [cluster.cluster_id, 1]
+        })
+      })
+    //})
+
+    //console.log(stateIndex)
 
       data.edges.forEach((edge, idx) => {
         //console.log(`%c ${edge.target}`, 'background: green;');
@@ -107,28 +142,25 @@ let colorTypes = {}
 
 
     let dates = data.nodes.map((d, idx) => {
-      return d.create_time || (Math.random() * new Date());
+      return d.create_time || + (new Date(+(new Date()) - Math.floor(Math.random()*10000000000))
+);
     })
     let color = _.flatten(data.nodes.map((d) => {
+
       let c = d3.color(d.color || 'pink');
       return [c.r /255 , c.g /255 , c.b /255];
     }));
 
-    let legend = Object.entries(data.kmeans || {}).map(d => d[1].color);
 
-    let stateIndex = _.flatten(data.nodes.map((d) => {
-      let c = d.color
-      return legend.indexOf(c);
-    }));
 
-    console.log(121)
     return {
       nodes: data.nodes,
       colorTypes: _.extend(colorTypes, {
-          kmeans: color,
-          //greedy: greedy,
-          sentiment: sentimentValue,
+          general: clusters.general,
+          specific: clusters.specific,
+          sentiment: sentimentColor,
           random: randomColor,
+          merge: clusters.general.map(d => [.9, .3, .5])
 
       }),
       position,
@@ -136,7 +168,7 @@ let colorTypes = {}
       edgeColors,
       color,
       dates,
-      sentimentValue,
+      sentiment,
       stateIndex
 
   }

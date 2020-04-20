@@ -9,6 +9,9 @@ import createLine from './lines'
 import createCurves from './curves'
 import createDom2dCamera from './2d-camera';
 
+import createDrawLines from './edges'
+
+
 
 import {
   COLOR_ACTIVE_IDX,
@@ -82,9 +85,12 @@ const BG_COLOR = [    0.1411764705882353,
   attribute vec3 color;
   attribute vec2 stateIndex;
   attribute float dates;
+  attribute float sentiment;
+
 
   uniform float hoveredPoint;
   uniform float selectedPoint;
+  uniform int sentimentFilter;
   uniform vec2 dimensions;
 
 
@@ -104,17 +110,17 @@ const BG_COLOR = [    0.1411764705882353,
     // position.y = position.y / dimensions.y;
 
 
-    //if (! (dates > dateFilter.x && dates < dateFilter.y)) return;
+
+    if (! (dates > dateFilter.x && dates < dateFilter.y)) return;
 
     gl_Position = projection * view * vec4(position.xy, 0.0, 1.);
 
     vColor = vec4(color, 1.);
 
-    float finalScaling = pow(sizeAttenuation, scaling);
-    finalScaling = 4. + pow(pointSize, sizeAttenuation);
 
     //if (selectedCluster > -.1 && selectedCluster != stateIndex.x) finalScaling = 0.;
 
+    float finalScaling = pow(sizeAttenuation, scaling);
 
     finalScaling = 10.;
 
@@ -130,7 +136,22 @@ const BG_COLOR = [    0.1411764705882353,
 
     finalScaling += pos.z;
 
-    if (flatSize) finalScaling = 10.;
+
+
+
+    if (flatSize) finalScaling = 4. + pow(pointSize, sizeAttenuation);
+        if (sentimentFilter == 1) { //only show positive
+          if (sentiment < .25) finalScaling = 0.;
+        }
+        if (sentimentFilter == 2) {  //only show negative
+          if (sentiment > -.25) finalScaling = 0.;
+        }
+        if (sentimentFilter == 3) { //only show neutral
+          if (! (sentiment < .25 && sentiment > -.25))  finalScaling = 0.;
+        }
+
+  if (! (stateIndex[1] == 1.)) finalScaling = 0.;
+
     gl_PointSize = finalScaling + pointSizeExtra;
 
   }
@@ -198,13 +219,19 @@ const creategraph = (options) => {
         dates: {
           buffer: () => attributes.dates,
           size: 1
-        }
+        },
+        sentiment: {
+          buffer: () => attributes.sentiment,
+          size: 1
+        },
+
       }
+
 
   //props schema - make external
   let state = {
     sizeAttenuation: .1,
-
+    sentimentFilter: 0,
     scaling: .4,
     numNodes: 1,
     showLines: true,
@@ -444,7 +471,10 @@ const creategraph = (options) => {
   }
 
 
-  let drawLines = createCurves(options.regl, attributes, getModel, getProjection, getView)
+
+  let drawLines = createDrawLines(options.regl, attributes, getModel, getProjection, getView)
+
+  //createCurves(options.regl, attributes, getModel, getProjection, getView)
 
   const drawAllPoints = (
     getPointSizeExtra,
@@ -481,7 +511,8 @@ const creategraph = (options) => {
         pointSize: getPointSize,
         pointSizeExtra: getPointSizeExtra,
         sizeAttenuation: regl.prop('sizeAttenuation'),
-        flatSize: regl.prop('flatSize')
+        flatSize: regl.prop('flatSize'),
+        sentimentFilter: regl.prop('sentimentFilter')
       },
       count: getNormalNumPoints,
       primitive: 'points'
@@ -673,9 +704,17 @@ const creategraph = (options) => {
 
     if (options.color) {
       let val = options.color
-      attributes.color = attributes.colorTypes[val] || attributes.colorTypes['kmeans']
+      attributes.color = attributes.colorTypes[val] || attributes.colorTypes['merge']
+      console.log(options.color, attributes.colorTypes)
+    }
 
-
+    if (options.showCluster) {
+      let showing = options.showCluster
+      attributes.stateIndex.forEach(pair => {
+        console.log(pair[0])
+        pair[1] = parseInt(options.showCluster[pair[0]] ? 1 : 0)
+      })
+      console.log(attributes.stateIndex)
 
     }
   }

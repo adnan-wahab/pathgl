@@ -1,6 +1,6 @@
 import GraphRenderer from '../src';
 import _ from 'lodash'
-import mbJSON from './public/mobile-banking.json';
+import mbJSON from './public/thecut.json';
 
 let init = _.once(function () {
   let canvas = document.createElement('canvas')

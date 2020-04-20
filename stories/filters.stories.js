@@ -10,13 +10,27 @@ export const dateFilter = () => {
   graph.setState({flatSize: true})
   let div = document.createElement('div')
 
-  let input = document.createElement('input')
-  input.type = 'date'
-  div.appendChild(input)
+  div.innerHTML = `
+
+  <label>start
+    <input type="date" id='#start'>
+  </label>
+
+  <label>end
+    <input type="date" id='#end'>
+  </label>
+  `
+  let filter = [-1, Infinity]
+  div.addEventListener('change', (e) => {
+    let idx = e.target.id == '#start' ? 0 : 1
+    filter[idx] = + new Date(e.target.value)
+    console.log(filter, e.target.id)
+    graph.setState({dateFilter: filter})
+  })
 
 
   div.appendChild(canvas)
-  console.log(div)
+
   return div
 };
 
@@ -24,26 +38,37 @@ export const sentimentFilter = () => {
   let [graph, canvas] = createGraphOnce()
 
   graph.setState({flatSize: true})
+  graph.setState({color: 'sentiment'})
 
 
   let div = document.createElement('div')
-  div.innerHTML = `
+  div.innerHTML = `<form>
   <div>
-    <input type="radio" id="huey" name="drone" value="huey"
+    <input type="radio" id="huey" name="drone" value="1"
            checked>
     <label for="huey">Positive</label>
   </div>
 
   <div>
-    <input type="radio" id="dewey" name="drone" value="dewey">
+    <input type="radio" id="dewey" name="drone" value="2">
     <label for="dewey">Negative</label>
   </div>
 
   <div>
-    <input type="radio" id="louie" name="drone" value="louie">
-    <label for="louie">Normal</label>
+    <input type="radio" id="louie" name="drone" value="3">
+    <label for="louie">Neutral</label>
   </div>
+
+  <div>
+    <input type="radio" id="louie" name="drone" value="0">
+    <label for="louie">All</label>
+  </div>
+  </form>
   `
+  div.querySelector('form').addEventListener('change', (e) => {
+    console.log(e.target.value)
+    graph.setState({sentimentFilter: + e.target.value})
+  })
 
 
   div.appendChild(canvas)

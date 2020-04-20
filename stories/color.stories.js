@@ -11,17 +11,25 @@ export const sentimentColoring = () => {
 };
 
 
-export const louvainColoring = () => {
+export const generalClusterColoring = () => {
   let [graph, canvas] = createGraphOnce()
 
-  graph.setState({color: 'louvain'})
+  graph.setState({color: 'general'})
   return canvas
 };
 
-export const greedyColoring = () => {
+
+export const specificClusterColoring = () => {
   let [graph, canvas] = createGraphOnce()
 
-  graph.setState({color: 'greedy'})
+  graph.setState({color: 'specific'})
+  return canvas
+};
+
+export const mergeClusterColoring = () => {
+  let [graph, canvas] = createGraphOnce()
+
+  graph.setState({color: 'merge'})
   return canvas
 };
 

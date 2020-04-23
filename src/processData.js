@@ -4,35 +4,12 @@ const clip = (d) => {
   return d / 3000
 }
 
-let preprocessData = (d) => {
-  let keys = {}
-  d.nodes.forEach((node, id) => {
-    node.size = 0
-
-    keys[node.uuid] = id
-  })
-
-
-
-  d.edges = d.edges.map((d, i ) => {
-    d.target = keys[d.target]
-    d.source = keys[d.source]
-    if (d.source && d.target) return d
-  }).filter(d => d)
-  let normalize = (d, i) => {
-    d.nodes = d.nodes.map(id => keys[id])
-  }
-
-  _.each(d.kmeans, normalize)
-  _.each(d.louvain, normalize)
-  _.each(d.greedy, normalize)
-}
-
 let processData = (data) => {
-preprocessData(data)
+
 let colorTypes = {}
 
  let randomColor = data.nodes.map(d => {
+   d.size = 0
    d.x = clip(d.x)
    d.y = clip(d.y)
    return [Math.random(), Math.random(), Math.random()]
@@ -40,12 +17,10 @@ let colorTypes = {}
 
   var accent = d3.scaleOrdinal(d3.schemeAccent);
 
-
   let sentiment = _.flatten(data.nodes.map((d) => {
     return + d.sentiment
   }));
 
-  //console.log('sentiment', sentiment)
 
   var sentimentScale = d3.scaleLinear()
   .domain([-1, 1])
@@ -57,25 +32,20 @@ let colorTypes = {}
     return [c.r /255 , c.g /255 , c.b /255];
   }));
 
-  let counts = {}
   data.edges.forEach(d => {
-    //debugger
-    //console.log(d)
-    if (! data.nodes[d.target] ) debugger
+    //if (! data.nodes[d.target] ) debugger
     data.nodes[d.target].size += 1
     data.nodes[d.source].size += 1
   })
-
-
-
   let position =
   (data.nodes.map((d, id) => [(d.x), (d.y), d.size, id]))
 
 
     let edges = {
-      sourcePositions: new Array(data.edges.length * 2).fill(0),
-      targetPositions: new Array(data.edges.length * 2).fill(0),
-      curves: new Array(data.edges.length * 2).fill(0)
+      sourcePositions: new Array(position.length).fill(0),
+      targetPositions: new Array(position.length).fill(0),
+      curves: new Array(data.edges.length).fill(0),
+      edges: data.edges
     };
     data.edges.forEach((edge, idx) => {
       let source = data.nodes[edge.source], target = data.nodes[edge.target];

@@ -1,862 +1,5 @@
 import createOriginalRegl from 'regl';
 
-/**
- * Common utilities
- * @module glMatrix
- */
-
-// Configuration Constants
-var EPSILON = 0.000001;
-var ARRAY_TYPE = typeof Float32Array !== 'undefined' ? Float32Array : Array;
-
-/**
- * 4x4 Matrix<br>Format: column-major, when typed out it looks like row-major<br>The matrices are being post multiplied.
- * @module mat4
- */
-
-/**
- * Creates a new identity mat4
- *
- * @returns {mat4} a new 4x4 matrix
- */
-function create() {
-  var out = new ARRAY_TYPE(16);
-  if (ARRAY_TYPE != Float32Array) {
-    out[1] = 0;
-    out[2] = 0;
-    out[3] = 0;
-    out[4] = 0;
-    out[6] = 0;
-    out[7] = 0;
-    out[8] = 0;
-    out[9] = 0;
-    out[11] = 0;
-    out[12] = 0;
-    out[13] = 0;
-    out[14] = 0;
-  }
-  out[0] = 1;
-  out[5] = 1;
-  out[10] = 1;
-  out[15] = 1;
-  return out;
-}
-
-/**
- * Creates a new mat4 initialized with values from an existing matrix
- *
- * @param {mat4} a matrix to clone
- * @returns {mat4} a new 4x4 matrix
- */
-function clone(a) {
-  var out = new ARRAY_TYPE(16);
-  out[0] = a[0];
-  out[1] = a[1];
-  out[2] = a[2];
-  out[3] = a[3];
-  out[4] = a[4];
-  out[5] = a[5];
-  out[6] = a[6];
-  out[7] = a[7];
-  out[8] = a[8];
-  out[9] = a[9];
-  out[10] = a[10];
-  out[11] = a[11];
-  out[12] = a[12];
-  out[13] = a[13];
-  out[14] = a[14];
-  out[15] = a[15];
-  return out;
-}
-
-/**
- * Inverts a mat4
- *
- * @param {mat4} out the receiving matrix
- * @param {mat4} a the source matrix
- * @returns {mat4} out
- */
-function invert(out, a) {
-  var a00 = a[0],
-      a01 = a[1],
-      a02 = a[2],
-      a03 = a[3];
-  var a10 = a[4],
-      a11 = a[5],
-      a12 = a[6],
-      a13 = a[7];
-  var a20 = a[8],
-      a21 = a[9],
-      a22 = a[10],
-      a23 = a[11];
-  var a30 = a[12],
-      a31 = a[13],
-      a32 = a[14],
-      a33 = a[15];
-
-  var b00 = a00 * a11 - a01 * a10;
-  var b01 = a00 * a12 - a02 * a10;
-  var b02 = a00 * a13 - a03 * a10;
-  var b03 = a01 * a12 - a02 * a11;
-  var b04 = a01 * a13 - a03 * a11;
-  var b05 = a02 * a13 - a03 * a12;
-  var b06 = a20 * a31 - a21 * a30;
-  var b07 = a20 * a32 - a22 * a30;
-  var b08 = a20 * a33 - a23 * a30;
-  var b09 = a21 * a32 - a22 * a31;
-  var b10 = a21 * a33 - a23 * a31;
-  var b11 = a22 * a33 - a23 * a32;
-
-  // Calculate the determinant
-  var det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
-
-  if (!det) {
-    return null;
-  }
-  det = 1.0 / det;
-
-  out[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
-  out[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
-  out[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
-  out[3] = (a22 * b04 - a21 * b05 - a23 * b03) * det;
-  out[4] = (a12 * b08 - a10 * b11 - a13 * b07) * det;
-  out[5] = (a00 * b11 - a02 * b08 + a03 * b07) * det;
-  out[6] = (a32 * b02 - a30 * b05 - a33 * b01) * det;
-  out[7] = (a20 * b05 - a22 * b02 + a23 * b01) * det;
-  out[8] = (a10 * b10 - a11 * b08 + a13 * b06) * det;
-  out[9] = (a01 * b08 - a00 * b10 - a03 * b06) * det;
-  out[10] = (a30 * b04 - a31 * b02 + a33 * b00) * det;
-  out[11] = (a21 * b02 - a20 * b04 - a23 * b00) * det;
-  out[12] = (a11 * b07 - a10 * b09 - a12 * b06) * det;
-  out[13] = (a00 * b09 - a01 * b07 + a02 * b06) * det;
-  out[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det;
-  out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
-
-  return out;
-}
-
-/**
- * Multiplies two mat4s
- *
- * @param {mat4} out the receiving matrix
- * @param {mat4} a the first operand
- * @param {mat4} b the second operand
- * @returns {mat4} out
- */
-function multiply(out, a, b) {
-  var a00 = a[0],
-      a01 = a[1],
-      a02 = a[2],
-      a03 = a[3];
-  var a10 = a[4],
-      a11 = a[5],
-      a12 = a[6],
-      a13 = a[7];
-  var a20 = a[8],
-      a21 = a[9],
-      a22 = a[10],
-      a23 = a[11];
-  var a30 = a[12],
-      a31 = a[13],
-      a32 = a[14],
-      a33 = a[15];
-
-  // Cache only the current line of the second matrix
-  var b0 = b[0],
-      b1 = b[1],
-      b2 = b[2],
-      b3 = b[3];
-  out[0] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
-  out[1] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
-  out[2] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
-  out[3] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
-
-  b0 = b[4];b1 = b[5];b2 = b[6];b3 = b[7];
-  out[4] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
-  out[5] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
-  out[6] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
-  out[7] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
-
-  b0 = b[8];b1 = b[9];b2 = b[10];b3 = b[11];
-  out[8] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
-  out[9] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
-  out[10] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
-  out[11] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
-
-  b0 = b[12];b1 = b[13];b2 = b[14];b3 = b[15];
-  out[12] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
-  out[13] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
-  out[14] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
-  out[15] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
-  return out;
-}
-
-/**
- * Creates a matrix from a vector translation
- * This is equivalent to (but much faster than):
- *
- *     mat4.identity(dest);
- *     mat4.translate(dest, dest, vec);
- *
- * @param {mat4} out mat4 receiving operation result
- * @param {vec3} v Translation vector
- * @returns {mat4} out
- */
-function fromTranslation(out, v) {
-  out[0] = 1;
-  out[1] = 0;
-  out[2] = 0;
-  out[3] = 0;
-  out[4] = 0;
-  out[5] = 1;
-  out[6] = 0;
-  out[7] = 0;
-  out[8] = 0;
-  out[9] = 0;
-  out[10] = 1;
-  out[11] = 0;
-  out[12] = v[0];
-  out[13] = v[1];
-  out[14] = v[2];
-  out[15] = 1;
-  return out;
-}
-
-/**
- * Creates a matrix from a vector scaling
- * This is equivalent to (but much faster than):
- *
- *     mat4.identity(dest);
- *     mat4.scale(dest, dest, vec);
- *
- * @param {mat4} out mat4 receiving operation result
- * @param {vec3} v Scaling vector
- * @returns {mat4} out
- */
-function fromScaling(out, v) {
-  out[0] = v[0];
-  out[1] = 0;
-  out[2] = 0;
-  out[3] = 0;
-  out[4] = 0;
-  out[5] = v[1];
-  out[6] = 0;
-  out[7] = 0;
-  out[8] = 0;
-  out[9] = 0;
-  out[10] = v[2];
-  out[11] = 0;
-  out[12] = 0;
-  out[13] = 0;
-  out[14] = 0;
-  out[15] = 1;
-  return out;
-}
-
-/**
- * Creates a matrix from a given angle around a given axis
- * This is equivalent to (but much faster than):
- *
- *     mat4.identity(dest);
- *     mat4.rotate(dest, dest, rad, axis);
- *
- * @param {mat4} out mat4 receiving operation result
- * @param {Number} rad the angle to rotate the matrix by
- * @param {vec3} axis the axis to rotate around
- * @returns {mat4} out
- */
-function fromRotation(out, rad, axis) {
-  var x = axis[0],
-      y = axis[1],
-      z = axis[2];
-  var len = Math.sqrt(x * x + y * y + z * z);
-  var s = void 0,
-      c = void 0,
-      t = void 0;
-
-  if (len < EPSILON) {
-    return null;
-  }
-
-  len = 1 / len;
-  x *= len;
-  y *= len;
-  z *= len;
-
-  s = Math.sin(rad);
-  c = Math.cos(rad);
-  t = 1 - c;
-
-  // Perform rotation-specific matrix multiplication
-  out[0] = x * x * t + c;
-  out[1] = y * x * t + z * s;
-  out[2] = z * x * t - y * s;
-  out[3] = 0;
-  out[4] = x * y * t - z * s;
-  out[5] = y * y * t + c;
-  out[6] = z * y * t + x * s;
-  out[7] = 0;
-  out[8] = x * z * t + y * s;
-  out[9] = y * z * t - x * s;
-  out[10] = z * z * t + c;
-  out[11] = 0;
-  out[12] = 0;
-  out[13] = 0;
-  out[14] = 0;
-  out[15] = 1;
-  return out;
-}
-
-/**
- * Returns the translation vector component of a transformation
- *  matrix. If a matrix is built with fromRotationTranslation,
- *  the returned vector will be the same as the translation vector
- *  originally supplied.
- * @param  {vec3} out Vector to receive translation component
- * @param  {mat4} mat Matrix to be decomposed (input)
- * @return {vec3} out
- */
-function getTranslation(out, mat) {
-  out[0] = mat[12];
-  out[1] = mat[13];
-  out[2] = mat[14];
-
-  return out;
-}
-
-/**
- * Returns the scaling factor component of a transformation
- *  matrix. If a matrix is built with fromRotationTranslationScale
- *  with a normalized Quaternion paramter, the returned vector will be
- *  the same as the scaling vector
- *  originally supplied.
- * @param  {vec3} out Vector to receive scaling factor component
- * @param  {mat4} mat Matrix to be decomposed (input)
- * @return {vec3} out
- */
-function getScaling(out, mat) {
-  var m11 = mat[0];
-  var m12 = mat[1];
-  var m13 = mat[2];
-  var m21 = mat[4];
-  var m22 = mat[5];
-  var m23 = mat[6];
-  var m31 = mat[8];
-  var m32 = mat[9];
-  var m33 = mat[10];
-
-  out[0] = Math.sqrt(m11 * m11 + m12 * m12 + m13 * m13);
-  out[1] = Math.sqrt(m21 * m21 + m22 * m22 + m23 * m23);
-  out[2] = Math.sqrt(m31 * m31 + m32 * m32 + m33 * m33);
-
-  return out;
-}
-
-/**
- * 4 Dimensional Vector
- * @module vec4
- */
-
-/**
- * Creates a new, empty vec4
- *
- * @returns {vec4} a new 4D vector
- */
-function create$1() {
-  var out = new ARRAY_TYPE(4);
-  if (ARRAY_TYPE != Float32Array) {
-    out[0] = 0;
-    out[1] = 0;
-    out[2] = 0;
-    out[3] = 0;
-  }
-  return out;
-}
-
-/**
- * Transforms the vec4 with a mat4.
- *
- * @param {vec4} out the receiving vector
- * @param {vec4} a the vector to transform
- * @param {mat4} m matrix to transform with
- * @returns {vec4} out
- */
-function transformMat4(out, a, m) {
-  var x = a[0],
-      y = a[1],
-      z = a[2],
-      w = a[3];
-  out[0] = m[0] * x + m[4] * y + m[8] * z + m[12] * w;
-  out[1] = m[1] * x + m[5] * y + m[9] * z + m[13] * w;
-  out[2] = m[2] * x + m[6] * y + m[10] * z + m[14] * w;
-  out[3] = m[3] * x + m[7] * y + m[11] * z + m[15] * w;
-  return out;
-}
-
-/**
- * Perform some operation over an array of vec4s.
- *
- * @param {Array} a the array of vectors to iterate over
- * @param {Number} stride Number of elements between the start of each vec4. If 0 assumes tightly packed
- * @param {Number} offset Number of elements to skip at the beginning of the array
- * @param {Number} count Number of vec4s to iterate over. If 0 iterates over entire array
- * @param {Function} fn Function to call for each vector in the array
- * @param {Object} [arg] additional argument to pass to fn
- * @returns {Array} a
- * @function
- */
-var forEach = function () {
-  var vec = create$1();
-
-  return function (a, stride, offset, count, fn, arg) {
-    var i = void 0,
-        l = void 0;
-    if (!stride) {
-      stride = 4;
-    }
-
-    if (!offset) {
-      offset = 0;
-    }
-
-    if (count) {
-      l = Math.min(count * stride + offset, a.length);
-    } else {
-      l = a.length;
-    }
-
-    for (i = offset; i < l; i += stride) {
-      vec[0] = a[i];vec[1] = a[i + 1];vec[2] = a[i + 2];vec[3] = a[i + 3];
-      fn(vec, vec, arg);
-      a[i] = vec[0];a[i + 1] = vec[1];a[i + 2] = vec[2];a[i + 3] = vec[3];
-    }
-
-    return a;
-  };
-}();
-
-/**
- * 2 Dimensional Vector
- * @module vec2
- */
-
-/**
- * Creates a new, empty vec2
- *
- * @returns {vec2} a new 2D vector
- */
-function create$2() {
-  var out = new ARRAY_TYPE(2);
-  if (ARRAY_TYPE != Float32Array) {
-    out[0] = 0;
-    out[1] = 0;
-  }
-  return out;
-}
-
-/**
- * Get the angle between two 2D vectors
- * @param {vec2} a The first operand
- * @param {vec2} b The second operand
- * @returns {Number} The angle in radians
- */
-function angle(a, b) {
-  var x1 = a[0],
-      y1 = a[1],
-      x2 = b[0],
-      y2 = b[1];
-
-  var len1 = x1 * x1 + y1 * y1;
-  if (len1 > 0) {
-    //TODO: evaluate use of glm_invsqrt here?
-    len1 = 1 / Math.sqrt(len1);
-  }
-
-  var len2 = x2 * x2 + y2 * y2;
-  if (len2 > 0) {
-    //TODO: evaluate use of glm_invsqrt here?
-    len2 = 1 / Math.sqrt(len2);
-  }
-
-  var cosine = (x1 * x2 + y1 * y2) * len1 * len2;
-
-  if (cosine > 1.0) {
-    return 0;
-  } else if (cosine < -1.0) {
-    return Math.PI;
-  } else {
-    return Math.acos(cosine);
-  }
-}
-
-/**
- * Perform some operation over an array of vec2s.
- *
- * @param {Array} a the array of vectors to iterate over
- * @param {Number} stride Number of elements between the start of each vec2. If 0 assumes tightly packed
- * @param {Number} offset Number of elements to skip at the beginning of the array
- * @param {Number} count Number of vec2s to iterate over. If 0 iterates over entire array
- * @param {Function} fn Function to call for each vector in the array
- * @param {Object} [arg] additional argument to pass to fn
- * @returns {Array} a
- * @function
- */
-var forEach$1 = function () {
-  var vec = create$2();
-
-  return function (a, stride, offset, count, fn, arg) {
-    var i = void 0,
-        l = void 0;
-    if (!stride) {
-      stride = 2;
-    }
-
-    if (!offset) {
-      offset = 0;
-    }
-
-    if (count) {
-      l = Math.min(count * stride + offset, a.length);
-    } else {
-      l = a.length;
-    }
-
-    for (i = offset; i < l; i += stride) {
-      vec[0] = a[i];vec[1] = a[i + 1];
-      fn(vec, vec, arg);
-      a[i] = vec[0];a[i + 1] = vec[1];
-    }
-
-    return a;
-  };
-}();
-
-const VIEW_CENTER = [0, 0, 0, 1];
-
-const createCamera = (
-  initTarget = [0, 0],
-  initDistance = 1,
-  initRotation = 0
-) => {
-  // Scratch variables
-  const scratch0 = new Float32Array(16);
-  const scratch1 = new Float32Array(16);
-  const scratch2 = new Float32Array(16);
-
-  let view = create();
-
-  const getRotation = () => Math.acos(view[0]);
-
-  const getScaling$1 = () => getScaling(scratch0, view)[0];
-
-  const getDistance = () => 1 / getScaling$1();
-
-  const getTranslation$1 = () => getTranslation(scratch0, view).slice(0, 2);
-
-  const getTarget = () =>
-    transformMat4(scratch0, VIEW_CENTER, invert(scratch2, view));
-
-  const getView = () => view;
-
-  const lookAt = ([x = 0, y = 0] = [], newDistance = 1, newRotation = 0) => {
-    // Reset the view
-    view = create();
-
-    translate([-x, -y]);
-    rotate(newRotation);
-    scale(1 / newDistance);
-  };
-
-  const translate = ([x = 0, y = 0] = []) => {
-    scratch0[0] = x;
-    scratch0[1] = y;
-    scratch0[2] = 0;
-
-    const t = fromTranslation(scratch1, scratch0);
-
-    // Translate about the viewport center
-    // This is identical to `i * t * i * view` where `i` is the identity matrix
-    multiply(view, t, view);
-  };
-
-  const scale = (d, mousePos) => {
-    if (d <= 0) return;
-
-    scratch0[0] = d;
-    scratch0[1] = d;
-    scratch0[2] = 1;
-
-    const s = fromScaling(scratch1, scratch0);
-
-    const scaleCenter = mousePos ? [...mousePos, 0] : VIEW_CENTER;
-    const a = fromTranslation(scratch0, scaleCenter);
-
-    // Translate about the scale center
-    // I.e., the mouse position or the view center
-    multiply(
-      view,
-      a,
-      multiply(
-        view,
-        s,
-        multiply(view, invert(scratch2, a), view)
-      )
-    );
-  };
-
-  const rotate = rad => {
-    const r = create();
-    fromRotation(r, rad, [0, 0, 1]);
-
-    // Rotate about the viewport center
-    // This is identical to `i * r * i * view` where `i` is the identity matrix
-    multiply(view, r, view);
-  };
-
-  const set = newView => {
-    if (!newView || newView.length < 16) return;
-    view = newView;
-  };
-
-  const reset = () => {
-    lookAt(initTarget, initDistance, initRotation);
-  };
-
-  // Init
-  lookAt(initTarget, initDistance, initRotation);
-
-  return {
-    get translation() {
-      return getTranslation$1();
-    },
-    get target() {
-      return getTarget();
-    },
-    get scaling() {
-      return getScaling$1();
-    },
-    get distance() {
-      return getDistance();
-    },
-    get rotation() {
-      return getRotation();
-    },
-    get view() {
-      return getView();
-    },
-    lookAt,
-    translate,
-    pan: translate,
-    rotate,
-    scale,
-    zoom: scale,
-    reset,
-    set
-  };
-};
-
-const dom2dCamera = (
-  element,
-  {
-    distance = 1.0,
-    target = [0, 0],
-    rotation = 0,
-    isNdc = true,
-    isFixed = false,
-    isPan = true,
-    panSpeed = 1,
-    isRotate = true,
-    rotateSpeed = 1,
-    isZoom = true,
-    zoomSpeed = 1,
-    onKeyDown = () => {},
-    onKeyUp = () => {},
-    onMouseDown = () => {},
-    onMouseUp = () => {},
-    onMouseMove = () => {},
-    onWheel = () => {}
-  } = {}
-) => {
-  let camera = createCamera(target, distance, rotation);
-  let isChanged = false;
-  let mouseX = 0;
-  let mouseY = 0;
-  let prevMouseX = 0;
-  let prevMouseY = 0;
-  let isLeftMousePressed = false;
-  let yScroll = 0;
-
-  let top = 0;
-  let left = 0;
-  let width = 1;
-  let height = 1;
-  let aspectRatio = 1;
-  let isAlt = false;
-
-  const transformPanX = isNdc
-    ? dX => (dX / width) * 2 * aspectRatio // to normalized device coords
-    : dX => dX;
-  const transformPanY = isNdc
-    ? dY => (dY / height) * 2 // to normalized device coords
-    : dY => -dY;
-
-  const transformScaleX = isNdc
-    ? x => (-1 + (x / width) * 2) * aspectRatio // to normalized device coords
-    : x => x;
-  const transformScaleY = isNdc
-    ? y => 1 - (y / height) * 2 // to normalized device coords
-    : y => y;
-
-  const tick = () => {
-    if (isFixed) return false;
-
-    isChanged = false;
-
-    if (isPan && isLeftMousePressed && !isAlt) {
-      // To pan 1:1 we need to half the width and height because the uniform
-      // coordinate system goes from -1 to 1.
-      camera.pan([
-        transformPanX(panSpeed * (mouseX - prevMouseX)),
-        transformPanY(panSpeed * (prevMouseY - mouseY))
-      ]);
-      isChanged = true;
-    }
-
-    if (isZoom && yScroll) {
-      const dZ = zoomSpeed * Math.exp(yScroll / height);
-
-      // Get normalized device coordinates (NDC)
-      const transformedX = transformScaleX(mouseX);
-      const transformedY = transformScaleY(mouseY);
-
-      camera.scale(1 / dZ, [transformedX, transformedY]);
-
-      isChanged = true;
-    }
-
-    if (isRotate && isLeftMousePressed && isAlt) {
-      const wh = width / 2;
-      const hh = height / 2;
-      const x1 = prevMouseX - wh;
-      const y1 = hh - prevMouseY;
-      const x2 = mouseX - wh;
-      const y2 = hh - mouseY;
-      // Angle between the start and end mouse position with respect to the
-      // viewport center
-      const radians = angle([x1, y1], [x2, y2]);
-      // Determine the orientation
-      const cross = x1 * y2 - x2 * y1;
-
-      camera.rotate(rotateSpeed * radians * Math.sign(cross));
-
-      isChanged = true;
-    }
-
-    // Reset scroll delta and mouse position
-    yScroll = 0;
-    prevMouseX = mouseX;
-    prevMouseY = mouseY;
-
-    return isChanged;
-  };
-
-  const config = ({
-    isFixed: newIsFixed = null,
-    isPan: newIsPan = null,
-    isRotate: newIsRotate = null,
-    isZoom: newIsZoom = null,
-    panSpeed: newPanSpeed = null,
-    rotateSpeed: newRotateSpeed = null,
-    zoomSpeed: newZoomSpeed = null
-  } = {}) => {
-    isFixed = newIsFixed !== null ? newIsFixed : isFixed;
-    isPan = newIsPan !== null ? newIsPan : isPan;
-    isRotate = newIsRotate !== null ? newIsRotate : isRotate;
-    isZoom = newIsZoom !== null ? newIsZoom : isZoom;
-    panSpeed = +newPanSpeed > 0 ? newPanSpeed : panSpeed;
-    rotateSpeed = +newRotateSpeed > 0 ? newRotateSpeed : rotateSpeed;
-    zoomSpeed = +newZoomSpeed > 0 ? newZoomSpeed : zoomSpeed;
-  };
-
-  const refresh = () => {
-    const bBox = element.getBoundingClientRect();
-    top = bBox.top;
-    left = bBox.left;
-    width = bBox.width;
-    height = bBox.height;
-    aspectRatio = width / height;
-  };
-
-  const keyUpHandler = event => {
-    isAlt = false;
-
-    onKeyUp(event);
-  };
-
-  const keyDownHandler = event => {
-    isAlt = event.altKey;
-
-    onKeyDown(event);
-  };
-
-  const mouseUpHandler = event => {
-    isLeftMousePressed = false;
-
-    onMouseUp(event);
-  };
-
-  const mouseDownHandler = event => {
-    isLeftMousePressed = event.buttons === 1;
-
-    onMouseDown(event);
-  };
-
-  const mouseMoveHandler = event => {
-    prevMouseX = mouseX;
-    prevMouseY = mouseY;
-    mouseX = event.clientX - left;
-    mouseY = event.clientY - top;
-
-    onMouseMove(event);
-  };
-
-  const wheelHandler = event => {
-    event.preventDefault();
-
-    const scale = event.deltaMode === 1 ? 12 : 1;
-
-    yScroll += scale * (event.deltaY || 0);
-
-    onWheel(event);
-  };
-
-  const dispose = () => {
-    camera = undefined;
-    window.removeEventListener("keydown", keyDownHandler);
-    window.removeEventListener("keyup", keyUpHandler);
-    element.removeEventListener("mousedown", mouseDownHandler);
-    window.removeEventListener("mouseup", mouseUpHandler);
-    window.removeEventListener("mousemove", mouseMoveHandler);
-    element.removeEventListener("wheel", wheelHandler);
-  };
-
-  window.addEventListener("keydown", keyDownHandler, { passive: true });
-  window.addEventListener("keyup", keyUpHandler, { passive: true });
-  element.addEventListener("mousedown", mouseDownHandler, { passive: true });
-  window.addEventListener("mouseup", mouseUpHandler, { passive: true });
-  window.addEventListener("mousemove", mouseMoveHandler, { passive: true });
-  element.addEventListener("wheel", wheelHandler, { passive: false });
-
-  refresh();
-
-  camera.config = config;
-  camera.dispose = dispose;
-  camera.refresh = refresh;
-  camera.tick = tick;
-
-  return camera;
-};
-
 function sortKD(ids, coords, nodeSize, left, right, depth) {
     if (right - left <= nodeSize) return;
 
@@ -1067,6 +210,456 @@ const withRaf = (fn, onCall, raf = window.requestAnimationFrame) => {
     });
   };
 };
+
+/**
+ * Common utilities
+ * @module glMatrix
+ */
+// Configuration Constants
+var EPSILON = 0.000001;
+var ARRAY_TYPE = typeof Float32Array !== 'undefined' ? Float32Array : Array;
+if (!Math.hypot) Math.hypot = function () {
+  var y = 0,
+      i = arguments.length;
+
+  while (i--) {
+    y += arguments[i] * arguments[i];
+  }
+
+  return Math.sqrt(y);
+};
+
+/**
+ * 4x4 Matrix<br>Format: column-major, when typed out it looks like row-major<br>The matrices are being post multiplied.
+ * @module mat4
+ */
+
+/**
+ * Creates a new identity mat4
+ *
+ * @returns {mat4} a new 4x4 matrix
+ */
+
+function create() {
+  var out = new ARRAY_TYPE(16);
+
+  if (ARRAY_TYPE != Float32Array) {
+    out[1] = 0;
+    out[2] = 0;
+    out[3] = 0;
+    out[4] = 0;
+    out[6] = 0;
+    out[7] = 0;
+    out[8] = 0;
+    out[9] = 0;
+    out[11] = 0;
+    out[12] = 0;
+    out[13] = 0;
+    out[14] = 0;
+  }
+
+  out[0] = 1;
+  out[5] = 1;
+  out[10] = 1;
+  out[15] = 1;
+  return out;
+}
+/**
+ * Creates a new mat4 initialized with values from an existing matrix
+ *
+ * @param {ReadonlyMat4} a matrix to clone
+ * @returns {mat4} a new 4x4 matrix
+ */
+
+function clone(a) {
+  var out = new ARRAY_TYPE(16);
+  out[0] = a[0];
+  out[1] = a[1];
+  out[2] = a[2];
+  out[3] = a[3];
+  out[4] = a[4];
+  out[5] = a[5];
+  out[6] = a[6];
+  out[7] = a[7];
+  out[8] = a[8];
+  out[9] = a[9];
+  out[10] = a[10];
+  out[11] = a[11];
+  out[12] = a[12];
+  out[13] = a[13];
+  out[14] = a[14];
+  out[15] = a[15];
+  return out;
+}
+/**
+ * Inverts a mat4
+ *
+ * @param {mat4} out the receiving matrix
+ * @param {ReadonlyMat4} a the source matrix
+ * @returns {mat4} out
+ */
+
+function invert(out, a) {
+  var a00 = a[0],
+      a01 = a[1],
+      a02 = a[2],
+      a03 = a[3];
+  var a10 = a[4],
+      a11 = a[5],
+      a12 = a[6],
+      a13 = a[7];
+  var a20 = a[8],
+      a21 = a[9],
+      a22 = a[10],
+      a23 = a[11];
+  var a30 = a[12],
+      a31 = a[13],
+      a32 = a[14],
+      a33 = a[15];
+  var b00 = a00 * a11 - a01 * a10;
+  var b01 = a00 * a12 - a02 * a10;
+  var b02 = a00 * a13 - a03 * a10;
+  var b03 = a01 * a12 - a02 * a11;
+  var b04 = a01 * a13 - a03 * a11;
+  var b05 = a02 * a13 - a03 * a12;
+  var b06 = a20 * a31 - a21 * a30;
+  var b07 = a20 * a32 - a22 * a30;
+  var b08 = a20 * a33 - a23 * a30;
+  var b09 = a21 * a32 - a22 * a31;
+  var b10 = a21 * a33 - a23 * a31;
+  var b11 = a22 * a33 - a23 * a32; // Calculate the determinant
+
+  var det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+
+  if (!det) {
+    return null;
+  }
+
+  det = 1.0 / det;
+  out[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
+  out[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
+  out[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
+  out[3] = (a22 * b04 - a21 * b05 - a23 * b03) * det;
+  out[4] = (a12 * b08 - a10 * b11 - a13 * b07) * det;
+  out[5] = (a00 * b11 - a02 * b08 + a03 * b07) * det;
+  out[6] = (a32 * b02 - a30 * b05 - a33 * b01) * det;
+  out[7] = (a20 * b05 - a22 * b02 + a23 * b01) * det;
+  out[8] = (a10 * b10 - a11 * b08 + a13 * b06) * det;
+  out[9] = (a01 * b08 - a00 * b10 - a03 * b06) * det;
+  out[10] = (a30 * b04 - a31 * b02 + a33 * b00) * det;
+  out[11] = (a21 * b02 - a20 * b04 - a23 * b00) * det;
+  out[12] = (a11 * b07 - a10 * b09 - a12 * b06) * det;
+  out[13] = (a00 * b09 - a01 * b07 + a02 * b06) * det;
+  out[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det;
+  out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
+  return out;
+}
+/**
+ * Multiplies two mat4s
+ *
+ * @param {mat4} out the receiving matrix
+ * @param {ReadonlyMat4} a the first operand
+ * @param {ReadonlyMat4} b the second operand
+ * @returns {mat4} out
+ */
+
+function multiply(out, a, b) {
+  var a00 = a[0],
+      a01 = a[1],
+      a02 = a[2],
+      a03 = a[3];
+  var a10 = a[4],
+      a11 = a[5],
+      a12 = a[6],
+      a13 = a[7];
+  var a20 = a[8],
+      a21 = a[9],
+      a22 = a[10],
+      a23 = a[11];
+  var a30 = a[12],
+      a31 = a[13],
+      a32 = a[14],
+      a33 = a[15]; // Cache only the current line of the second matrix
+
+  var b0 = b[0],
+      b1 = b[1],
+      b2 = b[2],
+      b3 = b[3];
+  out[0] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+  out[1] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+  out[2] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+  out[3] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+  b0 = b[4];
+  b1 = b[5];
+  b2 = b[6];
+  b3 = b[7];
+  out[4] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+  out[5] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+  out[6] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+  out[7] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+  b0 = b[8];
+  b1 = b[9];
+  b2 = b[10];
+  b3 = b[11];
+  out[8] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+  out[9] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+  out[10] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+  out[11] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+  b0 = b[12];
+  b1 = b[13];
+  b2 = b[14];
+  b3 = b[15];
+  out[12] = b0 * a00 + b1 * a10 + b2 * a20 + b3 * a30;
+  out[13] = b0 * a01 + b1 * a11 + b2 * a21 + b3 * a31;
+  out[14] = b0 * a02 + b1 * a12 + b2 * a22 + b3 * a32;
+  out[15] = b0 * a03 + b1 * a13 + b2 * a23 + b3 * a33;
+  return out;
+}
+/**
+ * Creates a matrix from a vector translation
+ * This is equivalent to (but much faster than):
+ *
+ *     mat4.identity(dest);
+ *     mat4.translate(dest, dest, vec);
+ *
+ * @param {mat4} out mat4 receiving operation result
+ * @param {ReadonlyVec3} v Translation vector
+ * @returns {mat4} out
+ */
+
+function fromTranslation(out, v) {
+  out[0] = 1;
+  out[1] = 0;
+  out[2] = 0;
+  out[3] = 0;
+  out[4] = 0;
+  out[5] = 1;
+  out[6] = 0;
+  out[7] = 0;
+  out[8] = 0;
+  out[9] = 0;
+  out[10] = 1;
+  out[11] = 0;
+  out[12] = v[0];
+  out[13] = v[1];
+  out[14] = v[2];
+  out[15] = 1;
+  return out;
+}
+/**
+ * Creates a matrix from a vector scaling
+ * This is equivalent to (but much faster than):
+ *
+ *     mat4.identity(dest);
+ *     mat4.scale(dest, dest, vec);
+ *
+ * @param {mat4} out mat4 receiving operation result
+ * @param {ReadonlyVec3} v Scaling vector
+ * @returns {mat4} out
+ */
+
+function fromScaling(out, v) {
+  out[0] = v[0];
+  out[1] = 0;
+  out[2] = 0;
+  out[3] = 0;
+  out[4] = 0;
+  out[5] = v[1];
+  out[6] = 0;
+  out[7] = 0;
+  out[8] = 0;
+  out[9] = 0;
+  out[10] = v[2];
+  out[11] = 0;
+  out[12] = 0;
+  out[13] = 0;
+  out[14] = 0;
+  out[15] = 1;
+  return out;
+}
+/**
+ * Creates a matrix from a given angle around a given axis
+ * This is equivalent to (but much faster than):
+ *
+ *     mat4.identity(dest);
+ *     mat4.rotate(dest, dest, rad, axis);
+ *
+ * @param {mat4} out mat4 receiving operation result
+ * @param {Number} rad the angle to rotate the matrix by
+ * @param {ReadonlyVec3} axis the axis to rotate around
+ * @returns {mat4} out
+ */
+
+function fromRotation(out, rad, axis) {
+  var x = axis[0],
+      y = axis[1],
+      z = axis[2];
+  var len = Math.hypot(x, y, z);
+  var s, c, t;
+
+  if (len < EPSILON) {
+    return null;
+  }
+
+  len = 1 / len;
+  x *= len;
+  y *= len;
+  z *= len;
+  s = Math.sin(rad);
+  c = Math.cos(rad);
+  t = 1 - c; // Perform rotation-specific matrix multiplication
+
+  out[0] = x * x * t + c;
+  out[1] = y * x * t + z * s;
+  out[2] = z * x * t - y * s;
+  out[3] = 0;
+  out[4] = x * y * t - z * s;
+  out[5] = y * y * t + c;
+  out[6] = z * y * t + x * s;
+  out[7] = 0;
+  out[8] = x * z * t + y * s;
+  out[9] = y * z * t - x * s;
+  out[10] = z * z * t + c;
+  out[11] = 0;
+  out[12] = 0;
+  out[13] = 0;
+  out[14] = 0;
+  out[15] = 1;
+  return out;
+}
+/**
+ * Returns the translation vector component of a transformation
+ *  matrix. If a matrix is built with fromRotationTranslation,
+ *  the returned vector will be the same as the translation vector
+ *  originally supplied.
+ * @param  {vec3} out Vector to receive translation component
+ * @param  {ReadonlyMat4} mat Matrix to be decomposed (input)
+ * @return {vec3} out
+ */
+
+function getTranslation(out, mat) {
+  out[0] = mat[12];
+  out[1] = mat[13];
+  out[2] = mat[14];
+  return out;
+}
+/**
+ * Returns the scaling factor component of a transformation
+ *  matrix. If a matrix is built with fromRotationTranslationScale
+ *  with a normalized Quaternion paramter, the returned vector will be
+ *  the same as the scaling vector
+ *  originally supplied.
+ * @param  {vec3} out Vector to receive scaling factor component
+ * @param  {ReadonlyMat4} mat Matrix to be decomposed (input)
+ * @return {vec3} out
+ */
+
+function getScaling(out, mat) {
+  var m11 = mat[0];
+  var m12 = mat[1];
+  var m13 = mat[2];
+  var m21 = mat[4];
+  var m22 = mat[5];
+  var m23 = mat[6];
+  var m31 = mat[8];
+  var m32 = mat[9];
+  var m33 = mat[10];
+  out[0] = Math.hypot(m11, m12, m13);
+  out[1] = Math.hypot(m21, m22, m23);
+  out[2] = Math.hypot(m31, m32, m33);
+  return out;
+}
+
+/**
+ * 4 Dimensional Vector
+ * @module vec4
+ */
+
+/**
+ * Creates a new, empty vec4
+ *
+ * @returns {vec4} a new 4D vector
+ */
+
+function create$1() {
+  var out = new ARRAY_TYPE(4);
+
+  if (ARRAY_TYPE != Float32Array) {
+    out[0] = 0;
+    out[1] = 0;
+    out[2] = 0;
+    out[3] = 0;
+  }
+
+  return out;
+}
+/**
+ * Transforms the vec4 with a mat4.
+ *
+ * @param {vec4} out the receiving vector
+ * @param {ReadonlyVec4} a the vector to transform
+ * @param {ReadonlyMat4} m matrix to transform with
+ * @returns {vec4} out
+ */
+
+function transformMat4(out, a, m) {
+  var x = a[0],
+      y = a[1],
+      z = a[2],
+      w = a[3];
+  out[0] = m[0] * x + m[4] * y + m[8] * z + m[12] * w;
+  out[1] = m[1] * x + m[5] * y + m[9] * z + m[13] * w;
+  out[2] = m[2] * x + m[6] * y + m[10] * z + m[14] * w;
+  out[3] = m[3] * x + m[7] * y + m[11] * z + m[15] * w;
+  return out;
+}
+/**
+ * Perform some operation over an array of vec4s.
+ *
+ * @param {Array} a the array of vectors to iterate over
+ * @param {Number} stride Number of elements between the start of each vec4. If 0 assumes tightly packed
+ * @param {Number} offset Number of elements to skip at the beginning of the array
+ * @param {Number} count Number of vec4s to iterate over. If 0 iterates over entire array
+ * @param {Function} fn Function to call for each vector in the array
+ * @param {Object} [arg] additional argument to pass to fn
+ * @returns {Array} a
+ * @function
+ */
+
+var forEach = function () {
+  var vec = create$1();
+  return function (a, stride, offset, count, fn, arg) {
+    var i, l;
+
+    if (!stride) {
+      stride = 4;
+    }
+
+    if (!offset) {
+      offset = 0;
+    }
+
+    if (count) {
+      l = Math.min(count * stride + offset, a.length);
+    } else {
+      l = a.length;
+    }
+
+    for (i = offset; i < l; i += stride) {
+      vec[0] = a[i];
+      vec[1] = a[i + 1];
+      vec[2] = a[i + 2];
+      vec[3] = a[i + 3];
+      fn(vec, vec, arg);
+      a[i] = vec[0];
+      a[i + 1] = vec[1];
+      a[i + 2] = vec[2];
+      a[i + 3] = vec[3];
+    }
+
+    return a;
+  };
+}();
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -18167,6 +17760,1626 @@ var lodash = createCommonjsModule(function (module, exports) {
 }.call(commonjsGlobal));
 });
 
+function ascending(a, b) {
+  return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
+}
+
+function bisector(compare) {
+  if (compare.length === 1) compare = ascendingComparator(compare);
+  return {
+    left: function(a, x, lo, hi) {
+      if (lo == null) lo = 0;
+      if (hi == null) hi = a.length;
+      while (lo < hi) {
+        var mid = lo + hi >>> 1;
+        if (compare(a[mid], x) < 0) lo = mid + 1;
+        else hi = mid;
+      }
+      return lo;
+    },
+    right: function(a, x, lo, hi) {
+      if (lo == null) lo = 0;
+      if (hi == null) hi = a.length;
+      while (lo < hi) {
+        var mid = lo + hi >>> 1;
+        if (compare(a[mid], x) > 0) hi = mid;
+        else lo = mid + 1;
+      }
+      return lo;
+    }
+  };
+}
+
+function ascendingComparator(f) {
+  return function(d, x) {
+    return ascending(f(d), x);
+  };
+}
+
+var ascendingBisect = bisector(ascending);
+var bisectRight = ascendingBisect.right;
+
+var e10 = Math.sqrt(50),
+    e5 = Math.sqrt(10),
+    e2 = Math.sqrt(2);
+
+function ticks(start, stop, count) {
+  var reverse,
+      i = -1,
+      n,
+      ticks,
+      step;
+
+  stop = +stop, start = +start, count = +count;
+  if (start === stop && count > 0) return [start];
+  if (reverse = stop < start) n = start, start = stop, stop = n;
+  if ((step = tickIncrement(start, stop, count)) === 0 || !isFinite(step)) return [];
+
+  if (step > 0) {
+    start = Math.ceil(start / step);
+    stop = Math.floor(stop / step);
+    ticks = new Array(n = Math.ceil(stop - start + 1));
+    while (++i < n) ticks[i] = (start + i) * step;
+  } else {
+    start = Math.floor(start * step);
+    stop = Math.ceil(stop * step);
+    ticks = new Array(n = Math.ceil(start - stop + 1));
+    while (++i < n) ticks[i] = (start - i) / step;
+  }
+
+  if (reverse) ticks.reverse();
+
+  return ticks;
+}
+
+function tickIncrement(start, stop, count) {
+  var step = (stop - start) / Math.max(0, count),
+      power = Math.floor(Math.log(step) / Math.LN10),
+      error = step / Math.pow(10, power);
+  return power >= 0
+      ? (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1) * Math.pow(10, power)
+      : -Math.pow(10, -power) / (error >= e10 ? 10 : error >= e5 ? 5 : error >= e2 ? 2 : 1);
+}
+
+function tickStep(start, stop, count) {
+  var step0 = Math.abs(stop - start) / Math.max(0, count),
+      step1 = Math.pow(10, Math.floor(Math.log(step0) / Math.LN10)),
+      error = step0 / step1;
+  if (error >= e10) step1 *= 10;
+  else if (error >= e5) step1 *= 5;
+  else if (error >= e2) step1 *= 2;
+  return stop < start ? -step1 : step1;
+}
+
+var noop = {value: function() {}};
+
+function dispatch() {
+  for (var i = 0, n = arguments.length, _ = {}, t; i < n; ++i) {
+    if (!(t = arguments[i] + "") || (t in _) || /[\s.]/.test(t)) throw new Error("illegal type: " + t);
+    _[t] = [];
+  }
+  return new Dispatch(_);
+}
+
+function Dispatch(_) {
+  this._ = _;
+}
+
+function parseTypenames(typenames, types) {
+  return typenames.trim().split(/^|\s+/).map(function(t) {
+    var name = "", i = t.indexOf(".");
+    if (i >= 0) name = t.slice(i + 1), t = t.slice(0, i);
+    if (t && !types.hasOwnProperty(t)) throw new Error("unknown type: " + t);
+    return {type: t, name: name};
+  });
+}
+
+Dispatch.prototype = dispatch.prototype = {
+  constructor: Dispatch,
+  on: function(typename, callback) {
+    var _ = this._,
+        T = parseTypenames(typename + "", _),
+        t,
+        i = -1,
+        n = T.length;
+
+    // If no callback was specified, return the callback of the given type and name.
+    if (arguments.length < 2) {
+      while (++i < n) if ((t = (typename = T[i]).type) && (t = get(_[t], typename.name))) return t;
+      return;
+    }
+
+    // If a type was specified, set the callback for the given type and name.
+    // Otherwise, if a null callback was specified, remove callbacks of the given name.
+    if (callback != null && typeof callback !== "function") throw new Error("invalid callback: " + callback);
+    while (++i < n) {
+      if (t = (typename = T[i]).type) _[t] = set(_[t], typename.name, callback);
+      else if (callback == null) for (t in _) _[t] = set(_[t], typename.name, null);
+    }
+
+    return this;
+  },
+  copy: function() {
+    var copy = {}, _ = this._;
+    for (var t in _) copy[t] = _[t].slice();
+    return new Dispatch(copy);
+  },
+  call: function(type, that) {
+    if ((n = arguments.length - 2) > 0) for (var args = new Array(n), i = 0, n, t; i < n; ++i) args[i] = arguments[i + 2];
+    if (!this._.hasOwnProperty(type)) throw new Error("unknown type: " + type);
+    for (t = this._[type], i = 0, n = t.length; i < n; ++i) t[i].value.apply(that, args);
+  },
+  apply: function(type, that, args) {
+    if (!this._.hasOwnProperty(type)) throw new Error("unknown type: " + type);
+    for (var t = this._[type], i = 0, n = t.length; i < n; ++i) t[i].value.apply(that, args);
+  }
+};
+
+function get(type, name) {
+  for (var i = 0, n = type.length, c; i < n; ++i) {
+    if ((c = type[i]).name === name) {
+      return c.value;
+    }
+  }
+}
+
+function set(type, name, callback) {
+  for (var i = 0, n = type.length; i < n; ++i) {
+    if (type[i].name === name) {
+      type[i] = noop, type = type.slice(0, i).concat(type.slice(i + 1));
+      break;
+    }
+  }
+  if (callback != null) type.push({name: name, value: callback});
+  return type;
+}
+
+function define(constructor, factory, prototype) {
+  constructor.prototype = factory.prototype = prototype;
+  prototype.constructor = constructor;
+}
+
+function extend(parent, definition) {
+  var prototype = Object.create(parent.prototype);
+  for (var key in definition) prototype[key] = definition[key];
+  return prototype;
+}
+
+function Color() {}
+
+var darker = 0.7;
+var brighter = 1 / darker;
+
+var reI = "\\s*([+-]?\\d+)\\s*",
+    reN = "\\s*([+-]?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?)\\s*",
+    reP = "\\s*([+-]?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?)%\\s*",
+    reHex = /^#([0-9a-f]{3,8})$/,
+    reRgbInteger = new RegExp("^rgb\\(" + [reI, reI, reI] + "\\)$"),
+    reRgbPercent = new RegExp("^rgb\\(" + [reP, reP, reP] + "\\)$"),
+    reRgbaInteger = new RegExp("^rgba\\(" + [reI, reI, reI, reN] + "\\)$"),
+    reRgbaPercent = new RegExp("^rgba\\(" + [reP, reP, reP, reN] + "\\)$"),
+    reHslPercent = new RegExp("^hsl\\(" + [reN, reP, reP] + "\\)$"),
+    reHslaPercent = new RegExp("^hsla\\(" + [reN, reP, reP, reN] + "\\)$");
+
+var named = {
+  aliceblue: 0xf0f8ff,
+  antiquewhite: 0xfaebd7,
+  aqua: 0x00ffff,
+  aquamarine: 0x7fffd4,
+  azure: 0xf0ffff,
+  beige: 0xf5f5dc,
+  bisque: 0xffe4c4,
+  black: 0x000000,
+  blanchedalmond: 0xffebcd,
+  blue: 0x0000ff,
+  blueviolet: 0x8a2be2,
+  brown: 0xa52a2a,
+  burlywood: 0xdeb887,
+  cadetblue: 0x5f9ea0,
+  chartreuse: 0x7fff00,
+  chocolate: 0xd2691e,
+  coral: 0xff7f50,
+  cornflowerblue: 0x6495ed,
+  cornsilk: 0xfff8dc,
+  crimson: 0xdc143c,
+  cyan: 0x00ffff,
+  darkblue: 0x00008b,
+  darkcyan: 0x008b8b,
+  darkgoldenrod: 0xb8860b,
+  darkgray: 0xa9a9a9,
+  darkgreen: 0x006400,
+  darkgrey: 0xa9a9a9,
+  darkkhaki: 0xbdb76b,
+  darkmagenta: 0x8b008b,
+  darkolivegreen: 0x556b2f,
+  darkorange: 0xff8c00,
+  darkorchid: 0x9932cc,
+  darkred: 0x8b0000,
+  darksalmon: 0xe9967a,
+  darkseagreen: 0x8fbc8f,
+  darkslateblue: 0x483d8b,
+  darkslategray: 0x2f4f4f,
+  darkslategrey: 0x2f4f4f,
+  darkturquoise: 0x00ced1,
+  darkviolet: 0x9400d3,
+  deeppink: 0xff1493,
+  deepskyblue: 0x00bfff,
+  dimgray: 0x696969,
+  dimgrey: 0x696969,
+  dodgerblue: 0x1e90ff,
+  firebrick: 0xb22222,
+  floralwhite: 0xfffaf0,
+  forestgreen: 0x228b22,
+  fuchsia: 0xff00ff,
+  gainsboro: 0xdcdcdc,
+  ghostwhite: 0xf8f8ff,
+  gold: 0xffd700,
+  goldenrod: 0xdaa520,
+  gray: 0x808080,
+  green: 0x008000,
+  greenyellow: 0xadff2f,
+  grey: 0x808080,
+  honeydew: 0xf0fff0,
+  hotpink: 0xff69b4,
+  indianred: 0xcd5c5c,
+  indigo: 0x4b0082,
+  ivory: 0xfffff0,
+  khaki: 0xf0e68c,
+  lavender: 0xe6e6fa,
+  lavenderblush: 0xfff0f5,
+  lawngreen: 0x7cfc00,
+  lemonchiffon: 0xfffacd,
+  lightblue: 0xadd8e6,
+  lightcoral: 0xf08080,
+  lightcyan: 0xe0ffff,
+  lightgoldenrodyellow: 0xfafad2,
+  lightgray: 0xd3d3d3,
+  lightgreen: 0x90ee90,
+  lightgrey: 0xd3d3d3,
+  lightpink: 0xffb6c1,
+  lightsalmon: 0xffa07a,
+  lightseagreen: 0x20b2aa,
+  lightskyblue: 0x87cefa,
+  lightslategray: 0x778899,
+  lightslategrey: 0x778899,
+  lightsteelblue: 0xb0c4de,
+  lightyellow: 0xffffe0,
+  lime: 0x00ff00,
+  limegreen: 0x32cd32,
+  linen: 0xfaf0e6,
+  magenta: 0xff00ff,
+  maroon: 0x800000,
+  mediumaquamarine: 0x66cdaa,
+  mediumblue: 0x0000cd,
+  mediumorchid: 0xba55d3,
+  mediumpurple: 0x9370db,
+  mediumseagreen: 0x3cb371,
+  mediumslateblue: 0x7b68ee,
+  mediumspringgreen: 0x00fa9a,
+  mediumturquoise: 0x48d1cc,
+  mediumvioletred: 0xc71585,
+  midnightblue: 0x191970,
+  mintcream: 0xf5fffa,
+  mistyrose: 0xffe4e1,
+  moccasin: 0xffe4b5,
+  navajowhite: 0xffdead,
+  navy: 0x000080,
+  oldlace: 0xfdf5e6,
+  olive: 0x808000,
+  olivedrab: 0x6b8e23,
+  orange: 0xffa500,
+  orangered: 0xff4500,
+  orchid: 0xda70d6,
+  palegoldenrod: 0xeee8aa,
+  palegreen: 0x98fb98,
+  paleturquoise: 0xafeeee,
+  palevioletred: 0xdb7093,
+  papayawhip: 0xffefd5,
+  peachpuff: 0xffdab9,
+  peru: 0xcd853f,
+  pink: 0xffc0cb,
+  plum: 0xdda0dd,
+  powderblue: 0xb0e0e6,
+  purple: 0x800080,
+  rebeccapurple: 0x663399,
+  red: 0xff0000,
+  rosybrown: 0xbc8f8f,
+  royalblue: 0x4169e1,
+  saddlebrown: 0x8b4513,
+  salmon: 0xfa8072,
+  sandybrown: 0xf4a460,
+  seagreen: 0x2e8b57,
+  seashell: 0xfff5ee,
+  sienna: 0xa0522d,
+  silver: 0xc0c0c0,
+  skyblue: 0x87ceeb,
+  slateblue: 0x6a5acd,
+  slategray: 0x708090,
+  slategrey: 0x708090,
+  snow: 0xfffafa,
+  springgreen: 0x00ff7f,
+  steelblue: 0x4682b4,
+  tan: 0xd2b48c,
+  teal: 0x008080,
+  thistle: 0xd8bfd8,
+  tomato: 0xff6347,
+  turquoise: 0x40e0d0,
+  violet: 0xee82ee,
+  wheat: 0xf5deb3,
+  white: 0xffffff,
+  whitesmoke: 0xf5f5f5,
+  yellow: 0xffff00,
+  yellowgreen: 0x9acd32
+};
+
+define(Color, color, {
+  copy: function(channels) {
+    return Object.assign(new this.constructor, this, channels);
+  },
+  displayable: function() {
+    return this.rgb().displayable();
+  },
+  hex: color_formatHex, // Deprecated! Use color.formatHex.
+  formatHex: color_formatHex,
+  formatHsl: color_formatHsl,
+  formatRgb: color_formatRgb,
+  toString: color_formatRgb
+});
+
+function color_formatHex() {
+  return this.rgb().formatHex();
+}
+
+function color_formatHsl() {
+  return hslConvert(this).formatHsl();
+}
+
+function color_formatRgb() {
+  return this.rgb().formatRgb();
+}
+
+function color(format) {
+  var m, l;
+  format = (format + "").trim().toLowerCase();
+  return (m = reHex.exec(format)) ? (l = m[1].length, m = parseInt(m[1], 16), l === 6 ? rgbn(m) // #ff0000
+      : l === 3 ? new Rgb((m >> 8 & 0xf) | (m >> 4 & 0xf0), (m >> 4 & 0xf) | (m & 0xf0), ((m & 0xf) << 4) | (m & 0xf), 1) // #f00
+      : l === 8 ? new Rgb(m >> 24 & 0xff, m >> 16 & 0xff, m >> 8 & 0xff, (m & 0xff) / 0xff) // #ff000000
+      : l === 4 ? new Rgb((m >> 12 & 0xf) | (m >> 8 & 0xf0), (m >> 8 & 0xf) | (m >> 4 & 0xf0), (m >> 4 & 0xf) | (m & 0xf0), (((m & 0xf) << 4) | (m & 0xf)) / 0xff) // #f000
+      : null) // invalid hex
+      : (m = reRgbInteger.exec(format)) ? new Rgb(m[1], m[2], m[3], 1) // rgb(255, 0, 0)
+      : (m = reRgbPercent.exec(format)) ? new Rgb(m[1] * 255 / 100, m[2] * 255 / 100, m[3] * 255 / 100, 1) // rgb(100%, 0%, 0%)
+      : (m = reRgbaInteger.exec(format)) ? rgba(m[1], m[2], m[3], m[4]) // rgba(255, 0, 0, 1)
+      : (m = reRgbaPercent.exec(format)) ? rgba(m[1] * 255 / 100, m[2] * 255 / 100, m[3] * 255 / 100, m[4]) // rgb(100%, 0%, 0%, 1)
+      : (m = reHslPercent.exec(format)) ? hsla(m[1], m[2] / 100, m[3] / 100, 1) // hsl(120, 50%, 50%)
+      : (m = reHslaPercent.exec(format)) ? hsla(m[1], m[2] / 100, m[3] / 100, m[4]) // hsla(120, 50%, 50%, 1)
+      : named.hasOwnProperty(format) ? rgbn(named[format]) // eslint-disable-line no-prototype-builtins
+      : format === "transparent" ? new Rgb(NaN, NaN, NaN, 0)
+      : null;
+}
+
+function rgbn(n) {
+  return new Rgb(n >> 16 & 0xff, n >> 8 & 0xff, n & 0xff, 1);
+}
+
+function rgba(r, g, b, a) {
+  if (a <= 0) r = g = b = NaN;
+  return new Rgb(r, g, b, a);
+}
+
+function rgbConvert(o) {
+  if (!(o instanceof Color)) o = color(o);
+  if (!o) return new Rgb;
+  o = o.rgb();
+  return new Rgb(o.r, o.g, o.b, o.opacity);
+}
+
+function rgb(r, g, b, opacity) {
+  return arguments.length === 1 ? rgbConvert(r) : new Rgb(r, g, b, opacity == null ? 1 : opacity);
+}
+
+function Rgb(r, g, b, opacity) {
+  this.r = +r;
+  this.g = +g;
+  this.b = +b;
+  this.opacity = +opacity;
+}
+
+define(Rgb, rgb, extend(Color, {
+  brighter: function(k) {
+    k = k == null ? brighter : Math.pow(brighter, k);
+    return new Rgb(this.r * k, this.g * k, this.b * k, this.opacity);
+  },
+  darker: function(k) {
+    k = k == null ? darker : Math.pow(darker, k);
+    return new Rgb(this.r * k, this.g * k, this.b * k, this.opacity);
+  },
+  rgb: function() {
+    return this;
+  },
+  displayable: function() {
+    return (-0.5 <= this.r && this.r < 255.5)
+        && (-0.5 <= this.g && this.g < 255.5)
+        && (-0.5 <= this.b && this.b < 255.5)
+        && (0 <= this.opacity && this.opacity <= 1);
+  },
+  hex: rgb_formatHex, // Deprecated! Use color.formatHex.
+  formatHex: rgb_formatHex,
+  formatRgb: rgb_formatRgb,
+  toString: rgb_formatRgb
+}));
+
+function rgb_formatHex() {
+  return "#" + hex(this.r) + hex(this.g) + hex(this.b);
+}
+
+function rgb_formatRgb() {
+  var a = this.opacity; a = isNaN(a) ? 1 : Math.max(0, Math.min(1, a));
+  return (a === 1 ? "rgb(" : "rgba(")
+      + Math.max(0, Math.min(255, Math.round(this.r) || 0)) + ", "
+      + Math.max(0, Math.min(255, Math.round(this.g) || 0)) + ", "
+      + Math.max(0, Math.min(255, Math.round(this.b) || 0))
+      + (a === 1 ? ")" : ", " + a + ")");
+}
+
+function hex(value) {
+  value = Math.max(0, Math.min(255, Math.round(value) || 0));
+  return (value < 16 ? "0" : "") + value.toString(16);
+}
+
+function hsla(h, s, l, a) {
+  if (a <= 0) h = s = l = NaN;
+  else if (l <= 0 || l >= 1) h = s = NaN;
+  else if (s <= 0) h = NaN;
+  return new Hsl(h, s, l, a);
+}
+
+function hslConvert(o) {
+  if (o instanceof Hsl) return new Hsl(o.h, o.s, o.l, o.opacity);
+  if (!(o instanceof Color)) o = color(o);
+  if (!o) return new Hsl;
+  if (o instanceof Hsl) return o;
+  o = o.rgb();
+  var r = o.r / 255,
+      g = o.g / 255,
+      b = o.b / 255,
+      min = Math.min(r, g, b),
+      max = Math.max(r, g, b),
+      h = NaN,
+      s = max - min,
+      l = (max + min) / 2;
+  if (s) {
+    if (r === max) h = (g - b) / s + (g < b) * 6;
+    else if (g === max) h = (b - r) / s + 2;
+    else h = (r - g) / s + 4;
+    s /= l < 0.5 ? max + min : 2 - max - min;
+    h *= 60;
+  } else {
+    s = l > 0 && l < 1 ? 0 : h;
+  }
+  return new Hsl(h, s, l, o.opacity);
+}
+
+function hsl(h, s, l, opacity) {
+  return arguments.length === 1 ? hslConvert(h) : new Hsl(h, s, l, opacity == null ? 1 : opacity);
+}
+
+function Hsl(h, s, l, opacity) {
+  this.h = +h;
+  this.s = +s;
+  this.l = +l;
+  this.opacity = +opacity;
+}
+
+define(Hsl, hsl, extend(Color, {
+  brighter: function(k) {
+    k = k == null ? brighter : Math.pow(brighter, k);
+    return new Hsl(this.h, this.s, this.l * k, this.opacity);
+  },
+  darker: function(k) {
+    k = k == null ? darker : Math.pow(darker, k);
+    return new Hsl(this.h, this.s, this.l * k, this.opacity);
+  },
+  rgb: function() {
+    var h = this.h % 360 + (this.h < 0) * 360,
+        s = isNaN(h) || isNaN(this.s) ? 0 : this.s,
+        l = this.l,
+        m2 = l + (l < 0.5 ? l : 1 - l) * s,
+        m1 = 2 * l - m2;
+    return new Rgb(
+      hsl2rgb(h >= 240 ? h - 240 : h + 120, m1, m2),
+      hsl2rgb(h, m1, m2),
+      hsl2rgb(h < 120 ? h + 240 : h - 120, m1, m2),
+      this.opacity
+    );
+  },
+  displayable: function() {
+    return (0 <= this.s && this.s <= 1 || isNaN(this.s))
+        && (0 <= this.l && this.l <= 1)
+        && (0 <= this.opacity && this.opacity <= 1);
+  },
+  formatHsl: function() {
+    var a = this.opacity; a = isNaN(a) ? 1 : Math.max(0, Math.min(1, a));
+    return (a === 1 ? "hsl(" : "hsla(")
+        + (this.h || 0) + ", "
+        + (this.s || 0) * 100 + "%, "
+        + (this.l || 0) * 100 + "%"
+        + (a === 1 ? ")" : ", " + a + ")");
+  }
+}));
+
+/* From FvD 13.37, CSS Color Module Level 3 */
+function hsl2rgb(h, m1, m2) {
+  return (h < 60 ? m1 + (m2 - m1) * h / 60
+      : h < 180 ? m2
+      : h < 240 ? m1 + (m2 - m1) * (240 - h) / 60
+      : m1) * 255;
+}
+
+function constant(x) {
+  return function() {
+    return x;
+  };
+}
+
+function linear(a, d) {
+  return function(t) {
+    return a + t * d;
+  };
+}
+
+function exponential(a, b, y) {
+  return a = Math.pow(a, y), b = Math.pow(b, y) - a, y = 1 / y, function(t) {
+    return Math.pow(a + t * b, y);
+  };
+}
+
+function gamma(y) {
+  return (y = +y) === 1 ? nogamma : function(a, b) {
+    return b - a ? exponential(a, b, y) : constant(isNaN(a) ? b : a);
+  };
+}
+
+function nogamma(a, b) {
+  var d = b - a;
+  return d ? linear(a, d) : constant(isNaN(a) ? b : a);
+}
+
+var interpolateRgb = (function rgbGamma(y) {
+  var color = gamma(y);
+
+  function rgb$1(start, end) {
+    var r = color((start = rgb(start)).r, (end = rgb(end)).r),
+        g = color(start.g, end.g),
+        b = color(start.b, end.b),
+        opacity = nogamma(start.opacity, end.opacity);
+    return function(t) {
+      start.r = r(t);
+      start.g = g(t);
+      start.b = b(t);
+      start.opacity = opacity(t);
+      return start + "";
+    };
+  }
+
+  rgb$1.gamma = rgbGamma;
+
+  return rgb$1;
+})(1);
+
+function numberArray(a, b) {
+  if (!b) b = [];
+  var n = a ? Math.min(b.length, a.length) : 0,
+      c = b.slice(),
+      i;
+  return function(t) {
+    for (i = 0; i < n; ++i) c[i] = a[i] * (1 - t) + b[i] * t;
+    return c;
+  };
+}
+
+function isNumberArray(x) {
+  return ArrayBuffer.isView(x) && !(x instanceof DataView);
+}
+
+function genericArray(a, b) {
+  var nb = b ? b.length : 0,
+      na = a ? Math.min(nb, a.length) : 0,
+      x = new Array(na),
+      c = new Array(nb),
+      i;
+
+  for (i = 0; i < na; ++i) x[i] = interpolateValue(a[i], b[i]);
+  for (; i < nb; ++i) c[i] = b[i];
+
+  return function(t) {
+    for (i = 0; i < na; ++i) c[i] = x[i](t);
+    return c;
+  };
+}
+
+function date(a, b) {
+  var d = new Date;
+  return a = +a, b = +b, function(t) {
+    return d.setTime(a * (1 - t) + b * t), d;
+  };
+}
+
+function interpolateNumber(a, b) {
+  return a = +a, b = +b, function(t) {
+    return a * (1 - t) + b * t;
+  };
+}
+
+function object(a, b) {
+  var i = {},
+      c = {},
+      k;
+
+  if (a === null || typeof a !== "object") a = {};
+  if (b === null || typeof b !== "object") b = {};
+
+  for (k in b) {
+    if (k in a) {
+      i[k] = interpolateValue(a[k], b[k]);
+    } else {
+      c[k] = b[k];
+    }
+  }
+
+  return function(t) {
+    for (k in i) c[k] = i[k](t);
+    return c;
+  };
+}
+
+var reA = /[-+]?(?:\d+\.?\d*|\.?\d+)(?:[eE][-+]?\d+)?/g,
+    reB = new RegExp(reA.source, "g");
+
+function zero(b) {
+  return function() {
+    return b;
+  };
+}
+
+function one(b) {
+  return function(t) {
+    return b(t) + "";
+  };
+}
+
+function interpolateString(a, b) {
+  var bi = reA.lastIndex = reB.lastIndex = 0, // scan index for next number in b
+      am, // current match in a
+      bm, // current match in b
+      bs, // string preceding current number in b, if any
+      i = -1, // index in s
+      s = [], // string constants and placeholders
+      q = []; // number interpolators
+
+  // Coerce inputs to strings.
+  a = a + "", b = b + "";
+
+  // Interpolate pairs of numbers in a & b.
+  while ((am = reA.exec(a))
+      && (bm = reB.exec(b))) {
+    if ((bs = bm.index) > bi) { // a string precedes the next number in b
+      bs = b.slice(bi, bs);
+      if (s[i]) s[i] += bs; // coalesce with previous string
+      else s[++i] = bs;
+    }
+    if ((am = am[0]) === (bm = bm[0])) { // numbers in a & b match
+      if (s[i]) s[i] += bm; // coalesce with previous string
+      else s[++i] = bm;
+    } else { // interpolate non-matching numbers
+      s[++i] = null;
+      q.push({i: i, x: interpolateNumber(am, bm)});
+    }
+    bi = reB.lastIndex;
+  }
+
+  // Add remains of b.
+  if (bi < b.length) {
+    bs = b.slice(bi);
+    if (s[i]) s[i] += bs; // coalesce with previous string
+    else s[++i] = bs;
+  }
+
+  // Special optimization for only a single match.
+  // Otherwise, interpolate each of the numbers and rejoin the string.
+  return s.length < 2 ? (q[0]
+      ? one(q[0].x)
+      : zero(b))
+      : (b = q.length, function(t) {
+          for (var i = 0, o; i < b; ++i) s[(o = q[i]).i] = o.x(t);
+          return s.join("");
+        });
+}
+
+function interpolateValue(a, b) {
+  var t = typeof b, c;
+  return b == null || t === "boolean" ? constant(b)
+      : (t === "number" ? interpolateNumber
+      : t === "string" ? ((c = color(b)) ? (b = c, interpolateRgb) : interpolateString)
+      : b instanceof color ? interpolateRgb
+      : b instanceof Date ? date
+      : isNumberArray(b) ? numberArray
+      : Array.isArray(b) ? genericArray
+      : typeof b.valueOf !== "function" && typeof b.toString !== "function" || isNaN(b) ? object
+      : interpolateNumber)(a, b);
+}
+
+function interpolateRound(a, b) {
+  return a = +a, b = +b, function(t) {
+    return Math.round(a * (1 - t) + b * t);
+  };
+}
+
+var emptyOn = dispatch("start", "end", "cancel", "interrupt");
+
+var prefix = "$";
+
+function Map() {}
+
+Map.prototype = map.prototype = {
+  constructor: Map,
+  has: function(key) {
+    return (prefix + key) in this;
+  },
+  get: function(key) {
+    return this[prefix + key];
+  },
+  set: function(key, value) {
+    this[prefix + key] = value;
+    return this;
+  },
+  remove: function(key) {
+    var property = prefix + key;
+    return property in this && delete this[property];
+  },
+  clear: function() {
+    for (var property in this) if (property[0] === prefix) delete this[property];
+  },
+  keys: function() {
+    var keys = [];
+    for (var property in this) if (property[0] === prefix) keys.push(property.slice(1));
+    return keys;
+  },
+  values: function() {
+    var values = [];
+    for (var property in this) if (property[0] === prefix) values.push(this[property]);
+    return values;
+  },
+  entries: function() {
+    var entries = [];
+    for (var property in this) if (property[0] === prefix) entries.push({key: property.slice(1), value: this[property]});
+    return entries;
+  },
+  size: function() {
+    var size = 0;
+    for (var property in this) if (property[0] === prefix) ++size;
+    return size;
+  },
+  empty: function() {
+    for (var property in this) if (property[0] === prefix) return false;
+    return true;
+  },
+  each: function(f) {
+    for (var property in this) if (property[0] === prefix) f(this[property], property.slice(1), this);
+  }
+};
+
+function map(object, f) {
+  var map = new Map;
+
+  // Copy constructor.
+  if (object instanceof Map) object.each(function(value, key) { map.set(key, value); });
+
+  // Index array by numeric index or specified key function.
+  else if (Array.isArray(object)) {
+    var i = -1,
+        n = object.length,
+        o;
+
+    if (f == null) while (++i < n) map.set(i, object[i]);
+    else while (++i < n) map.set(f(o = object[i], i, object), o);
+  }
+
+  // Convert object to map.
+  else if (object) for (var key in object) map.set(key, object[key]);
+
+  return map;
+}
+
+function Set() {}
+
+var proto = map.prototype;
+
+Set.prototype = set$1.prototype = {
+  constructor: Set,
+  has: proto.has,
+  add: function(value) {
+    value += "";
+    this[prefix + value] = value;
+    return this;
+  },
+  remove: proto.remove,
+  clear: proto.clear,
+  values: proto.keys,
+  size: proto.size,
+  empty: proto.empty,
+  each: proto.each
+};
+
+function set$1(object, f) {
+  var set = new Set;
+
+  // Copy constructor.
+  if (object instanceof Set) object.each(function(value) { set.add(value); });
+
+  // Otherwise, assume it’s an array.
+  else if (object) {
+    var i = -1, n = object.length;
+    if (f == null) while (++i < n) set.add(object[i]);
+    else while (++i < n) set.add(f(object[i], i, object));
+  }
+
+  return set;
+}
+
+// Computes the decimal coefficient and exponent of the specified number x with
+// significant digits p, where x is positive and p is in [1, 21] or undefined.
+// For example, formatDecimal(1.23) returns ["123", 0].
+function formatDecimal(x, p) {
+  if ((i = (x = p ? x.toExponential(p - 1) : x.toExponential()).indexOf("e")) < 0) return null; // NaN, ±Infinity
+  var i, coefficient = x.slice(0, i);
+
+  // The string returned by toExponential either has the form \d\.\d+e[-+]\d+
+  // (e.g., 1.2e+3) or the form \de[-+]\d+ (e.g., 1e+3).
+  return [
+    coefficient.length > 1 ? coefficient[0] + coefficient.slice(2) : coefficient,
+    +x.slice(i + 1)
+  ];
+}
+
+function exponent(x) {
+  return x = formatDecimal(Math.abs(x)), x ? x[1] : NaN;
+}
+
+function formatGroup(grouping, thousands) {
+  return function(value, width) {
+    var i = value.length,
+        t = [],
+        j = 0,
+        g = grouping[0],
+        length = 0;
+
+    while (i > 0 && g > 0) {
+      if (length + g + 1 > width) g = Math.max(1, width - length);
+      t.push(value.substring(i -= g, i + g));
+      if ((length += g + 1) > width) break;
+      g = grouping[j = (j + 1) % grouping.length];
+    }
+
+    return t.reverse().join(thousands);
+  };
+}
+
+function formatNumerals(numerals) {
+  return function(value) {
+    return value.replace(/[0-9]/g, function(i) {
+      return numerals[+i];
+    });
+  };
+}
+
+// [[fill]align][sign][symbol][0][width][,][.precision][~][type]
+var re = /^(?:(.)?([<>=^]))?([+\-( ])?([$#])?(0)?(\d+)?(,)?(\.\d+)?(~)?([a-z%])?$/i;
+
+function formatSpecifier(specifier) {
+  if (!(match = re.exec(specifier))) throw new Error("invalid format: " + specifier);
+  var match;
+  return new FormatSpecifier({
+    fill: match[1],
+    align: match[2],
+    sign: match[3],
+    symbol: match[4],
+    zero: match[5],
+    width: match[6],
+    comma: match[7],
+    precision: match[8] && match[8].slice(1),
+    trim: match[9],
+    type: match[10]
+  });
+}
+
+formatSpecifier.prototype = FormatSpecifier.prototype; // instanceof
+
+function FormatSpecifier(specifier) {
+  this.fill = specifier.fill === undefined ? " " : specifier.fill + "";
+  this.align = specifier.align === undefined ? ">" : specifier.align + "";
+  this.sign = specifier.sign === undefined ? "-" : specifier.sign + "";
+  this.symbol = specifier.symbol === undefined ? "" : specifier.symbol + "";
+  this.zero = !!specifier.zero;
+  this.width = specifier.width === undefined ? undefined : +specifier.width;
+  this.comma = !!specifier.comma;
+  this.precision = specifier.precision === undefined ? undefined : +specifier.precision;
+  this.trim = !!specifier.trim;
+  this.type = specifier.type === undefined ? "" : specifier.type + "";
+}
+
+FormatSpecifier.prototype.toString = function() {
+  return this.fill
+      + this.align
+      + this.sign
+      + this.symbol
+      + (this.zero ? "0" : "")
+      + (this.width === undefined ? "" : Math.max(1, this.width | 0))
+      + (this.comma ? "," : "")
+      + (this.precision === undefined ? "" : "." + Math.max(0, this.precision | 0))
+      + (this.trim ? "~" : "")
+      + this.type;
+};
+
+// Trims insignificant zeros, e.g., replaces 1.2000k with 1.2k.
+function formatTrim(s) {
+  out: for (var n = s.length, i = 1, i0 = -1, i1; i < n; ++i) {
+    switch (s[i]) {
+      case ".": i0 = i1 = i; break;
+      case "0": if (i0 === 0) i0 = i; i1 = i; break;
+      default: if (!+s[i]) break out; if (i0 > 0) i0 = 0; break;
+    }
+  }
+  return i0 > 0 ? s.slice(0, i0) + s.slice(i1 + 1) : s;
+}
+
+var prefixExponent;
+
+function formatPrefixAuto(x, p) {
+  var d = formatDecimal(x, p);
+  if (!d) return x + "";
+  var coefficient = d[0],
+      exponent = d[1],
+      i = exponent - (prefixExponent = Math.max(-8, Math.min(8, Math.floor(exponent / 3))) * 3) + 1,
+      n = coefficient.length;
+  return i === n ? coefficient
+      : i > n ? coefficient + new Array(i - n + 1).join("0")
+      : i > 0 ? coefficient.slice(0, i) + "." + coefficient.slice(i)
+      : "0." + new Array(1 - i).join("0") + formatDecimal(x, Math.max(0, p + i - 1))[0]; // less than 1y!
+}
+
+function formatRounded(x, p) {
+  var d = formatDecimal(x, p);
+  if (!d) return x + "";
+  var coefficient = d[0],
+      exponent = d[1];
+  return exponent < 0 ? "0." + new Array(-exponent).join("0") + coefficient
+      : coefficient.length > exponent + 1 ? coefficient.slice(0, exponent + 1) + "." + coefficient.slice(exponent + 1)
+      : coefficient + new Array(exponent - coefficient.length + 2).join("0");
+}
+
+var formatTypes = {
+  "%": function(x, p) { return (x * 100).toFixed(p); },
+  "b": function(x) { return Math.round(x).toString(2); },
+  "c": function(x) { return x + ""; },
+  "d": function(x) { return Math.round(x).toString(10); },
+  "e": function(x, p) { return x.toExponential(p); },
+  "f": function(x, p) { return x.toFixed(p); },
+  "g": function(x, p) { return x.toPrecision(p); },
+  "o": function(x) { return Math.round(x).toString(8); },
+  "p": function(x, p) { return formatRounded(x * 100, p); },
+  "r": formatRounded,
+  "s": formatPrefixAuto,
+  "X": function(x) { return Math.round(x).toString(16).toUpperCase(); },
+  "x": function(x) { return Math.round(x).toString(16); }
+};
+
+function identity(x) {
+  return x;
+}
+
+var map$1 = Array.prototype.map,
+    prefixes = ["y","z","a","f","p","n","µ","m","","k","M","G","T","P","E","Z","Y"];
+
+function formatLocale(locale) {
+  var group = locale.grouping === undefined || locale.thousands === undefined ? identity : formatGroup(map$1.call(locale.grouping, Number), locale.thousands + ""),
+      currencyPrefix = locale.currency === undefined ? "" : locale.currency[0] + "",
+      currencySuffix = locale.currency === undefined ? "" : locale.currency[1] + "",
+      decimal = locale.decimal === undefined ? "." : locale.decimal + "",
+      numerals = locale.numerals === undefined ? identity : formatNumerals(map$1.call(locale.numerals, String)),
+      percent = locale.percent === undefined ? "%" : locale.percent + "",
+      minus = locale.minus === undefined ? "-" : locale.minus + "",
+      nan = locale.nan === undefined ? "NaN" : locale.nan + "";
+
+  function newFormat(specifier) {
+    specifier = formatSpecifier(specifier);
+
+    var fill = specifier.fill,
+        align = specifier.align,
+        sign = specifier.sign,
+        symbol = specifier.symbol,
+        zero = specifier.zero,
+        width = specifier.width,
+        comma = specifier.comma,
+        precision = specifier.precision,
+        trim = specifier.trim,
+        type = specifier.type;
+
+    // The "n" type is an alias for ",g".
+    if (type === "n") comma = true, type = "g";
+
+    // The "" type, and any invalid type, is an alias for ".12~g".
+    else if (!formatTypes[type]) precision === undefined && (precision = 12), trim = true, type = "g";
+
+    // If zero fill is specified, padding goes after sign and before digits.
+    if (zero || (fill === "0" && align === "=")) zero = true, fill = "0", align = "=";
+
+    // Compute the prefix and suffix.
+    // For SI-prefix, the suffix is lazily computed.
+    var prefix = symbol === "$" ? currencyPrefix : symbol === "#" && /[boxX]/.test(type) ? "0" + type.toLowerCase() : "",
+        suffix = symbol === "$" ? currencySuffix : /[%p]/.test(type) ? percent : "";
+
+    // What format function should we use?
+    // Is this an integer type?
+    // Can this type generate exponential notation?
+    var formatType = formatTypes[type],
+        maybeSuffix = /[defgprs%]/.test(type);
+
+    // Set the default precision if not specified,
+    // or clamp the specified precision to the supported range.
+    // For significant precision, it must be in [1, 21].
+    // For fixed precision, it must be in [0, 20].
+    precision = precision === undefined ? 6
+        : /[gprs]/.test(type) ? Math.max(1, Math.min(21, precision))
+        : Math.max(0, Math.min(20, precision));
+
+    function format(value) {
+      var valuePrefix = prefix,
+          valueSuffix = suffix,
+          i, n, c;
+
+      if (type === "c") {
+        valueSuffix = formatType(value) + valueSuffix;
+        value = "";
+      } else {
+        value = +value;
+
+        // Perform the initial formatting.
+        var valueNegative = value < 0;
+        value = isNaN(value) ? nan : formatType(Math.abs(value), precision);
+
+        // Trim insignificant zeros.
+        if (trim) value = formatTrim(value);
+
+        // If a negative value rounds to zero during formatting, treat as positive.
+        if (valueNegative && +value === 0) valueNegative = false;
+
+        // Compute the prefix and suffix.
+        valuePrefix = (valueNegative ? (sign === "(" ? sign : minus) : sign === "-" || sign === "(" ? "" : sign) + valuePrefix;
+
+        valueSuffix = (type === "s" ? prefixes[8 + prefixExponent / 3] : "") + valueSuffix + (valueNegative && sign === "(" ? ")" : "");
+
+        // Break the formatted value into the integer “value” part that can be
+        // grouped, and fractional or exponential “suffix” part that is not.
+        if (maybeSuffix) {
+          i = -1, n = value.length;
+          while (++i < n) {
+            if (c = value.charCodeAt(i), 48 > c || c > 57) {
+              valueSuffix = (c === 46 ? decimal + value.slice(i + 1) : value.slice(i)) + valueSuffix;
+              value = value.slice(0, i);
+              break;
+            }
+          }
+        }
+      }
+
+      // If the fill character is not "0", grouping is applied before padding.
+      if (comma && !zero) value = group(value, Infinity);
+
+      // Compute the padding.
+      var length = valuePrefix.length + value.length + valueSuffix.length,
+          padding = length < width ? new Array(width - length + 1).join(fill) : "";
+
+      // If the fill character is "0", grouping is applied after padding.
+      if (comma && zero) value = group(padding + value, padding.length ? width - valueSuffix.length : Infinity), padding = "";
+
+      // Reconstruct the final output based on the desired alignment.
+      switch (align) {
+        case "<": value = valuePrefix + value + valueSuffix + padding; break;
+        case "=": value = valuePrefix + padding + value + valueSuffix; break;
+        case "^": value = padding.slice(0, length = padding.length >> 1) + valuePrefix + value + valueSuffix + padding.slice(length); break;
+        default: value = padding + valuePrefix + value + valueSuffix; break;
+      }
+
+      return numerals(value);
+    }
+
+    format.toString = function() {
+      return specifier + "";
+    };
+
+    return format;
+  }
+
+  function formatPrefix(specifier, value) {
+    var f = newFormat((specifier = formatSpecifier(specifier), specifier.type = "f", specifier)),
+        e = Math.max(-8, Math.min(8, Math.floor(exponent(value) / 3))) * 3,
+        k = Math.pow(10, -e),
+        prefix = prefixes[8 + e / 3];
+    return function(value) {
+      return f(k * value) + prefix;
+    };
+  }
+
+  return {
+    format: newFormat,
+    formatPrefix: formatPrefix
+  };
+}
+
+var locale;
+var format;
+var formatPrefix;
+
+defaultLocale({
+  decimal: ".",
+  thousands: ",",
+  grouping: [3],
+  currency: ["$", ""],
+  minus: "-"
+});
+
+function defaultLocale(definition) {
+  locale = formatLocale(definition);
+  format = locale.format;
+  formatPrefix = locale.formatPrefix;
+  return locale;
+}
+
+function precisionFixed(step) {
+  return Math.max(0, -exponent(Math.abs(step)));
+}
+
+function precisionPrefix(step, value) {
+  return Math.max(0, Math.max(-8, Math.min(8, Math.floor(exponent(value) / 3))) * 3 - exponent(Math.abs(step)));
+}
+
+function precisionRound(step, max) {
+  step = Math.abs(step), max = Math.abs(max) - step;
+  return Math.max(0, exponent(max) - exponent(step)) + 1;
+}
+
+function initRange(domain, range) {
+  switch (arguments.length) {
+    case 0: break;
+    case 1: this.range(domain); break;
+    default: this.range(range).domain(domain); break;
+  }
+  return this;
+}
+
+var array = Array.prototype;
+
+var map$2 = array.map;
+var slice = array.slice;
+
+var implicit = {name: "implicit"};
+
+function ordinal() {
+  var index = map(),
+      domain = [],
+      range = [],
+      unknown = implicit;
+
+  function scale(d) {
+    var key = d + "", i = index.get(key);
+    if (!i) {
+      if (unknown !== implicit) return unknown;
+      index.set(key, i = domain.push(d));
+    }
+    return range[(i - 1) % range.length];
+  }
+
+  scale.domain = function(_) {
+    if (!arguments.length) return domain.slice();
+    domain = [], index = map();
+    var i = -1, n = _.length, d, key;
+    while (++i < n) if (!index.has(key = (d = _[i]) + "")) index.set(key, domain.push(d));
+    return scale;
+  };
+
+  scale.range = function(_) {
+    return arguments.length ? (range = slice.call(_), scale) : range.slice();
+  };
+
+  scale.unknown = function(_) {
+    return arguments.length ? (unknown = _, scale) : unknown;
+  };
+
+  scale.copy = function() {
+    return ordinal(domain, range).unknown(unknown);
+  };
+
+  initRange.apply(scale, arguments);
+
+  return scale;
+}
+
+function constant$1(x) {
+  return function() {
+    return x;
+  };
+}
+
+function number(x) {
+  return +x;
+}
+
+var unit = [0, 1];
+
+function identity$1(x) {
+  return x;
+}
+
+function normalize(a, b) {
+  return (b -= (a = +a))
+      ? function(x) { return (x - a) / b; }
+      : constant$1(isNaN(b) ? NaN : 0.5);
+}
+
+function clamper(domain) {
+  var a = domain[0], b = domain[domain.length - 1], t;
+  if (a > b) t = a, a = b, b = t;
+  return function(x) { return Math.max(a, Math.min(b, x)); };
+}
+
+// normalize(a, b)(x) takes a domain value x in [a,b] and returns the corresponding parameter t in [0,1].
+// interpolate(a, b)(t) takes a parameter t in [0,1] and returns the corresponding range value x in [a,b].
+function bimap(domain, range, interpolate) {
+  var d0 = domain[0], d1 = domain[1], r0 = range[0], r1 = range[1];
+  if (d1 < d0) d0 = normalize(d1, d0), r0 = interpolate(r1, r0);
+  else d0 = normalize(d0, d1), r0 = interpolate(r0, r1);
+  return function(x) { return r0(d0(x)); };
+}
+
+function polymap(domain, range, interpolate) {
+  var j = Math.min(domain.length, range.length) - 1,
+      d = new Array(j),
+      r = new Array(j),
+      i = -1;
+
+  // Reverse descending domains.
+  if (domain[j] < domain[0]) {
+    domain = domain.slice().reverse();
+    range = range.slice().reverse();
+  }
+
+  while (++i < j) {
+    d[i] = normalize(domain[i], domain[i + 1]);
+    r[i] = interpolate(range[i], range[i + 1]);
+  }
+
+  return function(x) {
+    var i = bisectRight(domain, x, 1, j) - 1;
+    return r[i](d[i](x));
+  };
+}
+
+function copy(source, target) {
+  return target
+      .domain(source.domain())
+      .range(source.range())
+      .interpolate(source.interpolate())
+      .clamp(source.clamp())
+      .unknown(source.unknown());
+}
+
+function transformer() {
+  var domain = unit,
+      range = unit,
+      interpolate = interpolateValue,
+      transform,
+      untransform,
+      unknown,
+      clamp = identity$1,
+      piecewise,
+      output,
+      input;
+
+  function rescale() {
+    piecewise = Math.min(domain.length, range.length) > 2 ? polymap : bimap;
+    output = input = null;
+    return scale;
+  }
+
+  function scale(x) {
+    return isNaN(x = +x) ? unknown : (output || (output = piecewise(domain.map(transform), range, interpolate)))(transform(clamp(x)));
+  }
+
+  scale.invert = function(y) {
+    return clamp(untransform((input || (input = piecewise(range, domain.map(transform), interpolateNumber)))(y)));
+  };
+
+  scale.domain = function(_) {
+    return arguments.length ? (domain = map$2.call(_, number), clamp === identity$1 || (clamp = clamper(domain)), rescale()) : domain.slice();
+  };
+
+  scale.range = function(_) {
+    return arguments.length ? (range = slice.call(_), rescale()) : range.slice();
+  };
+
+  scale.rangeRound = function(_) {
+    return range = slice.call(_), interpolate = interpolateRound, rescale();
+  };
+
+  scale.clamp = function(_) {
+    return arguments.length ? (clamp = _ ? clamper(domain) : identity$1, scale) : clamp !== identity$1;
+  };
+
+  scale.interpolate = function(_) {
+    return arguments.length ? (interpolate = _, rescale()) : interpolate;
+  };
+
+  scale.unknown = function(_) {
+    return arguments.length ? (unknown = _, scale) : unknown;
+  };
+
+  return function(t, u) {
+    transform = t, untransform = u;
+    return rescale();
+  };
+}
+
+function continuous(transform, untransform) {
+  return transformer()(transform, untransform);
+}
+
+function tickFormat(start, stop, count, specifier) {
+  var step = tickStep(start, stop, count),
+      precision;
+  specifier = formatSpecifier(specifier == null ? ",f" : specifier);
+  switch (specifier.type) {
+    case "s": {
+      var value = Math.max(Math.abs(start), Math.abs(stop));
+      if (specifier.precision == null && !isNaN(precision = precisionPrefix(step, value))) specifier.precision = precision;
+      return formatPrefix(specifier, value);
+    }
+    case "":
+    case "e":
+    case "g":
+    case "p":
+    case "r": {
+      if (specifier.precision == null && !isNaN(precision = precisionRound(step, Math.max(Math.abs(start), Math.abs(stop))))) specifier.precision = precision - (specifier.type === "e");
+      break;
+    }
+    case "f":
+    case "%": {
+      if (specifier.precision == null && !isNaN(precision = precisionFixed(step))) specifier.precision = precision - (specifier.type === "%") * 2;
+      break;
+    }
+  }
+  return format(specifier);
+}
+
+function linearish(scale) {
+  var domain = scale.domain;
+
+  scale.ticks = function(count) {
+    var d = domain();
+    return ticks(d[0], d[d.length - 1], count == null ? 10 : count);
+  };
+
+  scale.tickFormat = function(count, specifier) {
+    var d = domain();
+    return tickFormat(d[0], d[d.length - 1], count == null ? 10 : count, specifier);
+  };
+
+  scale.nice = function(count) {
+    if (count == null) count = 10;
+
+    var d = domain(),
+        i0 = 0,
+        i1 = d.length - 1,
+        start = d[i0],
+        stop = d[i1],
+        step;
+
+    if (stop < start) {
+      step = start, start = stop, stop = step;
+      step = i0, i0 = i1, i1 = step;
+    }
+
+    step = tickIncrement(start, stop, count);
+
+    if (step > 0) {
+      start = Math.floor(start / step) * step;
+      stop = Math.ceil(stop / step) * step;
+      step = tickIncrement(start, stop, count);
+    } else if (step < 0) {
+      start = Math.ceil(start * step) / step;
+      stop = Math.floor(stop * step) / step;
+      step = tickIncrement(start, stop, count);
+    }
+
+    if (step > 0) {
+      d[i0] = Math.floor(start / step) * step;
+      d[i1] = Math.ceil(stop / step) * step;
+      domain(d);
+    } else if (step < 0) {
+      d[i0] = Math.ceil(start * step) / step;
+      d[i1] = Math.floor(stop * step) / step;
+      domain(d);
+    }
+
+    return scale;
+  };
+
+  return scale;
+}
+
+function linear$1() {
+  var scale = continuous(identity$1, identity$1);
+
+  scale.copy = function() {
+    return copy(scale, linear$1());
+  };
+
+  initRange.apply(scale, arguments);
+
+  return linearish(scale);
+}
+
+function colors(specifier) {
+  var n = specifier.length / 6 | 0, colors = new Array(n), i = 0;
+  while (i < n) colors[i] = "#" + specifier.slice(i * 6, ++i * 6);
+  return colors;
+}
+
+var Accent = colors("7fc97fbeaed4fdc086ffff99386cb0f0027fbf5b17666666");
+
+const clip = (d) => {
+  return d / 3000
+};
+
+let processData = (data) => {
+
+let colorTypes = {};
+
+ let randomColor = data.nodes.map(d => {
+   d.size = 0;
+   d.x = clip(d.x);
+   d.y = clip(d.y);
+   return [Math.random(), Math.random(), Math.random()]
+ });
+
+  var accent = ordinal(Accent);
+
+  let sentiment = lodash.flatten(data.nodes.map((d) => {
+    return + d.sentiment
+  }));
+
+
+  var sentimentScale = linear$1()
+  .domain([-1, 1])
+    .range(['red', 'yellow', 'green']);
+
+
+  let sentimentColor = lodash.flatten(data.nodes.map((d) => {
+    let c = rgb(sentimentScale(+ d.sentiment));
+    return [c.r /255 , c.g /255 , c.b /255];
+  }));
+
+  data.edges.forEach(d => {
+    //if (! data.nodes[d.target] ) debugger
+    data.nodes[d.target].size += 1;
+    data.nodes[d.source].size += 1;
+  });
+  let position =
+  (data.nodes.map((d, id) => [(d.x), (d.y), d.size, id]));
+
+
+    let edges = {
+      sourcePositions: new Array(position.length).fill(0),
+      targetPositions: new Array(position.length).fill(0),
+      curves: new Array(data.edges.length).fill(0),
+      edges: data.edges
+    };
+    data.edges.forEach((edge, idx) => {
+      let source = data.nodes[edge.source], target = data.nodes[edge.target];
+
+      edges.sourcePositions[idx*2] = (source.x);
+      edges.sourcePositions[idx*2+1] = (source.y);
+      edges.targetPositions[idx*2] = (target.x);
+      edges.targetPositions[idx*2+1] = (target.y);
+
+      edges.curves[idx] = {
+        x1: (source.x),
+        y1: (source.y),
+        x2: (target.x),
+        y2: (target.y),
+      };
+    });
+
+let edgeColors = new Array(data.edges.length * 3).fill(0);
+
+
+let parseColor = (rgb$1) => {
+  let c = rgb(rgb$1);
+  return [c.r /255 , c.g /255 , c.b /255];
+};
+    let clusters = {};
+    data.cluster_events.forEach((c) => {
+      let stuff = clusters[c.type] = [];
+      c.clusters.forEach(cluster => {
+        cluster.nodes.forEach(id => {
+          stuff[id] = parseColor(cluster.color);
+        });
+      });
+
+    });
+
+
+    let stateIndex = new Array(data.nodes.length).fill(0);
+
+    //data.cluster_events.forEach(c => {
+    let c = data.cluster_events[0];
+      c.clusters.forEach(cluster => {
+        //console.log('wat', cluster)
+
+        cluster.nodes.forEach(id => {
+          stateIndex[id] = [cluster.cluster_id, 1];
+        });
+      });
+    //})
+
+    //console.log(stateIndex)
+
+      data.edges.forEach((edge, idx) => {
+        //console.log(`%c ${edge.target}`, 'background: green;');
+        let color = (data.nodes[edge.source] ? data.nodes[edge.source] : getNode(edge.target)).color;
+        let c = rgb(color);
+        edgeColors[idx*3] = c.r / 255;
+        edgeColors[idx*3+1] = c.g / 255;
+        edgeColors[idx*3+2] = c.b / 255;
+    });
+
+
+
+
+
+
+    let dates = data.nodes.map((d, idx) => {
+      return d.create_time || + (new Date(+(new Date()) - Math.floor(Math.random()*10000000000))
+);
+    });
+    let color$1 = lodash.flatten(data.nodes.map((d) => {
+
+      let c = color(d.color || 'pink');
+      return [c.r /255 , c.g /255 , c.b /255];
+    }));
+
+
+
+    return {
+      nodes: data.nodes,
+      colorTypes: lodash.extend(colorTypes, {
+          general: clusters.general,
+          specific: clusters.specific,
+          sentiment: sentimentColor,
+          random: randomColor,
+          merge: clusters.general.map(d => [.9, .3, .5])
+
+      }),
+      position,
+      edges,
+      edgeColors,
+      color: color$1,
+      dates,
+      sentiment,
+      stateIndex
+
+  }
+};
+
 const FRAG_SHADER = `
 precision mediump float;
 uniform vec4 color;
@@ -18368,7 +19581,6 @@ const createLine = (
     };
 
     elements = regl.elements();
-    console.log('hi');
     drawLine = regl({
       attributes,
       depth: { enable: !is2d },
@@ -18551,6 +19763,450 @@ const createLine = (
   }
 };
 
+var Bezier = require('bezier-js');
+
+const commands = require("./src/commands");
+
+
+
+function createCurves (regl, attributes, getModel, getProjection, getView) {
+
+  const interleavedStripRoundCapJoin3DDEMO = commands.interleavedStripRoundCapJoin3DDEMO(
+    regl,
+    16
+  );
+
+  let positions = [];
+
+  let fillPosition = (d) => {
+    var curve = new Bezier(d.x1, d.y1 , d.x2, d.y1 , d.x2, d.y2);
+    var LUT = curve.getLUT(50);
+    LUT.forEach(function(p) { positions.push([p.x, p.y, 0]); });
+    //LUT.forEach(function(p) { positions.push(Math.random(), Math.random()) });
+  };
+
+  attributes.edges.curves.forEach(fillPosition);
+  let segments = 0;
+  let view = new Float64Array([5.554607391357422, 0, 0, 0, 0, 5.554607391357422, 0, 0, 0, 0, 1, 0, -0.527761697769165, 0.8586031794548035, 0, 1]);
+
+  view = getView();
+  let colors = positions.map( d => [Math.random(),Math.random(),Math.random()] );
+
+  let pos = regl.buffer(positions);
+  let color = regl.buffer(colors);
+  let update =  (node, id) => {
+      let connections = attributes.edges.edges.filter(edge => {
+        return edge.source == id || edge.target == id
+      }).map(d => {
+        let source = attributes.nodes[d.source], target = attributes.nodes[d.target];
+
+        return {
+          x1: (source.x),
+          y1: (source.y),
+          x2: (target.x),
+          y2: (target.y),
+        }
+      });
+
+      positions = [];
+
+      connections.forEach(fillPosition);
+      //console.log(positions)
+
+      segments=positions.length;
+
+      let colors = positions.map( d => [Math.random(),Math.random(),Math.random()] );
+      console.log(positions, segments);
+      pos({data: positions});
+      color({data: colors});
+
+
+    };
+
+    let draw = () => interleavedStripRoundCapJoin3DDEMO({
+      points: pos,
+      color: color,
+      width: 10,
+      model: getModel,
+      view: view, //view,
+      projection: [0.6674917491749175, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+      resolution: [window.innerWidth, window.innerHeight],
+      segments: segments / 2,
+      viewport: { x: 0, y: 0, width: innerWidth, height: innerHeight },
+    });
+    return [update, draw]
+}
+
+const createCamera = (
+  initTarget = [0, 0],
+  initDistance = 1,
+  initRotation = 0,
+  initViewCenter = [0, 0],
+  initScaleBounds = [0, Infinity]
+) => {
+  // Scratch variables
+  const scratch0 = new Float32Array(16);
+  const scratch1 = new Float32Array(16);
+  const scratch2 = new Float32Array(16);
+
+  let view = create();
+  
+  let viewCenter = [...initViewCenter.slice(0, 2), 0, 1];
+
+  const scaleBounds = [...initScaleBounds];
+
+  const getRotation = () => Math.acos(view[0]);
+
+  const getScaling$1 = () => getScaling(scratch0, view)[0];
+
+  const getScaleBounds = () => [...scaleBounds];
+
+  const getDistance = () => 1 / getScaling$1();
+
+  const getTranslation$1 = () => getTranslation(scratch0, view).slice(0, 2);
+
+  const getTarget = () =>
+    transformMat4(scratch0, viewCenter, invert(scratch2, view))
+      .slice(0, 2);
+
+  const getView = () => view;
+
+  const getViewCenter = () => viewCenter.slice(0, 2);
+
+  const lookAt = ([x = 0, y = 0] = [], newDistance = 1, newRotation = 0) => {
+    // Reset the view
+    view = create();
+
+    translate([-x, -y]);
+    rotate(newRotation);
+    scale(1 / newDistance);
+  };
+
+  const translate = ([x = 0, y = 0] = []) => {
+    scratch0[0] = x;
+    scratch0[1] = y;
+    scratch0[2] = 0;
+
+    const t = fromTranslation(scratch1, scratch0);
+
+    // Translate about the viewport center
+    // This is identical to `i * t * i * view` where `i` is the identity matrix
+    multiply(view, t, view);
+  };
+
+  const scale = (d, mousePos) => {
+    if (d <= 0) return;
+
+    const scale = getScaling$1();
+    const newScale = scale * d;
+
+    d = Math.max(scaleBounds[0], Math.min(newScale, scaleBounds[1])) / scale;
+
+    if (d === 1) return; // There is nothing to do
+
+    scratch0[0] = d;
+    scratch0[1] = d;
+    scratch0[2] = 1;
+
+    const s = fromScaling(scratch1, scratch0);
+
+    const scaleCenter = mousePos ? [...mousePos, 0] : viewCenter;
+    const a = fromTranslation(scratch0, scaleCenter);
+
+    // Translate about the scale center
+    // I.e., the mouse position or the view center
+    multiply(
+      view,
+      a,
+      multiply(
+        view,
+        s,
+        multiply(view, invert(scratch2, a), view)
+      )
+    );
+  };
+
+  const rotate = rad => {
+    const r = create();
+    fromRotation(r, rad, [0, 0, 1]);
+
+    // Rotate about the viewport center
+    // This is identical to `i * r * i * view` where `i` is the identity matrix
+    multiply(view, r, view);
+  };
+
+  const setScaleBounds = newBounds => {
+    scaleBounds[0] = newBounds[0];
+    scaleBounds[1] = newBounds[1];
+  };
+
+  const setView = newView => {
+    if (!newView || newView.length < 16) return;
+    view = newView;
+  };
+
+  const setViewCenter = newViewCenter => {
+    viewCenter = [...newViewCenter.slice(0, 2), 0, 1];
+  };
+
+  const reset = () => {
+    lookAt(initTarget, initDistance, initRotation);
+  };
+
+  // Init
+  lookAt(initTarget, initDistance, initRotation);
+
+  return {
+    get translation() {
+      return getTranslation$1();
+    },
+    get target() {
+      return getTarget();
+    },
+    get scaling() {
+      return getScaling$1();
+    },
+    get scaleBounds() {
+      return getScaleBounds();
+    },
+    get distance() {
+      return getDistance();
+    },
+    get rotation() {
+      return getRotation();
+    },
+    get view() {
+      return getView();
+    },
+    get viewCenter() {
+      return getViewCenter();
+    },
+    lookAt,
+    translate,
+    pan: translate,
+    rotate,
+    scale,
+    zoom: scale,
+    reset,
+    set: (...args) => {
+      console.warn("Deprecated. Please use `setView()` instead.");
+      return setView(...args);
+    },
+    setScaleBounds,
+    setView,
+    setViewCenter
+  };
+};
+
+
+
+const dom2dCamera = (
+  element,
+  {
+    distance = 1.0,
+    target = [0, 0],
+    rotation = 0,
+    isNdc = true,
+    isFixed = false,
+    isPan = true,
+    panSpeed = 1,
+    isRotate = true,
+    rotateSpeed = 1,
+    isZoom = true,
+    zoomSpeed = 1,
+    scaleBounds = null,
+    onKeyDown = () => {},
+    onKeyUp = () => {},
+    onMouseDown = () => {},
+    onMouseUp = () => {},
+    onMouseMove = () => {},
+    onWheel = () => {}
+  } = {}
+) => {
+  let camera = createCamera(
+    target,
+    distance,
+    rotation
+  );
+  let isChanged = false;
+  let mouseX = 0;
+  let mouseY = 0;
+  let prevMouseX = 0;
+  let prevMouseY = 0;
+  let isLeftMousePressed = false;
+  let yScroll = 0;
+
+  let top = 0;
+  let left = 0;
+  let width = 1;
+  let height = 1;
+  let aspectRatio = 1;
+  let isAlt = false;
+
+  const transformPanX = isNdc
+    ? dX => (dX / width) * 2 * aspectRatio // to normalized device coords
+    : dX => dX;
+  const transformPanY = isNdc
+    ? dY => (dY / height) * 2 // to normalized device coords
+    : dY => -dY;
+
+  const transformScaleX = isNdc
+    ? x => (-1 + (x / width) * 2) * aspectRatio // to normalized device coords
+    : x => x;
+  const transformScaleY = isNdc
+    ? y => 1 - (y / height) * 2 // to normalized device coords
+    : y => y;
+
+  const tick = () => {
+    if (isFixed) return false;
+
+    isChanged = false;
+
+    if (isPan && isLeftMousePressed && !isAlt) {
+      // To pan 1:1 we need to half the width and height because the uniform
+      // coordinate system goes from -1 to 1.
+      camera.pan([
+        transformPanX(panSpeed * (mouseX - prevMouseX)),
+        transformPanY(panSpeed * (prevMouseY - mouseY))
+      ]);
+      isChanged = true;
+    }
+
+    if (isZoom && yScroll) {
+      const dZ = zoomSpeed * Math.exp(yScroll / height);
+
+      // Get normalized device coordinates (NDC)
+      const transformedX = transformScaleX(mouseX);
+      const transformedY = transformScaleY(mouseY);
+
+      camera.scale(1 / dZ, [transformedX, transformedY]);
+
+      isChanged = true;
+    }
+
+    if (isRotate && isLeftMousePressed && isAlt) {
+      const wh = width / 2;
+      const hh = height / 2;
+      const x1 = prevMouseX - wh;
+      const y1 = hh - prevMouseY;
+      const x2 = mouseX - wh;
+      const y2 = hh - mouseY;
+      // Angle between the start and end mouse position with respect to the
+      // viewport center
+      const radians = vec2.angle([x1, y1], [x2, y2]);
+      // Determine the orientation
+      const cross = x1 * y2 - x2 * y1;
+
+      camera.rotate(rotateSpeed * radians * Math.sign(cross));
+
+      isChanged = true;
+    }
+
+    // Reset scroll delta and mouse position
+    yScroll = 0;
+    prevMouseX = mouseX;
+    prevMouseY = mouseY;
+
+    return isChanged;
+  };
+
+  const config = ({
+    isFixed: newIsFixed = null,
+    isPan: newIsPan = null,
+    isRotate: newIsRotate = null,
+    isZoom: newIsZoom = null,
+    panSpeed: newPanSpeed = null,
+    rotateSpeed: newRotateSpeed = null,
+    zoomSpeed: newZoomSpeed = null
+  } = {}) => {
+    isFixed = newIsFixed !== null ? newIsFixed : isFixed;
+    isPan = newIsPan !== null ? newIsPan : isPan;
+    isRotate = newIsRotate !== null ? newIsRotate : isRotate;
+    isZoom = newIsZoom !== null ? newIsZoom : isZoom;
+    panSpeed = +newPanSpeed > 0 ? newPanSpeed : panSpeed;
+    rotateSpeed = +newRotateSpeed > 0 ? newRotateSpeed : rotateSpeed;
+    zoomSpeed = +newZoomSpeed > 0 ? newZoomSpeed : zoomSpeed;
+  };
+
+  const refresh = () => {
+    const bBox = element.getBoundingClientRect();
+    top = bBox.top;
+    left = bBox.left;
+    width = bBox.width;
+    height = bBox.height;
+    aspectRatio = width / height;
+  };
+
+  const keyUpHandler = event => {
+    isAlt = false;
+
+    onKeyUp(event);
+  };
+
+  const keyDownHandler = event => {
+    isAlt = event.altKey;
+
+    onKeyDown(event);
+  };
+
+  const mouseUpHandler = event => {
+    isLeftMousePressed = false;
+
+    onMouseUp(event);
+  };
+
+  const mouseDownHandler = event => {
+    isLeftMousePressed = event.buttons === 1;
+
+    onMouseDown(event);
+  };
+
+  const mouseMoveHandler = event => {
+    prevMouseX = mouseX;
+    prevMouseY = mouseY;
+    mouseX = event.clientX - left;
+    mouseY = event.clientY - top;
+
+    onMouseMove(event);
+  };
+
+  const wheelHandler = event => {
+    event.preventDefault();
+
+    const scale = event.deltaMode === 1 ? 12 : 1;
+
+    yScroll += scale * (event.deltaY || 0);
+
+    onWheel(event);
+  };
+
+  const dispose = () => {
+    camera = undefined;
+    window.removeEventListener("keydown", keyDownHandler);
+    window.removeEventListener("keyup", keyUpHandler);
+    element.removeEventListener("mousedown", mouseDownHandler);
+    window.removeEventListener("mouseup", mouseUpHandler);
+    window.removeEventListener("mousemove", mouseMoveHandler);
+    element.removeEventListener("wheel", wheelHandler);
+  };
+
+  window.addEventListener("keydown", keyDownHandler, { passive: true });
+  window.addEventListener("keyup", keyUpHandler, { passive: true });
+  element.addEventListener("mousedown", mouseDownHandler, { passive: true });
+  window.addEventListener("mouseup", mouseUpHandler, { passive: true });
+  window.addEventListener("mousemove", mouseMoveHandler, { passive: true });
+  element.addEventListener("wheel", wheelHandler, { passive: false });
+
+  refresh();
+
+  camera.config = config;
+  camera.dispose = dispose;
+  camera.refresh = refresh;
+  camera.tick = tick;
+
+  return camera;
+};
+
 function createDrawLines (regl, attributes, getModel, getProjection, getView) {
   window.attr = attributes;
   if (! attributes.edges) return () => {}
@@ -18657,356 +20313,6 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
     return draw
 }
 
-var Bezier = require('bezier-js');
-
-function createDrawLines$1 (regl, attributes, getModel, getProjection, getView) {
-  window.attr = attributes;
-  if (! attributes.edges) return () => {}
-  //attributes.edges = attributes.edges.filter((d, i) => )
-  // make sure to respect system limitations.
-  var lineWidth = 10;
-  if (lineWidth > regl.limits.lineWidthDims[1]) {
-    lineWidth = regl.limits.lineWidthDims[1];
-  }
-
-  var curve = new Bezier(-1, -1 , 1, -1 , 1, 1);
-  let points = [];
-  var b = function() {
-    var LUT = curve.getLUT(16);
-    LUT.forEach(function(p) {points.push(p.x, p.y); });
-  };
-
-  b();
-  console.log(points, 'points');
-
-
-    let draw = regl({
-      frag: `
-      precision mediump float;
-      varying vec3 v_color;
-      varying vec3 wow;
-      uniform float opacity;
-      uniform bool edgeColors;
-
-
-      void main() {
-              gl_FragColor = vec4(1,1,1, 1);
-      //   if ( edgeColors)
-      // gl_FragColor = vec4(v_color, .5);
-      // else
-      // gl_FragColor = vec4(1,1,1, 1);
-      }`,
-
-      vert: `
-      varying vec3 v_color;
-
-      precision mediump float;
-      attribute vec2 sourcePositions;
-      //attribute vec2 targetPositions;
-      //attribute vec3 color;
-
-      uniform mat4 projection, view;
-      uniform mat4 model;
-
-      uniform float scale;
-      uniform vec2 offset;
-      uniform float tick;
-
-
-      uniform vec2 size;
-
-      uniform float freq;
-      attribute float dates;
-
-      varying vec3 wow;
-      uniform vec2 selection;
-
-      void main() {
-        vec2 p  = sourcePositions;
-
-        //v_color = color;
-
-        gl_Position = projection * view * model * vec4(p , 0, 1);
-      }`,
-      blend: {
-        enable: true,
-        func: {
-          srcRGB: 'src alpha',
-          srcAlpha: 'src alpha',
-          dstRGB: 'one minus src alpha',
-          dstAlpha: 'one minus src alpha'
-        }
-      },
-      //depth: { enable: true },
-
-      attributes: {
-        sourcePositions:  () => points,
-        //targetPositions: () => attributes.edges.targetPositions,
-          // color: {
-          //   buffer: () => attributes.edgeColors,
-          //   offset: 0
-          // }
-      },
-
-      uniforms: {
-        edgeColors: regl.prop('edgeColors'),
-        scale: 1,
-        size: [window.innerWidth, window.innerHeight],
-        offset: [0, 0.0],
-        phase: 0.0,
-        freq: 0.01,
-        opacity: 0.5,
-        selection: () => {
-          return window.getAdnan
-            ? window.getAdnan() : [1, 1]
-        },
-        view: getView,
-        projection: getProjection,
-        model: getModel,
-      },
-
-      lineWidth: lineWidth,
-      count: () => 10 ,
-      primitive: 'line strip',
-      offset: 1,
-    });
-
-    return draw
-}
-
-function ascending(a, b) {
-  return a < b ? -1 : a > b ? 1 : a >= b ? 0 : NaN;
-}
-
-function bisector(compare) {
-  if (compare.length === 1) compare = ascendingComparator(compare);
-  return {
-    left: function(a, x, lo, hi) {
-      if (lo == null) lo = 0;
-      if (hi == null) hi = a.length;
-      while (lo < hi) {
-        var mid = lo + hi >>> 1;
-        if (compare(a[mid], x) < 0) lo = mid + 1;
-        else hi = mid;
-      }
-      return lo;
-    },
-    right: function(a, x, lo, hi) {
-      if (lo == null) lo = 0;
-      if (hi == null) hi = a.length;
-      while (lo < hi) {
-        var mid = lo + hi >>> 1;
-        if (compare(a[mid], x) > 0) hi = mid;
-        else lo = mid + 1;
-      }
-      return lo;
-    }
-  };
-}
-
-function ascendingComparator(f) {
-  return function(d, x) {
-    return ascending(f(d), x);
-  };
-}
-
-var ascendingBisect = bisector(ascending);
-
-var noop = {value: function() {}};
-
-function dispatch() {
-  for (var i = 0, n = arguments.length, _ = {}, t; i < n; ++i) {
-    if (!(t = arguments[i] + "") || (t in _) || /[\s.]/.test(t)) throw new Error("illegal type: " + t);
-    _[t] = [];
-  }
-  return new Dispatch(_);
-}
-
-function Dispatch(_) {
-  this._ = _;
-}
-
-function parseTypenames(typenames, types) {
-  return typenames.trim().split(/^|\s+/).map(function(t) {
-    var name = "", i = t.indexOf(".");
-    if (i >= 0) name = t.slice(i + 1), t = t.slice(0, i);
-    if (t && !types.hasOwnProperty(t)) throw new Error("unknown type: " + t);
-    return {type: t, name: name};
-  });
-}
-
-Dispatch.prototype = dispatch.prototype = {
-  constructor: Dispatch,
-  on: function(typename, callback) {
-    var _ = this._,
-        T = parseTypenames(typename + "", _),
-        t,
-        i = -1,
-        n = T.length;
-
-    // If no callback was specified, return the callback of the given type and name.
-    if (arguments.length < 2) {
-      while (++i < n) if ((t = (typename = T[i]).type) && (t = get(_[t], typename.name))) return t;
-      return;
-    }
-
-    // If a type was specified, set the callback for the given type and name.
-    // Otherwise, if a null callback was specified, remove callbacks of the given name.
-    if (callback != null && typeof callback !== "function") throw new Error("invalid callback: " + callback);
-    while (++i < n) {
-      if (t = (typename = T[i]).type) _[t] = set(_[t], typename.name, callback);
-      else if (callback == null) for (t in _) _[t] = set(_[t], typename.name, null);
-    }
-
-    return this;
-  },
-  copy: function() {
-    var copy = {}, _ = this._;
-    for (var t in _) copy[t] = _[t].slice();
-    return new Dispatch(copy);
-  },
-  call: function(type, that) {
-    if ((n = arguments.length - 2) > 0) for (var args = new Array(n), i = 0, n, t; i < n; ++i) args[i] = arguments[i + 2];
-    if (!this._.hasOwnProperty(type)) throw new Error("unknown type: " + type);
-    for (t = this._[type], i = 0, n = t.length; i < n; ++i) t[i].value.apply(that, args);
-  },
-  apply: function(type, that, args) {
-    if (!this._.hasOwnProperty(type)) throw new Error("unknown type: " + type);
-    for (var t = this._[type], i = 0, n = t.length; i < n; ++i) t[i].value.apply(that, args);
-  }
-};
-
-function get(type, name) {
-  for (var i = 0, n = type.length, c; i < n; ++i) {
-    if ((c = type[i]).name === name) {
-      return c.value;
-    }
-  }
-}
-
-function set(type, name, callback) {
-  for (var i = 0, n = type.length; i < n; ++i) {
-    if (type[i].name === name) {
-      type[i] = noop, type = type.slice(0, i).concat(type.slice(i + 1));
-      break;
-    }
-  }
-  if (callback != null) type.push({name: name, value: callback});
-  return type;
-}
-
-var emptyOn = dispatch("start", "end", "cancel", "interrupt");
-
-var prefix = "$";
-
-function Map() {}
-
-Map.prototype = map.prototype = {
-  constructor: Map,
-  has: function(key) {
-    return (prefix + key) in this;
-  },
-  get: function(key) {
-    return this[prefix + key];
-  },
-  set: function(key, value) {
-    this[prefix + key] = value;
-    return this;
-  },
-  remove: function(key) {
-    var property = prefix + key;
-    return property in this && delete this[property];
-  },
-  clear: function() {
-    for (var property in this) if (property[0] === prefix) delete this[property];
-  },
-  keys: function() {
-    var keys = [];
-    for (var property in this) if (property[0] === prefix) keys.push(property.slice(1));
-    return keys;
-  },
-  values: function() {
-    var values = [];
-    for (var property in this) if (property[0] === prefix) values.push(this[property]);
-    return values;
-  },
-  entries: function() {
-    var entries = [];
-    for (var property in this) if (property[0] === prefix) entries.push({key: property.slice(1), value: this[property]});
-    return entries;
-  },
-  size: function() {
-    var size = 0;
-    for (var property in this) if (property[0] === prefix) ++size;
-    return size;
-  },
-  empty: function() {
-    for (var property in this) if (property[0] === prefix) return false;
-    return true;
-  },
-  each: function(f) {
-    for (var property in this) if (property[0] === prefix) f(this[property], property.slice(1), this);
-  }
-};
-
-function map(object, f) {
-  var map = new Map;
-
-  // Copy constructor.
-  if (object instanceof Map) object.each(function(value, key) { map.set(key, value); });
-
-  // Index array by numeric index or specified key function.
-  else if (Array.isArray(object)) {
-    var i = -1,
-        n = object.length,
-        o;
-
-    if (f == null) while (++i < n) map.set(i, object[i]);
-    else while (++i < n) map.set(f(o = object[i], i, object), o);
-  }
-
-  // Convert object to map.
-  else if (object) for (var key in object) map.set(key, object[key]);
-
-  return map;
-}
-
-function Set() {}
-
-var proto = map.prototype;
-
-Set.prototype = set$1.prototype = {
-  constructor: Set,
-  has: proto.has,
-  add: function(value) {
-    value += "";
-    this[prefix + value] = value;
-    return this;
-  },
-  remove: proto.remove,
-  clear: proto.clear,
-  values: proto.keys,
-  size: proto.size,
-  empty: proto.empty,
-  each: proto.each
-};
-
-function set$1(object, f) {
-  var set = new Set;
-
-  // Copy constructor.
-  if (object instanceof Set) object.each(function(value) { set.add(value); });
-
-  // Otherwise, assume it’s an array.
-  else if (object) {
-    var i = -1, n = object.length;
-    if (f == null) while (++i < n) set.add(object[i]);
-    else while (++i < n) set.add(f(object[i], i, object));
-  }
-
-  return set;
-}
-
 const GL_EXTENSIONS = ['OES_standard_derivatives', 'OES_texture_float', 'ANGLE_instanced_arrays'];
 
 // Default attribute
@@ -19016,8 +20322,6 @@ const DEFAULT_HEIGHT = window.innerHeight;
 
 // Default styles
 const DEFAULT_POINT_SIZE = 30;
-const DEFAULT_POINT_SIZE_SELECTED = 2;
-const DEFAULT_COLOR_BG = [0, 0, 0, 1];
 
 
 // Default view
@@ -19026,28 +20330,28 @@ const DEFAULT_DISTANCE = 100000.5;
 const DEFAULT_ROTATION = 0;
 // prettier-ignore
 
-const DEFAULT_VIEW = new Float32Array([5.554607391357422, 0, 0, 0, 0, 5.554607391357422, 0, 0, 0, 0, 1, 0, -0.527761697769165, 0.8586031794548035, 0, 1]);
-// export const DEFAULT_VIEW = new Float32Array([
-//   0.08111818879842758,
-//   0,
-//   0,
-//   0,
-//   0,
-//   0.08111818879842758,
-//   0,
-//   0,
-//   0,
-//   0,
-//   1,
-//   0,
-//   0.34380045533180237,
-//   -0.2859039008617401,
-//   0,
-//   1
-// ])
-
-// Default misc
-const DEFAULT_BACKGROUND_IMAGE = null;
+// export const DEFAULT_VIEW =
+//
+//
+// new //Float32Array([5.554607391357422, 0, 0, 0, 0, 5.554607391357422, 0, 0, 0, 0, 1, 0, -0.527761697769165, 0.8586031794548035, 0, 1])
+const DEFAULT_VIEW = new Float32Array([
+  0.08111818879842758,
+  0,
+  0,
+  0,
+  0,
+  0.08111818879842758,
+  0,
+  0,
+  0,
+  0,
+  1,
+  0,
+  0.34380045533180237,
+  -0.2859039008617401,
+  0,
+  1
+]);
 const DEFAULT_RECTICLE_COLOR = [1, 1, 1, 0.5];
 
 /**
@@ -19082,14 +20386,13 @@ const checkReglExtensions = regl => {
  * @return  {function}  New Regl instance
  */
 const createRegl = canvas => {
-  const gl = canvas.getContext('webgl');
+  const gl = canvas.getContext('webgl', {preserveDrawingBuffer: true, antialias: true });
   const extensions = [];
 
   // Needed to run the tests properly as the headless-gl doesn't support all
   // extensions, which is fine for the functional tests.
 
   GL_EXTENSIONS.forEach(EXTENSION => {
-    console.log(EXTENSION);
     if (gl.getExtension(EXTENSION)) {
       extensions.push(EXTENSION);
     } else {
@@ -19290,120 +20593,133 @@ const BG_COLOR = [    0.1411764705882353,
   0.15294117647058825,
   0.18823529411764706, 1];
 
-const BG_FS = `
-precision mediump float;
-
-uniform sampler2D texture;
-
-varying vec2 uv;
-
-void main () {
-  gl_FragColor = texture2D(texture, uv);
-}
-`;
-const BG_VS = `
-precision mediump float;
-
-uniform mat4 projection;
-uniform mat4 model;
-uniform mat4 view;
-
-attribute vec2 position;
-
-varying vec2 uv;
-
-void main () {
-  uv = position;
-  gl_Position = projection * view * model *  vec4(1.0 - 2.0 * position, 0, 1);
-}
-`;
-
-const POINT_FS = `
-#ifdef GL_OES_standard_derivatives
-#extension GL_OES_standard_derivatives : enable
-#endif
-
-precision mediump float;
-uniform vec2 selection;
-
-varying vec4 vColor;
-
-void main() {
-  const vec3 bgColor= vec3(
-    0.1411764705882353,
-  0.15294117647058825,
-  0.18823529411764706
-  );
-  float r = 0.0, delta = 0.0, alpha = 1.0;
-  vec2 cxy = 2.0 * gl_PointCoord - 1.0;
-  r = dot(cxy, cxy);
-
+  const POINT_FS = `
   #ifdef GL_OES_standard_derivatives
-    delta = fwidth(r);
-    alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
+  #extension GL_OES_standard_derivatives : enable
   #endif
+  precision mediump float;
 
-  vec3 color =   (r < 0.75) ? vColor.rgb : bgColor;
-  gl_FragColor = vec4(color, alpha * vColor.a);
-}
-`;
-const POINT_VS = `
-precision mediump float;
-uniform float pointSize;
-uniform float pointSizeExtra;
-uniform float numNodes;
-uniform float scaling;
-uniform float sizeAttenuation;
-uniform mat4 projection;
-uniform mat4 model;
-uniform mat4 view;
+  uniform vec2 selection;
 
-uniform vec2 dateFilter;
+  varying vec4 vColor;
+  varying vec3 borderColor;
 
-attribute vec2 pos;
-attribute vec3 color;
-attribute float stateIndex;
-attribute float dates;
-attribute float counts;
+  void main() {
 
+    float r = 0.0, delta = 0.0, alpha = 1.0;
+    vec2 cxy = 2.0 * gl_PointCoord - 1.0;
+    r = dot(cxy, cxy);
 
-uniform float selectedCluster;
+    #ifdef GL_OES_standard_derivatives
+      delta = fwidth(r);
+      alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
+    #endif
 
-uniform bool flatSize;
+    vec3 color =   (r < 0.75) ? vColor.rgb : borderColor;
+    if (r > .95) discard;
+    gl_FragColor = vec4(color, alpha * vColor.a);
+  }
+  `;
+  const POINT_VS = `
+  precision mediump float;
+  uniform float pointSize;
+  uniform float pointSizeExtra;
+  uniform float numNodes;
+  uniform float scaling;
+  uniform float sizeAttenuation;
+  uniform mat4 projection;
+  uniform mat4 model;
+  uniform mat4 view;
 
-// variables to send to the fragment shader
-varying vec4 vColor;
+  uniform vec2 dateFilter;
 
-void main() {
-  if (! (dates > dateFilter.x && dates < dateFilter.y)) return;
-  gl_Position = projection * view * model * vec4(pos.xy, 0.0, 1.0);
-
-  vColor = vec4(color, 1.);
-
-  float finalScaling = pow(sizeAttenuation, scaling);
-  finalScaling = 4. + pow(pointSize, sizeAttenuation);
-
-  if (selectedCluster > -.1 && selectedCluster != stateIndex) finalScaling = 0.;
-
-  finalScaling += counts;
+  attribute vec4 pos;
+  attribute vec3 color;
+  attribute vec2 stateIndex;
+  attribute float dates;
+  attribute float sentiment;
 
 
-  gl_PointSize = finalScaling + pointSizeExtra;
+  uniform float hoveredPoint;
+  uniform float selectedPoint;
+  uniform int sentimentFilter;
+  uniform vec2 dimensions;
 
-}
-`;
+
+
+
+  uniform float selectedCluster;
+
+  uniform bool flatSize;
+
+  // variables to send to the fragment shader
+  varying vec4 vColor;
+  varying vec3 borderColor;
+
+  void main() {
+    vec2 position = pos.xy;
+    // position.x = position.x / dimensions.x;
+    // position.y = position.y / dimensions.y;
+
+
+
+    if (! (dates > dateFilter.x && dates < dateFilter.y)) return;
+
+    gl_Position = projection * view * vec4(position.xy, 0.0, 1.);
+
+    vColor = vec4(color, 1.);
+
+
+    //if (selectedCluster > -.1 && selectedCluster != stateIndex.x) finalScaling = 0.;
+
+    float finalScaling = pow(sizeAttenuation, scaling);
+
+    finalScaling = 10.;
+
+    if (pos.w == hoveredPoint) finalScaling = 20.;
+    if (pos.w == hoveredPoint) borderColor = vec3(1);
+    else borderColor = vec3(0.1411764705882353, 0.15294117647058825, 0.18823529411764706);
+
+    if (pos.w == selectedPoint) finalScaling = 30.;
+    if (pos.w == selectedPoint) vColor = vec4(1);
+
+    if (pos.w == hoveredPoint) gl_Position.z -= .1;
+    if (pos.w == selectedPoint) gl_Position.z -= .2;
+
+    finalScaling += pos.z;
+
+
+
+
+    if (flatSize) finalScaling = 4. + pow(pointSize, sizeAttenuation);
+        if (sentimentFilter == 1) { //only show positive
+          if (sentiment < .25) finalScaling = 0.;
+        }
+        if (sentimentFilter == 2) {  //only show negative
+          if (sentiment > -.25) finalScaling = 0.;
+        }
+        if (sentimentFilter == 3) { //only show neutral
+          if (! (sentiment < .25 && sentiment > -.25))  finalScaling = 0.;
+        }
+
+  if (! (stateIndex[1] == 1.)) finalScaling = 0.;
+
+    gl_PointSize = finalScaling + pointSizeExtra;
+
+  }
+  `;
+
+
+
+
 const NOOP = () => {};
 
 const creategraph = (options) => {
-
   let initialRegl = options.regl,
-  initialBackground = DEFAULT_COLOR_BG,
-  initialBackgroundImage = DEFAULT_BACKGROUND_IMAGE,
+
   initialCanvas = options.canvas,
   initialRecticleColor = DEFAULT_RECTICLE_COLOR,
   initialPointSize = DEFAULT_POINT_SIZE,
-  initialPointSizeSelected = DEFAULT_POINT_SIZE_SELECTED,
-  initialPointOutlineWidth = 2,
   initialWidth = DEFAULT_WIDTH,
   initialHeight = DEFAULT_HEIGHT,
   initialTarget = DEFAULT_TARGET,
@@ -19416,14 +20732,14 @@ const creategraph = (options) => {
   attributes = options.attributes;
   const scratch = new Float32Array(16);
   let mousePosition  = [0, 0];
-  window.getMousePosition = () => mousePosition;
   let pointList = [];
+
   let schema = {};
 
   schema.attributes = {
         pos: {
           buffer: () => attributes.position,
-          size: 2
+          size: 4
         },
         color: {
           buffer: () => attributes.color,
@@ -19432,23 +20748,24 @@ const creategraph = (options) => {
         },
         stateIndex: {
           buffer: () => attributes.stateIndex,
-          size:1
+          size: 2
         },
         dates: {
           buffer: () => attributes.dates,
           size: 1
         },
-        counts: {
-          buffer: () => attributes.counts,
+        sentiment: {
+          buffer: () => attributes.sentiment,
           size: 1
-        }
+        },
+
       };
 
 
   //props schema - make external
   let state = {
     sizeAttenuation: .1,
-
+    sentimentFilter: 0,
     scaling: .4,
     numNodes: 1,
     showLines: true,
@@ -19457,8 +20774,22 @@ const creategraph = (options) => {
     edgeColors: true,
     selectedCluster: -1,
     favorites: [],
-    dateFilter: [0,Infinity]
+    dateFilter: [0,Infinity],
+    camera:null,
+    projection:  new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
+    model: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
   };
+
+  const getPointSize = () => pointSize * window.devicePixelRatio;
+  const getNormalPointSizeExtra = () => 0;
+  let getProjection = () => { return state.projection };
+
+  const getView = () => {
+    return camera.view};
+  const getModel = () => { return state.model };
+  const getScaling = () => state.scaling;
+  const getNormalNumPoints = () => numPoints;
+
 
   lodash.extend(state, options.initialState);
 
@@ -19466,14 +20797,10 @@ const creategraph = (options) => {
 
   checkReglExtensions(initialRegl);
 
-  const background = toRgba(initialBackground, true);
-  const backgroundImage = initialBackgroundImage;
   let canvas = initialCanvas;
   let width = initialWidth;
   let height = initialHeight;
   const pointSize = initialPointSize;
-  const pointSizeSelected = initialPointSizeSelected;
-  const pointOutlineWidth = initialPointOutlineWidth;
   let regl = initialRegl || createRegl(initialCanvas);
   let camera;
   let mouseDown = false;
@@ -19485,8 +20812,6 @@ const creategraph = (options) => {
   let searchIndex;
   let viewAspectRatio;
   const dataAspectRatio = DEFAULT_DATA_ASPECT_RATIO;
-  let projection;
-  let model;
   let recticleHLine;
   let recticleVLine;
   const recticleColor = toRgba(initialRecticleColor, true);
@@ -19494,7 +20819,14 @@ const creategraph = (options) => {
   let isViewChanged = false;
   let isInit = false;
 
-  let hoveredPoint;
+  let hoveredPoint = -1;
+
+  const initCamera = () => {
+    camera = dom2dCamera(canvas);
+    if (initialView) camera.set(clone(initialView));
+    else camera.lookAt([...initialTarget], initialDistance, initialRotation);
+  };
+  initCamera();
   const getNdcX = x => -1 + (x / width) * 2;
   const getNdcY = y => 1 + (y / height) * -2;
 
@@ -19512,24 +20844,30 @@ const creategraph = (options) => {
 
     // projection^-1 * view^-1 * model^-1 is the same as
     // model * view^-1 * projection
-    const mvp = invert(
+    let mvp = invert(
       scratch,
       multiply(
         scratch,
-        projection,
-        multiply(scratch, camera.view, model)
+          state.projection,
+        multiply(scratch, camera.view, state.model)
       )
     );
 
     // Translate vector
+    if (! mvp) mvp = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] ;
     transformMat4(v, v, mvp);
 
     return v.slice(0, 2)
   };
 
+  let drawLines = createDrawLines(options.regl, attributes, getModel, getProjection, getView);
+
+  let [updateCurves, drawCurves] = createCurves(options.regl, attributes, getModel, getProjection, getView);
+  console.log(updateCurves, drawCurves);
+    //
   const raycast = () => {
     let pointSize = 100; //MAD HACKS
-    const [x, y] = getScatterGlPos();
+    const [mouseX, mouseY] = getScatterGlPos();
     const scaling = 1 ;
 
     const scaledPointSize =
@@ -19543,19 +20881,18 @@ const creategraph = (options) => {
 
     // Get all points within a close range
     const pointsInBBox = searchIndex.range(
-      x - xNormalizedScaledPointSize,
-      y - yNormalizedScaledPointSize,
-      x + xNormalizedScaledPointSize,
-      y + yNormalizedScaledPointSize
+      mouseX - xNormalizedScaledPointSize,
+      mouseY - yNormalizedScaledPointSize,
+      mouseX + xNormalizedScaledPointSize,
+      mouseY + yNormalizedScaledPointSize
     );
-
     // Find the closest point
     let minDist = scaledPointSize;
     let clostestPoint;
 
     pointsInBBox.forEach(idx => {
-      const [ptX, ptY] = searchIndex.points[idx];
-      const d = dist(ptX, ptY, x, y);
+      const {x, y} = searchIndex.points[idx];
+      const d = dist(x, y, mouseX, mouseY);
       if (d < minDist) {
         minDist = d;
         clostestPoint = idx;
@@ -19572,6 +20909,7 @@ const creategraph = (options) => {
   };
 
   const select = (points ) => {
+
     if (typeof points === 'string') selection = [pointList.findIndex(d => d[2] === points)];
     else selection = points;
     drawRaf(); // eslint-disable-line no-use-before-define
@@ -19610,6 +20948,11 @@ const creategraph = (options) => {
     const clostestPoint = raycast();
     if (clostestPoint >= 0) select([clostestPoint]);
     if (clostestPoint >= 0) onClick(pointList[clostestPoint], clostestPoint, event);
+
+    if (event.shiftKey) {
+      console.log('logl');
+      updateCurves(pointList[clostestPoint], clostestPoint);
+  }
   };
 
   const mouseMoveHandler = event => {
@@ -19627,8 +20970,9 @@ const creategraph = (options) => {
 
   const updateViewAspectRatio = () => {
     viewAspectRatio = width / height;
-    projection = fromScaling([], [1 / viewAspectRatio, 1, 1]);
-    model = fromScaling([], [dataAspectRatio, 1, 1]);
+    state.projection = fromScaling([], [1 / viewAspectRatio, 1, 1]);
+    state.model = fromScaling([], [dataAspectRatio, 1, 1]);
+    //console.log('updating model', model)
   };
 
   const setHeight = newHeight => {
@@ -19643,28 +20987,11 @@ const creategraph = (options) => {
     canvas.width = width * window.devicePixelRatio;
   };
 
-  const getBackgroundImage = () => backgroundImage;
-  const getPointSize = () => pointSize * window.devicePixelRatio;
-  const getNormalPointSizeExtra = () => 0;
-  const getProjection = () => projection;
-  const getView = () => camera.view;
-  const getModel = () => model;
-  const getScaling = () => state.scaling;
-  const getNormalNumPoints = () => numPoints * state.numNodes | 0;
 
-  window.onStyleChange = (prop) => {
-    console.log('onStyleChange', hi);
-    hi = prop;
-    drawRaf();
-  };
-  options.drawCurves = false;
-  let drawLines = options.drawCurves ?
-  createDrawLines$1(options.regl, attributes, getModel, getProjection, getView) :
-    createDrawLines(options.regl, attributes, getModel, getProjection, getView);
+
 
   const drawAllPoints = (
     getPointSizeExtra,
-    getNumPoints
   ) =>
     regl({
       frag: POINT_FS,
@@ -19680,13 +21007,16 @@ const creategraph = (options) => {
         }
       },
 
-      depth: { enable: false },
+
 
       attributes: schema.attributes,
 
       uniforms: {
+        hoveredPoint: () => hoveredPoint,
+        selectedPoint: () => selection[0] || -1,
+        dimensions: [window.innerWidth, window.innerHeight],
         projection: getProjection,
-        time: (ctx) => {console.log(ctx.time, ctx.tick); return ctx.time },
+        //time: (ctx) => {return ctx.time },
         dateFilter: regl.prop('dateFilter'),
         selectedCluster: () => (attributes.position.length < 1 ? state.selectedCluster : -100 ),
         model: getModel,
@@ -19695,100 +21025,34 @@ const creategraph = (options) => {
         pointSize: getPointSize,
         pointSizeExtra: getPointSizeExtra,
         sizeAttenuation: regl.prop('sizeAttenuation'),
-        flatSize: regl.prop('flatSize')
+        flatSize: regl.prop('flatSize'),
+        sentimentFilter: regl.prop('sentimentFilter')
       },
-
-      count: getNumPoints,
-
+      count: getNormalNumPoints,
       primitive: 'points'
     });
-
-    const drawPoints = (
-      getPos,
-      getPointSizeExtra,
-      getNumPoints,
-      getColors = () => hi == 'cluster' ? attributes.color : attributes.sentimentValue
-    ) =>
-      regl({
-        frag: POINT_FS,
-        vert: POINT_VS,
-
-        blend: {
-          enable: true,
-          func: {
-            srcRGB: 'src alpha',
-            srcAlpha: 'one',
-            dstRGB: 'one minus src alpha',
-            dstAlpha: 'one minus src alpha'
-          }
-        },
-
-        depth: { enable: false },
-
-        attributes: schema.attributes,
-
-        uniforms: {
-          projection: getProjection,
-          dateFilter: regl.prop('dateFilter'),
-          selectedCluster: () => (getPos.length < 1 ? state.selectedCluster : -100 ),
-          model: getModel,
-          view: getView,
-          scaling: getScaling,
-          pointSize: getPointSize,
-          pointSizeExtra: getPointSizeExtra,
-          sizeAttenuation: () => state.sizeAttenuation,
-          flatSize: () => {return state.flatSize }
-        },
-
-        count: getNumPoints,
-
-        primitive: 'points'
-      });
 
 
 
   const drawPointBodies = drawAllPoints(
-    getNormalPointSizeExtra,
-    getNormalNumPoints
-    );
-
-  const drawBackgroundImage = regl({
-    frag: BG_FS,
-    vert: BG_VS,
-
-    attributes: {
-      position: [0, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0]
-    },
-
-    uniforms: {
-      projection: getProjection,
-      model: getModel,
-      view: getView,
-      texture: getBackgroundImage
-    },
-
-    count: 6
-  });
+    getNormalPointSizeExtra);
 
   window.tooltip = (x, y) => {
 
     let v = [x, y, 0, 1];
     multiply(
       scratch,
-      projection,
-      multiply(scratch, camera.view, model)
+        state.projection,
+      multiply(scratch, camera.view, state.model)
     );
 
     transformMat4(v, v, scratch);
-    console.log(v);
-
   };
 
   const drawRecticle = (state) => {
     if (!(hoveredPoint >= 0)) return
 
-    const [x, y] = searchIndex.points[hoveredPoint].slice(0, 2);
-
+    const {x, y} = searchIndex.points[hoveredPoint];
     // Normalized device coordinate of the point
     const v = [x, y, 0, 1];
 
@@ -19798,8 +21062,8 @@ const creategraph = (options) => {
     // entire view container and not within the view of the graph
     multiply(
       scratch,
-      projection,
-      multiply(scratch, camera.view, model)
+        state.projection,
+      multiply(scratch, camera.view, state.model)
     );
 
     transformMat4(v, v, scratch);
@@ -19810,35 +21074,13 @@ const creategraph = (options) => {
     recticleHLine.draw();
     recticleVLine.draw();
 
-    const fromage = [
-      [1, 1, 1],
-      [1, 0, 1]
-    ];
-
-    // Draw outer outline
-    drawPoints(
-      () => [x, y],
-      () =>
-        (pointSizeSelected + pointOutlineWidth * 2) * window.devicePixelRatio,
-      () => 1,
-      () => fromage[0]
-    )(state);
-
-    // Draw inner outline
-    drawPoints(
-      () => [x, y],
-      () => (pointSizeSelected + pointOutlineWidth) * window.devicePixelRatio,
-      () => 1,
-      () => fromage[1]
-    )(state);
   };
 
   const setPoints = newPoints => {
     isInit = false;
     pointList = newPoints;
     numPoints = newPoints.length;
-
-    searchIndex = new KDBush(newPoints, p => p[0], p => p[1], 16);
+    searchIndex = new KDBush(newPoints, p => p.x, p => p.y, 16);
 
     isInit = true;
   };
@@ -19853,13 +21095,13 @@ const creategraph = (options) => {
 
     // Update camera
     isViewChanged = camera.tick();
-    if (state.showLines) drawLines(state);
-    if (state.showNodes) drawPointBodies(state);
-    // if (hoveredPoint >= 0) drawHoveredPoint(state);
-    // if (selection.length) drawSelectedPoint(state);
-    //if (state.favorites.length) drawFavorites(state)
+
+    //if (state.showLines) drawLines(state)
+    //drawEdges(state)
     drawRecticle(state);
 
+    if (state.showNodes) drawPointBodies(state);
+    drawCurves();
   };
 
   const drawRaf = withRaf(draw);
@@ -19909,7 +21151,6 @@ const creategraph = (options) => {
   const reset = () => {
     if (initialView) camera.set(clone(initialView));
     else camera.lookAt([...initialTarget], initialDistance, initialRotation);
-    //pubSub.publish('view', camera.view)
   };
 
   const mouseEnterCanvasHandler = () => {
@@ -19924,15 +21165,10 @@ const creategraph = (options) => {
     refresh();
   };
 
-  const initCamera = () => {
-    camera = dom2dCamera(canvas);
-    if (initialView) camera.set(clone(initialView));
-    else camera.lookAt([...initialTarget], initialDistance, initialRotation);
-  };
+
 
   const init = () => {
     updateViewAspectRatio();
-    initCamera();
 
     recticleHLine = createLine(regl, {
       color: recticleColor,
@@ -19955,7 +21191,7 @@ const creategraph = (options) => {
     canvas.addEventListener('mouseleave', mouseLeaveCanvasHandler, false);
     canvas.addEventListener('click', mouseClickHandler, false);
     canvas.addEventListener('wheel', wheelHandler);
-    setPoints(attributes.pointList); //create Index
+    setPoints(attributes.nodes); //create Index
   };
 
   const destroy = () => {
@@ -19969,15 +21205,29 @@ const creategraph = (options) => {
   const setState = (options) => {
     drawRaf();
     lodash.each(options, (k,v) => { state[v] = k; });
+
+
+    if (options.color) {
+      let val = options.color;
+      attributes.color = attributes.colorTypes[val] || attributes.colorTypes['merge'];
+      console.log(options.color, attributes.colorTypes);
+    }
+
+    if (options.showCluster) {
+      let showing = options.showCluster;
+      attributes.stateIndex.forEach(pair => {
+        console.log(pair[0]);
+        pair[1] = parseInt(options.showCluster[pair[0]] ? 1 : 0);
+      });
+      console.log(attributes.stateIndex);
+
+    }
   };
-  //context
+
+
+
+
   return {
-    setProps: (props) => {
-      lodash.each(props.attributes, (k,v) => { attributes[v] = k; });
-      if (props.attributes && props.attributes.pointList) setPoints(props.attributes.pointList);
-      hoveredPoint = 0;
-      drawRaf();
-    },
     deselect,
     destroy,
 
@@ -19986,19 +21236,20 @@ const creategraph = (options) => {
       withDraw(reset)();
     },
     hoverPoint: (uuid) => {
-      console.log('uid', uuid,  pointList.findIndex(d => d[2] === uuid));
-      hoveredPoint = pointList.findIndex(d => d[2] === uuid);
+      hoveredPoint = pointList.findIndex(d => d.uuid === uuid);
       draw();
     },
     refresh,
     reset: withDraw(reset),
     select,
-    setState
+    setState,
+    getView,
   }
 };
 
 
 const init = (props) => {
+  props.attributes = processData(props.data);
   props.regl = createRegl(props.canvas);
   let graph = creategraph(props);
   graph._data = props;

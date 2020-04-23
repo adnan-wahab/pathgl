@@ -340,6 +340,11 @@ const creategraph = (options) => {
     return v.slice(0, 2)
   }
 
+  let drawLines = createDrawLines(options.regl, attributes, getModel, getProjection, getView)
+
+  let [updateCurves, drawCurves] = createCurves(options.regl, attributes, getModel, getProjection, getView)
+  console.log(updateCurves, drawCurves)
+    //
   const raycast = () => {
     let pointSize = 100; //MAD HACKS
     const [mouseX, mouseY] = getScatterGlPos()
@@ -436,6 +441,11 @@ const creategraph = (options) => {
     const clostestPoint = raycast()
     if (clostestPoint >= 0) select([clostestPoint])
     if (clostestPoint >= 0) onClick(pointList[clostestPoint], clostestPoint, event)
+
+    if (event.shiftKey) {
+      console.log('logl')
+      updateCurves(pointList[clostestPoint], clostestPoint)
+  }
   }
 
   const mouseMoveHandler = event => {
@@ -472,9 +482,6 @@ const creategraph = (options) => {
 
 
 
-  let drawLines = createDrawLines(options.regl, attributes, getModel, getProjection, getView)
-
-  //createCurves(options.regl, attributes, getModel, getProjection, getView)
 
   const drawAllPoints = (
     getPointSizeExtra,
@@ -584,11 +591,12 @@ const creategraph = (options) => {
     // Update camera
     isViewChanged = camera.tick()
 
-    if (state.showLines) drawLines(state)
+    //if (state.showLines) drawLines(state)
+    //drawEdges(state)
     drawRecticle(state);
 
     if (state.showNodes) drawPointBodies(state);
-
+    drawCurves()
   }
 
   const drawRaf = withRaf(draw)

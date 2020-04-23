@@ -24,7 +24,7 @@ let main = () => {
 
   canvas.height = innerHeight
   canvas.width = innerWidth
-  load('data/10samps.json')
+  load('data/thecut0.json')
 
   document.title = 'REGL NETWORK VIS'
 }
@@ -154,6 +154,8 @@ let load = (url) => {
   fetch(url)
     .then((body)=>{ return body.json() })
     .then((json)=>{
+      yay(json)
+
         window.graph = GraphRenderer.init({
           data: json,
           drawCurves: true,
@@ -168,3 +170,125 @@ let load = (url) => {
     })
 }
 d3.select(window).on('load', main)
+
+function yay(data) {
+  let testdata_prepared = []
+  data.nodes.forEach((d, i) => {testdata_prepared[i] = d.text })
+  console.log('hi')
+  const $input = $('#input')
+  const $results = $('#results')
+  const testdatakeys = Object.keys(testdata_prepared)
+  var testdatakey = 'ue4_filenames'
+  var searchMode = 'Ludicrous Mode'
+  var cache = {}
+  const cacheChars = 'abcdefghijklmnopqrstuvwxyz'
+  var promise, cachePromise, cacheCanceled, startms
+
+  cacheNextLevel()
+
+  function getSearchLower() { return $input.val().toLowerCase() }
+
+  function search() {
+    $input.focus()
+    const inputValue = getSearchLower()
+
+    if(cachePromise) { cachePromise.cancel() }; cacheCanceled = true
+
+    if(searchMode==='Ludicrous Mode') {
+      startms = Date.now()
+      if(cache[inputValue]) {
+        renderCache(cache[inputValue])
+        cacheNextLevel()
+      } else {
+        renderResults(fuzzysort.go(inputValue, testdata_prepared))
+        cacheNextLevel()
+      }
+
+    } else if(searchMode === 'Async') {
+      if(promise) promise.cancel()
+
+      startms = Date.now()
+      promise = fuzzysort.goAsync(inputValue, testdata_prepared)
+      promise.then(renderResults, err=>console.log(err))
+
+    } else { // Sync
+      startms = Date.now()
+      renderResults(fuzzysort.go(inputValue, testdata_prepared))
+    }
+  }
+
+  function cacheNextLevel(nextIndex=0) {
+    setTimeout(function() {
+      if(nextIndex >= cacheChars.length+testdatakeys.length) return
+
+      const inputValue = getSearchLower()
+      var nextInputValue
+      var nextdatakey
+      if(nextIndex >= cacheChars.length) {
+        nextInputValue = inputValue
+        nextdatakey = testdatakeys[nextIndex - cacheChars.length]
+      } else {
+        nextInputValue = inputValue+cacheChars[nextIndex]
+        nextdatakey = testdatakey
+      }
+
+      const isCached = cache[nextInputValue]
+      if(isCached) return cacheNextLevel(nextIndex + 1)
+
+      if(nextIndex===0) cacheCanceled = false
+      cachePromise = fuzzysort.goAsync(nextInputValue, testdata_prepared)
+      cachePromise.then(results => {
+        console.log(results)
+        //if(cache[nextdatakey]===undefined) cache[nextdatakey] = {}
+        cache[nextInputValue] = {total:results.total, html:resultsToHtml(results)}
+        if(!cacheCanceled) cacheNextLevel(nextIndex + 1)
+      })
+    })
+  }
+
+  function resultsToHtml(results) {
+    var html = '<ul>'
+    for (var i = 0; i < results.length; i++) {
+      const result = results[i]
+      html += `<li>${result.score} - ${fuzzysort.highlight(result)}</li>`
+    }
+    html += '</ul>'
+    return html
+  }
+  function renderResults(results) {
+    const duration = Date.now() - startms
+    const header = `<p>${results.total} matches in ${duration}ms</p>`
+    const html = resultsToHtml(results)
+
+    cache[getSearchLower()] = {total:results.total, html}
+
+    $results.html(header+html)
+  }
+  function renderCache(cached) {
+    const duration = Date.now() - startms
+    const header = `<p>${cached.total} matches in ${duration}ms <small class="text-muted"><i>cached</i></small></p>`
+    $results.html(header+cached.html)
+  }
+
+  // Run a search on input change
+    $input.on('input', search)
+  // Select input when escape pressed
+    document.onkeyup = (e) => {
+      if(e.keyCode === 27) $input.select()
+    }
+  // Focus input when any key pressed
+    document.onkeydown = (e) => {
+      $input.focus()
+    }
+
+  $('#async-buttons').html(`
+    <div class="btn-group" data-toggle="buttons">
+      ${['Async', 'Sync', 'Ludicrous Mode'].map(name => `
+        <label class="btn btn-secondary ${name===searchMode?'active':''}">
+          <input type="radio" name="searchMode" value="${name}"> ${name}
+        </label>
+      `).join('')}
+    </div>
+  `)
+
+}

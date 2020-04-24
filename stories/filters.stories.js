@@ -74,3 +74,41 @@ export const sentimentFilter = () => {
   div.appendChild(canvas)
   return div
 };
+
+
+export const sourceFilter = () => {
+  let [graph, canvas] = createGraphOnce()
+
+  graph.setState({flatSize: true})
+  graph.setState({color: 'sentiment'})
+
+
+  let div = document.createElement('div')
+  div.innerHTML = `<form>
+  <div>
+    <input type="radio" id="huey" name="drone" value="thecut"
+           checked>
+    <label for="huey">thecut</label>
+  </div>
+
+  <div>
+    <input type="radio" id="dewey" name="drone" value="amazon">
+    <label for="dewey">amazon</label>
+  </div>
+
+  <div>
+    <input type="radio" id="louie" name="drone" value="all">
+    <label for="louie">all</label>
+  </div>
+
+  </form>
+  `
+  div.querySelector('form').addEventListener('change', (e) => {
+
+    graph.setState({sourceFilter: e.target.value})
+  })
+
+
+  div.appendChild(canvas)
+  return div
+};

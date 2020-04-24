@@ -80,6 +80,7 @@ const BG_COLOR = [    0.1411764705882353,
   uniform mat4 view;
 
   uniform vec2 dateFilter;
+  uniform int sentimentFilter;
 
   attribute vec4 pos;
   attribute vec3 color;
@@ -90,11 +91,7 @@ const BG_COLOR = [    0.1411764705882353,
 
   uniform float hoveredPoint;
   uniform float selectedPoint;
-  uniform int sentimentFilter;
   uniform vec2 dimensions;
-
-
-
 
   uniform float selectedCluster;
 
@@ -109,14 +106,12 @@ const BG_COLOR = [    0.1411764705882353,
     // position.x = position.x / dimensions.x;
     // position.y = position.y / dimensions.y;
 
-
-
     if (! (dates > dateFilter.x && dates < dateFilter.y)) return;
 
     gl_Position = projection * view * vec4(position.xy, 0.0, 1.);
 
-    vColor = vec4(color, 1.);
 
+    vColor = vec4(color, 1);
 
     //if (selectedCluster > -.1 && selectedCluster != stateIndex.x) finalScaling = 0.;
 
@@ -150,7 +145,7 @@ const BG_COLOR = [    0.1411764705882353,
           if (! (sentiment < .25 && sentiment > -.25))  finalScaling = 0.;
         }
 
-  if (! (stateIndex[1] == 1.)) finalScaling = 0.;
+        if (! (stateIndex[1] == 1.)) finalScaling = 0.;
 
     gl_PointSize = finalScaling + pointSizeExtra;
 
@@ -343,8 +338,7 @@ const creategraph = (options) => {
   let drawLines = createDrawLines(options.regl, attributes, getModel, getProjection, getView)
 
   let [updateCurves, drawCurves] = createCurves(options.regl, attributes, getModel, getProjection, getView)
-  console.log(updateCurves, drawCurves)
-    //
+
   const raycast = () => {
     let pointSize = 100; //MAD HACKS
     const [mouseX, mouseY] = getScatterGlPos()
@@ -479,7 +473,6 @@ const creategraph = (options) => {
     width = +newWidth
     canvas.width = width * window.devicePixelRatio
   }
-
 
 
 
@@ -704,6 +697,8 @@ const creategraph = (options) => {
   }
 
   init(canvas)
+  console.log('myvalues',attributes.colorValues)
+
 
   const setState = (options) => {
     drawRaf()
@@ -722,15 +717,22 @@ const creategraph = (options) => {
         console.log(pair[0])
         pair[1] = parseInt(options.showCluster[pair[0]] ? 1 : 0)
       })
-      console.log(attributes.stateIndex)
 
     }
+    if (options.sourceFilter) {
+      attributes.stateIndex.forEach((pair, idx) => {
+        let show = attributes.nodes[idx].source === options.sourceFilter ? 1 : 0
+        pair[1] = options.sourceFilter == 'all' ? 1 : show
+      })
+    }
+
   }
 
 
 
 
   return {
+
     deselect,
     destroy,
 

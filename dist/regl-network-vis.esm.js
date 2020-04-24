@@ -19307,15 +19307,20 @@ let parseColor = (rgb$1) => {
   return [c.r /255 , c.g /255 , c.b /255];
 };
     let clusters = {};
+    let colorValues = {};
     data.cluster_events.forEach((c) => {
       let stuff = clusters[c.type] = [];
-      c.clusters.forEach(cluster => {
+      let val = colorValues[c.type] = [];
+      c.clusters.forEach((cluster, clusterIndex) => {
+        val[clusterIndex] = parseColor(cluster.color);
         cluster.nodes.forEach(id => {
           stuff[id] = parseColor(cluster.color);
+
         });
       });
 
     });
+    console.log('va', colorValues);
 
 
     let stateIndex = new Array(data.nodes.length).fill(0);
@@ -19358,9 +19363,10 @@ let parseColor = (rgb$1) => {
     }));
 
 
-
+    console.log(colorTypes);
     return {
       nodes: data.nodes,
+      colorValues: colorValues,
       colorTypes: lodash.extend(colorTypes, {
           general: clusters.general,
           specific: clusters.specific,
@@ -19816,11 +19822,8 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
       segments=positions.length;
 
       let colors = positions.map( d => [Math.random(),Math.random(),Math.random()] );
-      console.log(positions, segments);
       pos({data: positions});
       color({data: colors});
-
-
     };
 
     let draw = () => interleavedStripRoundCapJoin3DDEMO({
@@ -20313,6 +20316,7 @@ function createDrawLines (regl, attributes, getModel, getProjection, getView) {
     return draw
 }
 
+const COLOR_NUM_STATES = 4;
 const GL_EXTENSIONS = ['OES_standard_derivatives', 'OES_texture_float', 'ANGLE_instanced_arrays'];
 
 // Default attribute
@@ -20644,7 +20648,8 @@ const BG_COLOR = [    0.1411764705882353,
   uniform float selectedPoint;
   uniform int sentimentFilter;
   uniform vec2 dimensions;
-
+  uniform sampler2D colorTex;
+  uniform float colorTexRes;
 
 
 
@@ -20667,7 +20672,23 @@ const BG_COLOR = [    0.1411764705882353,
 
     gl_Position = projection * view * vec4(position.xy, 0.0, 1.);
 
-    vColor = vec4(color, 1.);
+
+ float colorIndex = stateIndex.x;
+ float eps = 0.5 / colorTexRes;
+ float colorLinearIndex = colorIndex;
+ // Need to add cEps here to avoid floating point issue that can lead to
+ // dramatic changes in which color is loaded as floor(3/2.9999) = 1 but
+ // floor(3/3.0001) = 0!
+ float colorRowIndex = floor((colorLinearIndex + eps) / colorTexRes);
+
+ vec2 colorTexIndex = vec2(
+   (colorLinearIndex / colorTexRes) - colorRowIndex + eps,
+   colorRowIndex / colorTexRes + eps
+ );
+
+    vec4 texColor = texture2D(colorTex, colorTexIndex);
+
+    vColor = vec4(texColor);
 
 
     //if (selectedCluster > -.1 && selectedCluster != stateIndex.x) finalScaling = 0.;
@@ -20702,7 +20723,7 @@ const BG_COLOR = [    0.1411764705882353,
           if (! (sentiment < .25 && sentiment > -.25))  finalScaling = 0.;
         }
 
-  if (! (stateIndex[1] == 1.)) finalScaling = 0.;
+        if (! (stateIndex[1] == 1.)) finalScaling = 0.;
 
     gl_PointSize = finalScaling + pointSizeExtra;
 
@@ -20715,6 +20736,7 @@ const BG_COLOR = [    0.1411764705882353,
 const NOOP = () => {};
 
 const creategraph = (options) => {
+  let colors, colorTexRes, colorTex;
   let initialRegl = options.regl,
 
   initialCanvas = options.canvas,
@@ -20860,11 +20882,73 @@ const creategraph = (options) => {
     return v.slice(0, 2)
   };
 
+  const createColorTexture = (newColors = colors) => {
+    const numColors = newColors.length;
+    colorTexRes = Math.max(2, Math.ceil(Math.sqrt(numColors)));
+    const rgba = new Float32Array(colorTexRes ** 2 * 4);
+    newColors.forEach((color, i) => {
+      rgba[i * 4] = color[0]; // r
+      rgba[i * 4 + 1] = color[1]; // g
+      rgba[i * 4 + 2] = color[2]; // b
+      rgba[i * 4 + 3] = 1; // b
+
+      // For all normal state colors check if the global opacity is not 1 and
+      // if so use that instead.
+    });
+    console.log(rgba, colorTexRes, 'wat');
+
+    return regl.texture({
+      data: rgba,
+      shape: [colorTexRes, colorTexRes, 4],
+      type: 'float'
+    });
+  };
+
+
+
+  const setColors = newColors => {
+    console.log(newColors, 'whatisthis');
+
+    // if (!newColors || !newColors.length) return;
+    //
+    // const tmp = [];
+    // try {
+    //   newColors.forEach(color => {
+    //     if (Array.isArray(color) && !isRgb(color) && !isRgba(color)) {
+    //       // Assuming color is an array of HEX colors
+    //       for (let j = 0; j < 3; j++) {
+    //         tmp.push(toRgba(color[j], true));
+    //       }
+    //     } else {
+    //       const rgba = toRgba(color, true);
+    //       const rgbaOpaque = [...rgba.slice(0, 3), 1];
+    //       tmp.push(rgba, rgbaOpaque, rgbaOpaque); // normal, active, and hover
+    //     }
+    //     tmp.push(background);
+    //   });
+    // } catch (e) {
+    //   console.error(
+    //     e,
+    //     'Invalid format. Please specify an array of colors or a nested array of accents per colors.'
+    //   );
+    // }
+
+    colors = newColors;
+    try {
+      console.log('webecomecolors',colors);
+      colorTex = createColorTexture(colors);
+    } catch (e) {
+      //colors = DEFAULT_COLORS;
+      //colorTex = createColorTexture(colors);
+      console.error('Invalid colors. Switching back to default colors.', e);
+    }
+    console.log('yay', newColors);
+  };
+
   let drawLines = createDrawLines(options.regl, attributes, getModel, getProjection, getView);
 
   let [updateCurves, drawCurves] = createCurves(options.regl, attributes, getModel, getProjection, getView);
-  console.log(updateCurves, drawCurves);
-    //
+
   const raycast = () => {
     let pointSize = 100; //MAD HACKS
     const [mouseX, mouseY] = getScatterGlPos();
@@ -20987,7 +21071,10 @@ const creategraph = (options) => {
     canvas.width = width * window.devicePixelRatio;
   };
 
-
+  const getMaxColor = () => colors.length / COLOR_NUM_STATES - 1;
+  const getNumColorStates = () => COLOR_NUM_STATES;
+  const getColorTex = () => colorTex;
+  const getColorTexRes = () => colorTexRes;
 
 
   const drawAllPoints = (
@@ -21026,7 +21113,13 @@ const creategraph = (options) => {
         pointSizeExtra: getPointSizeExtra,
         sizeAttenuation: regl.prop('sizeAttenuation'),
         flatSize: regl.prop('flatSize'),
-        sentimentFilter: regl.prop('sentimentFilter')
+        sentimentFilter: regl.prop('sentimentFilter'),
+
+        colorTex: getColorTex,
+        colorTexRes: getColorTexRes,
+        numColorStates: getNumColorStates,
+        maxColor: getMaxColor,
+
       },
       count: getNormalNumPoints,
       primitive: 'points'
@@ -21201,6 +21294,9 @@ const creategraph = (options) => {
   };
 
   init();
+  setColors(attributes.colorValues.general);
+  console.log('myvalues',attributes.colorValues);
+
 
   const setState = (options) => {
     drawRaf();
@@ -21219,15 +21315,28 @@ const creategraph = (options) => {
         console.log(pair[0]);
         pair[1] = parseInt(options.showCluster[pair[0]] ? 1 : 0);
       });
-      console.log(attributes.stateIndex);
+
+
+      //console.log(attributes.stateIndex)
 
     }
+    console.log(options.sourceFilter);
+    if (options.sourceFilter) {
+      attributes.stateIndex.forEach((pair, idx) => {
+        let show = attributes.nodes[idx].source === options.sourceFilter ? 1 : 0;
+        pair[1] = options.sourceFilter == 'all' ? 1 : show;
+      });
+    }
+
   };
 
 
 
 
   return {
+    setColors: (colors) => {
+      setColors(colors);
+    },
     deselect,
     destroy,
 

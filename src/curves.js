@@ -51,11 +51,8 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
       segments=positions.length
 
       let colors = positions.map( d => [Math.random(),Math.random(),Math.random()] )
-      console.log(positions, segments)
       pos({data: positions})
       color({data: colors})
-
-
     }
 
     let draw = () => interleavedStripRoundCapJoin3DDEMO({

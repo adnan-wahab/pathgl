@@ -71,15 +71,20 @@ let parseColor = (rgb) => {
   return [c.r /255 , c.g /255 , c.b /255];
 }
     let clusters = {}
+    let colorValues = {}
     data.cluster_events.forEach((c) => {
       let stuff = clusters[c.type] = []
-      c.clusters.forEach(cluster => {
+      let val = colorValues[c.type] = []
+      c.clusters.forEach((cluster, clusterIndex) => {
+        val[clusterIndex] = parseColor(cluster.color)
         cluster.nodes.forEach(id => {
           stuff[id] = parseColor(cluster.color)
+
         })
       })
 
     })
+    console.log('va', colorValues)
 
 
     let stateIndex = new Array(data.nodes.length).fill(0);
@@ -122,9 +127,10 @@ let parseColor = (rgb) => {
     }));
 
 
-
+    console.log(colorTypes)
     return {
       nodes: data.nodes,
+      colorValues: colorValues,
       colorTypes: _.extend(colorTypes, {
           general: clusters.general,
           specific: clusters.specific,

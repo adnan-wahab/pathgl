@@ -66,10 +66,10 @@ let colorTypes = {}
 let edgeColors = new Array(data.edges.length * 3).fill(0);
 
 
-let parseColor = (rgb) => {
-  let c = d3.rgb(rgb)
-  return [c.r /255 , c.g /255 , c.b /255];
-}
+  let parseColor = (rgb) => {
+    let c = d3.rgb(rgb)
+    return [c.r /255 , c.g /255 , c.b /255];
+  }
     let clusters = {}
     let colorValues = {}
     data.cluster_events.forEach((c) => {
@@ -84,7 +84,6 @@ let parseColor = (rgb) => {
       })
 
     })
-    console.log('va', colorValues)
 
 
     let stateIndex = new Array(data.nodes.length).fill(0);
@@ -95,7 +94,7 @@ let parseColor = (rgb) => {
         //console.log('wat', cluster)
 
         cluster.nodes.forEach(id => {
-          stateIndex[id] = [cluster.cluster_id, 1]
+          stateIndex[id] = [cluster.cluster_id, 1, 2]
         })
       })
     //})
@@ -120,14 +119,12 @@ let parseColor = (rgb) => {
       return d.create_time || + (new Date(+(new Date()) - Math.floor(Math.random()*10000000000))
 );
     })
-    let color = _.flatten(data.nodes.map((d) => {
+    let color = (data.nodes.map((d) => {
 
       let c = d3.color(d.color || 'pink');
       return [c.r /255 , c.g /255 , c.b /255];
     }));
 
-
-    console.log(colorTypes)
     return {
       nodes: data.nodes,
       colorValues: colorValues,

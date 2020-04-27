@@ -1,18 +1,19 @@
 import GraphRenderer from '../src';
 import _ from 'lodash'
 import mbJSON from './public/thecut.json';
+import '@storybook/addon-console';
 
 let init = _.once(function () {
   let canvas = document.createElement('canvas')
-  mbJSON.nodes.forEach(d => {
-    d.source = Math.random() > .5 ? 'thecut' : 'amazon'
-  })
+  // mbJSON.nodes.forEach(d => {
+  //   d.source = Math.random() > .5 ? 'thecut' : 'amazon'
+  // })
 
   let graph = GraphRenderer.init({
     data: mbJSON,
     canvas: canvas,
     initialState: {
-      showLines: false
+      //showLines: false
     },
     onClick: (point, idx, events) => {
       //graph.setState({favorites})

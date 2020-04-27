@@ -1,135 +1,377 @@
-import mouseChange from 'mouse-change'
-import mouseWheel from 'mouse-wheel'
-import identity from 'gl-mat4/identity'
-import perspective from 'gl-mat4/perspective'
-import lookAt from 'gl-mat4/lookAt'
+import { mat4, vec4 } from "gl-matrix";
 
-function createCamera (regl, props) {
-  var cameraState = {
-    view: identity(new Float32Array(16)),
-    projection: identity(new Float32Array(16)),
-    center: new Float32Array(props.center || 3),
-    theta: props.theta || 0,
-    phi: props.phi || 0,
-    distance: Math.log(props.distance || 10.0),
-    eye: new Float32Array(3),
-    up: new Float32Array(props.up || [0, 1, 0])
-  }
+const createCamera = (
+  initTarget = [0, 0],
+  initDistance = 1,
+  initRotation = 0,
+  initViewCenter = [0, 0],
+  initScaleBounds = [0, Infinity]
+) => {
+  // Scratch variables
+  const scratch0 = new Float32Array(16);
+  const scratch1 = new Float32Array(16);
+  const scratch2 = new Float32Array(16);
 
-  var right = new Float32Array([1, 0, 0])
-  var front = new Float32Array([0, 0, 1])
+  let view = mat4.create();
+  let viewCenter = [...initViewCenter.slice(0, 2), 0, 1];
 
-  var minDistance = Math.log('minDistance' in props ? props.minDistance : 0.1)
-  var maxDistance = Math.log('maxDistance' in props ? props.maxDistance : 1000)
+  const scaleBounds = [...initScaleBounds];
 
-  var dtheta = 0
-  var dphi = 0
-  var ddistance = 0
+  const getRotation = () => Math.acos(view[0]);
 
-  var prevX = 0
-  var prevY = 0
+  const getScaling = () => mat4.getScaling(scratch0, view)[0];
 
-  document.body.addEventListener('keydown', (e) => {
-    const translate = {
-      37: [1, 0],
-      38: [0, 1],
-      39: [-1, 0],
-      40: [0, -1]
+  const getScaleBounds = () => [...scaleBounds];
+
+  const getDistance = () => 1 / getScaling();
+
+  const getTranslation = () => mat4.getTranslation(scratch0, view).slice(0, 2);
+
+  const getTarget = () =>
+    vec4
+      .transformMat4(scratch0, viewCenter, mat4.invert(scratch2, view))
+      .slice(0, 2);
+
+  const getView = () => view;
+
+  const getViewCenter = () => viewCenter.slice(0, 2);
+
+  const lookAt = ([x = 0, y = 0] = [], newDistance = 1, newRotation = 0) => {
+    // Reset the view
+    view = mat4.create();
+
+    translate([-x, -y]);
+    rotate(newRotation);
+    scale(1 / newDistance);
+  };
+
+  const translate = ([x = 0, y = 0] = []) => {
+    scratch0[0] = x;
+    scratch0[1] = y;
+    scratch0[2] = 0;
+
+    const t = mat4.fromTranslation(scratch1, scratch0);
+
+    // Translate about the viewport center
+    // This is identical to `i * t * i * view` where `i` is the identity matrix
+    mat4.multiply(view, t, view);
+  };
+
+  const scale = (d, mousePos) => {
+    if (d <= 0) return;
+
+    const scale = getScaling();
+    const newScale = scale * d;
+
+    d = Math.max(scaleBounds[0], Math.min(newScale, scaleBounds[1])) / scale;
+
+    if (d === 1) return; // There is nothing to do
+
+    scratch0[0] = d;
+    scratch0[1] = d;
+    scratch0[2] = 1;
+
+    const s = mat4.fromScaling(scratch1, scratch0);
+
+    const scaleCenter = mousePos ? [...mousePos, 0] : viewCenter;
+    const a = mat4.fromTranslation(scratch0, scaleCenter);
+
+    // Translate about the scale center
+    // I.e., the mouse position or the view center
+    mat4.multiply(
+      view,
+      a,
+      mat4.multiply(
+        view,
+        s,
+        mat4.multiply(view, mat4.invert(scratch2, a), view)
+      )
+    );
+  };
+
+  const rotate = rad => {
+    const r = mat4.create();
+    mat4.fromRotation(r, rad, [0, 0, 1]);
+
+    // Rotate about the viewport center
+    // This is identical to `i * r * i * view` where `i` is the identity matrix
+    mat4.multiply(view, r, view);
+  };
+
+  const setScaleBounds = newBounds => {
+    scaleBounds[0] = newBounds[0];
+    scaleBounds[1] = newBounds[1];
+  };
+
+  const setView = newView => {
+    if (!newView || newView.length < 16) return;
+    view = newView;
+  };
+
+  const setViewCenter = newViewCenter => {
+    viewCenter = [...newViewCenter.slice(0, 2), 0, 1];
+  };
+
+  const reset = () => {
+    lookAt(initTarget, initDistance, initRotation);
+  };
+
+  // Init
+  lookAt(initTarget, initDistance, initRotation);
+
+  return {
+    get translation() {
+      return getTranslation();
+    },
+    get target() {
+      return getTarget();
+    },
+    get scaling() {
+      return getScaling();
+    },
+    get scaleBounds() {
+      return getScaleBounds();
+    },
+    get distance() {
+      return getDistance();
+    },
+    get rotation() {
+      return getRotation();
+    },
+    get view() {
+      return getView();
+    },
+    get viewCenter() {
+      return getViewCenter();
+    },
+    lookAt,
+    translate,
+    pan: translate,
+    rotate,
+    scale,
+    zoom: scale,
+    reset,
+    set: (...args) => {
+      console.warn("Deprecated. Please use `setView()` instead.");
+      return setView(...args);
+    },
+    setScaleBounds,
+    setView,
+    setViewCenter
+  };
+};
+
+
+
+import { vec2 } from "gl-matrix";
+
+const dom2dCamera = (
+  element,
+  {
+    distance = 1.0,
+    target = [0, 0],
+    rotation = 0,
+    isNdc = true,
+    isFixed = false,
+    isPan = true,
+    panSpeed = 1,
+    isRotate = true,
+    rotateSpeed = 1,
+    isZoom = true,
+    zoomSpeed = 1,
+    viewCenter = null,
+    scaleBounds = null,
+    onKeyDown = () => {},
+    onKeyUp = () => {},
+    onMouseDown = () => {},
+    onMouseUp = () => {},
+    onMouseMove = () => {},
+    onWheel = () => {}
+  } = {}
+) => {
+  let camera = createCamera(
+    target,
+    distance,
+    rotation
+  );
+  let isChanged = false;
+  let mouseX = 0;
+  let mouseY = 0;
+  let prevMouseX = 0;
+  let prevMouseY = 0;
+  let isLeftMousePressed = false;
+  let yScroll = 0;
+
+  let top = 0;
+  let left = 0;
+  let width = 1;
+  let height = 1;
+  let aspectRatio = 1;
+  let isAlt = false;
+
+  const transformPanX = isNdc
+    ? dX => (dX / width) * 2 * aspectRatio // to normalized device coords
+    : dX => dX;
+  const transformPanY = isNdc
+    ? dY => (dY / height) * 2 // to normalized device coords
+    : dY => -dY;
+
+  const transformScaleX = isNdc
+    ? x => (-1 + (x / width) * 2) * aspectRatio // to normalized device coords
+    : x => x;
+  const transformScaleY = isNdc
+    ? y => 1 - (y / height) * 2 // to normalized device coords
+    : y => y;
+
+  const tick = () => {
+    if (isFixed) return false;
+
+    isChanged = false;
+
+    if (isPan && isLeftMousePressed && !isAlt) {
+      // To pan 1:1 we need to half the width and height because the uniform
+      // coordinate system goes from -1 to 1.
+      camera.pan([
+        transformPanX(panSpeed * (mouseX - prevMouseX)),
+        transformPanY(panSpeed * (prevMouseY - mouseY))
+      ]);
+      isChanged = true;
     }
-    const dir = translate[e.which] || [0, 0]
-    cameraState.center[0] += dir[0] * 0.1
-    cameraState.center[1] += dir[1] * 0.1
-    // left up right down
-  })
 
-  mouseChange(function (buttons, x, y) {
-    if (buttons & 1) {
-      var dx = (x - prevX) / window.innerWidth
-      var dy = (y - prevY) / window.innerHeight
-      var w = Math.max(cameraState.distance, 0.5)
+    if (isZoom && yScroll) {
+      const dZ = zoomSpeed * Math.exp(yScroll / height);
 
-      dtheta += w * dx
-      dphi += w * dy
-    }
-    prevX = x
-    prevY = y
-  })
+      // Get normalized device coordinates (NDC)
+      const transformedX = transformScaleX(mouseX);
+      const transformedY = transformScaleY(mouseY);
 
-  mouseWheel(function (dx, dy) {
-    ddistance += dy / window.innerHeight
-  })
+      camera.scale(1 / dZ, [transformedX, transformedY]);
 
-  function damp (x) {
-    var xd = x * 0.9
-    if (xd < 0.1) {
-      return 0
-    }
-    return xd
-  }
-
-  function clamp (x, lo, hi) {
-    return Math.min(Math.max(x, lo), hi)
-  }
-
-  function updateCamera () {
-    var center = cameraState.center
-    var eye = cameraState.eye
-    var up = cameraState.up
-    cameraState.theta += dtheta
-    cameraState.phi = clamp(
-      cameraState.phi + dphi,
-      -Math.PI / 2.0,
-      Math.PI / 2.0)
-    cameraState.distance = clamp(
-      cameraState.distance + ddistance,
-      minDistance,
-      maxDistance)
-
-    dtheta = damp(dtheta)
-    dphi = damp(dphi)
-    ddistance = damp(ddistance)
-
-    var theta = cameraState.theta
-    var phi = cameraState.phi
-    var r = Math.exp(cameraState.distance)
-
-    var vf = r * Math.sin(theta) * Math.cos(phi)
-    var vr = r * Math.cos(theta) * Math.cos(phi)
-    var vu = r * Math.sin(phi)
-
-    for (var i = 0; i < 3; ++i) {
-      eye[i] = center[i] + vf * front[i] + vr * right[i] + vu * up[i]
+      isChanged = true;
     }
 
-    lookAt(cameraState.view, eye, center, up)
-  }
+    if (isRotate && isLeftMousePressed && isAlt) {
+      const wh = width / 2;
+      const hh = height / 2;
+      const x1 = prevMouseX - wh;
+      const y1 = hh - prevMouseY;
+      const x2 = mouseX - wh;
+      const y2 = hh - mouseY;
+      // Angle between the start and end mouse position with respect to the
+      // viewport center
+      const radians = vec2.angle([x1, y1], [x2, y2]);
+      // Determine the orientation
+      const cross = x1 * y2 - x2 * y1;
 
-  var injectContext = regl({
-    context: Object.assign({}, cameraState, {
-      projection: function ({ viewportWidth, viewportHeight }) {
-        return perspective(cameraState.projection,
-          Math.PI / 4.0,
-          viewportWidth / viewportHeight,
-          0.01,
-          1000.0)
-      }
-    }),
-    uniforms: Object.keys(cameraState).reduce(function (uniforms, name) {
-      uniforms[name] = regl.context(name)
-      return uniforms
-    }, {})
-  })
+      camera.rotate(rotateSpeed * radians * Math.sign(cross));
 
-  function setupCamera (block) {
-    updateCamera()
-    injectContext(block)
-  }
+      isChanged = true;
+    }
 
-  Object.keys(cameraState).forEach(function (name) {
-    setupCamera[name] = cameraState[name]
-  })
+    // Reset scroll delta and mouse position
+    yScroll = 0;
+    prevMouseX = mouseX;
+    prevMouseY = mouseY;
 
-  return setupCamera
-}
+    return isChanged;
+  };
 
-export default createCamera
+  const config = ({
+    isFixed: newIsFixed = null,
+    isPan: newIsPan = null,
+    isRotate: newIsRotate = null,
+    isZoom: newIsZoom = null,
+    panSpeed: newPanSpeed = null,
+    rotateSpeed: newRotateSpeed = null,
+    zoomSpeed: newZoomSpeed = null
+  } = {}) => {
+    isFixed = newIsFixed !== null ? newIsFixed : isFixed;
+    isPan = newIsPan !== null ? newIsPan : isPan;
+    isRotate = newIsRotate !== null ? newIsRotate : isRotate;
+    isZoom = newIsZoom !== null ? newIsZoom : isZoom;
+    panSpeed = +newPanSpeed > 0 ? newPanSpeed : panSpeed;
+    rotateSpeed = +newRotateSpeed > 0 ? newRotateSpeed : rotateSpeed;
+    zoomSpeed = +newZoomSpeed > 0 ? newZoomSpeed : zoomSpeed;
+  };
+
+  const refresh = () => {
+    const bBox = element.getBoundingClientRect();
+    top = bBox.top;
+    left = bBox.left;
+    width = bBox.width;
+    height = bBox.height;
+    aspectRatio = width / height;
+  };
+
+  const keyUpHandler = event => {
+    isAlt = false;
+
+    onKeyUp(event);
+  };
+
+  const keyDownHandler = event => {
+    isAlt = event.altKey;
+
+    onKeyDown(event);
+  };
+
+  const mouseUpHandler = event => {
+    isLeftMousePressed = false;
+
+    onMouseUp(event);
+  };
+
+  const mouseDownHandler = event => {
+    isLeftMousePressed = event.buttons === 1;
+
+    onMouseDown(event);
+  };
+
+  const mouseMoveHandler = event => {
+    prevMouseX = mouseX;
+    prevMouseY = mouseY;
+    mouseX = event.clientX - left;
+    mouseY = event.clientY - top;
+
+    refresh()
+    onMouseMove(event);
+  };
+
+  const wheelHandler = event => {
+    event.preventDefault();
+
+    const scale = event.deltaMode === 1 ? 12 : 1;
+
+    yScroll += scale * (event.deltaY || 0);
+
+    onWheel(event);
+  };
+
+  const dispose = () => {
+    camera = undefined;
+    window.removeEventListener("keydown", keyDownHandler);
+    window.removeEventListener("keyup", keyUpHandler);
+    element.removeEventListener("mousedown", mouseDownHandler);
+    window.removeEventListener("mouseup", mouseUpHandler);
+    window.removeEventListener("mousemove", mouseMoveHandler);
+    element.removeEventListener("wheel", wheelHandler);
+  };
+
+  window.addEventListener("keydown", keyDownHandler, { passive: true });
+  window.addEventListener("keyup", keyUpHandler, { passive: true });
+  element.addEventListener("mousedown", mouseDownHandler, { passive: true });
+  window.addEventListener("mouseup", mouseUpHandler, { passive: true });
+  window.addEventListener("mousemove", mouseMoveHandler, { passive: true });
+  element.addEventListener("wheel", wheelHandler, { passive: false });
+
+  refresh();
+
+  camera.config = config;
+  camera.dispose = dispose;
+  camera.refresh = refresh;
+  camera.tick = tick;
+
+  return camera;
+};
+
+export default dom2dCamera;

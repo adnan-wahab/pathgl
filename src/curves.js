@@ -27,14 +27,16 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
   view = getView()
   let colors = positions.map( d => [Math.random(),Math.random(),Math.random()] )
 
-  let pos = regl.buffer(positions)
-  let color = regl.buffer(colors)
+  let pos = regl.buffer()
+  let color = regl.buffer()
+
   let update =  (node, id) => {
+    console.log('WHY',getProjection())
       let connections = attributes.edges.edges.filter(edge => {
+
         return edge.source == id || edge.target == id
       }).map(d => {
         let source = attributes.nodes[d.source], target = attributes.nodes[d.target];
-
         return {
           x1: (source.x),
           y1: (source.y),
@@ -53,19 +55,24 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
       let colors = positions.map( d => [Math.random(),Math.random(),Math.random()] )
       pos({data: positions})
       color({data: colors})
+
+      // pos.subdata(positions)
+      // color.subdata(color)
     }
 
-    let draw = () => interleavedStripRoundCapJoin3DDEMO({
+    let draw = () => {
+    if (segments.length) interleavedStripRoundCapJoin3DDEMO({
       points: pos,
       color: color,
-      width: 10,
+      width: 5,
       model: getModel,
       view: view, //view,
-      projection: [0.6674917491749175, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+      projection: getProjection,
       resolution: [window.innerWidth, window.innerHeight],
-      segments: segments / 2,
+      segments: segments - 1,
       viewport: { x: 0, y: 0, width: innerWidth, height: innerHeight },
     })
+  }
     return [update, draw]
 }
 

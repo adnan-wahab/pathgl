@@ -7,9 +7,21 @@ import _ from 'lodash'
 import processData from './processData';
 import createLine from './lines'
 import createCurves from './curves'
-import createDom2dCamera from './2d-camera';
+import dom2dCamera from './camera';
 
 import createDrawLines from './edges'
+import circleSprite from './circle.png'
+import starSprite from './lmaostar.gif'
+
+import * as d3 from 'd3'
+
+let circleImg = new Image(
+)
+
+let starImg = new Image()
+starImg.src = starSprite;
+
+circleImg.src = circleSprite;
 
 
 
@@ -48,24 +60,34 @@ const BG_COLOR = [    0.1411764705882353,
   precision mediump float;
 
   uniform vec2 selection;
+  uniform sampler2D texture;
+  uniform sampler2D texture2;
+
 
   varying vec4 vColor;
   varying vec3 borderColor;
+  varying float uv;
 
   void main() {
 
-    float r = 0.0, delta = 0.0, alpha = 1.0;
-    vec2 cxy = 2.0 * gl_PointCoord - 1.0;
-    r = dot(cxy, cxy);
+    // float r = 0.0, delta = 0.0, alpha = 1.0;
+    // vec2 cxy = 2.0 * gl_PointCoord - 1.0;
+    // r = dot(cxy, cxy);
+    //
+    // #ifdef GL_OES_standard_derivatives
+    //   delta = fwidth(r);
+    //   alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
+    // #endif
+    //
+    // vec3 color =   (r < 0.75) ? vColor.rgb : borderColor;
+    // if (r > .95) discard;
+    // gl_FragColor = vec4(color, alpha * vColor.a);
+    if (uv == 0.)
+    gl_FragColor = texture2D(texture, gl_PointCoord) * vColor;
+    else
+    gl_FragColor = texture2D(texture2, gl_PointCoord) * vColor;
 
-    #ifdef GL_OES_standard_derivatives
-      delta = fwidth(r);
-      alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
-    #endif
 
-    vec3 color =   (r < 0.75) ? vColor.rgb : borderColor;
-    if (r > .95) discard;
-    gl_FragColor = vec4(color, alpha * vColor.a);
   }
   `
   const POINT_VS = `
@@ -84,10 +106,10 @@ const BG_COLOR = [    0.1411764705882353,
 
   attribute vec4 pos;
   attribute vec3 color;
-  attribute vec2 stateIndex;
+  attribute vec3 stateIndex;
   attribute float dates;
   attribute float sentiment;
-
+  attribute vec2 offset;
 
   uniform float hoveredPoint;
   uniform float selectedPoint;
@@ -100,11 +122,15 @@ const BG_COLOR = [    0.1411764705882353,
   // variables to send to the fragment shader
   varying vec4 vColor;
   varying vec3 borderColor;
+  varying float uv;
+
 
   void main() {
     vec2 position = pos.xy;
     // position.x = position.x / dimensions.x;
     // position.y = position.y / dimensions.y;
+    uv = stateIndex.z < 0. ? 100. : 0.;
+
 
     if (! (dates > dateFilter.x && dates < dateFilter.y)) return;
 
@@ -113,40 +139,38 @@ const BG_COLOR = [    0.1411764705882353,
 
     vColor = vec4(color, 1);
 
-    //if (selectedCluster > -.1 && selectedCluster != stateIndex.x) finalScaling = 0.;
-
     float finalScaling = pow(sizeAttenuation, scaling);
 
     finalScaling = 10.;
 
-    if (pos.w == hoveredPoint) finalScaling = 20.;
-    if (pos.w == hoveredPoint) borderColor = vec3(1);
-    else borderColor = vec3(0.1411764705882353, 0.15294117647058825, 0.18823529411764706);
-
-    if (pos.w == selectedPoint) finalScaling = 30.;
-    if (pos.w == selectedPoint) vColor = vec4(1);
-
-    if (pos.w == hoveredPoint) gl_Position.z -= .1;
-    if (pos.w == selectedPoint) gl_Position.z -= .2;
-
-    finalScaling += pos.z;
-
-
 
 
     if (flatSize) finalScaling = 4. + pow(pointSize, sizeAttenuation);
-        if (sentimentFilter == 1) { //only show positive
-          if (sentiment < .25) finalScaling = 0.;
-        }
-        if (sentimentFilter == 2) {  //only show negative
-          if (sentiment > -.25) finalScaling = 0.;
-        }
-        if (sentimentFilter == 3) { //only show neutral
-          if (! (sentiment < .25 && sentiment > -.25))  finalScaling = 0.;
-        }
 
-        if (! (stateIndex[1] == 1.)) finalScaling = 0.;
 
+        if (pos.w == hoveredPoint) finalScaling = 20.;
+        if (pos.w == hoveredPoint) borderColor = vec3(1);
+        else borderColor = vec3(0.1411764705882353, 0.15294117647058825, 0.18823529411764706);
+
+        if (pos.w == selectedPoint) finalScaling = 30.;
+        if (pos.w == selectedPoint) vColor = vec4(1);
+
+        if (pos.w == hoveredPoint) gl_Position.z -= .1;
+        if (pos.w == selectedPoint) gl_Position.z -= .2;
+
+            if (sentimentFilter == 1) { //only show positive
+              if (sentiment < .25) finalScaling = 0.;
+            }
+            if (sentimentFilter == 2) {  //only show negative
+              if (sentiment > -.25) finalScaling = 0.;
+            }
+            if (sentimentFilter == 3) { //only show neutral
+              if (! (sentiment < .25 && sentiment > -.25))  finalScaling = 0.;
+            }
+
+            if (! (stateIndex[1] == 1.)) finalScaling = 0.;
+
+finalScaling += pos.z;
     gl_PointSize = finalScaling + pointSizeExtra;
 
   }
@@ -199,6 +223,7 @@ const creategraph = (options) => {
 
   schema.attributes = {
         pos: {
+          //xy size
           buffer: () => attributes.position,
           size: 4
         },
@@ -208,8 +233,9 @@ const creategraph = (options) => {
 
         },
         stateIndex: {
+          //cluster,
           buffer: () => attributes.stateIndex,
-          size: 2
+          size: 3
         },
         dates: {
           buffer: () => attributes.dates,
@@ -219,6 +245,11 @@ const creategraph = (options) => {
           buffer: () => attributes.sentiment,
           size: 1
         },
+        offset: {buffer: [
+          [-1, -1], [1, -1], [-1, 1], [-1, 1], [1, -1], [1, 1],
+
+
+    ], normalized: true},
 
       }
 
@@ -243,7 +274,8 @@ const creategraph = (options) => {
 
   const getPointSize = () => pointSize * window.devicePixelRatio
   const getNormalPointSizeExtra = () => 0
-  let getProjection = () => { return state.projection }
+  let getProjection = () => {
+    return state.projection }
 
   const getView = () => {
     return camera.view}
@@ -294,11 +326,12 @@ const creategraph = (options) => {
   let isMouseInCanvas = false
 
   const initCamera = () => {
-    camera = createDom2dCamera(canvas)
-    if (initialView) camera.set(mat4.clone(initialView))
+    camera = dom2dCamera(canvas)
+    if (initialView) camera.setView(mat4.clone(initialView))
     else camera.lookAt([...initialTarget], initialDistance, initialRotation)
   }
   initCamera()
+  let [updateCurves, drawCurves] = createCurves(options.regl, attributes, getModel, getProjection, getView)
 
   // Get a copy of the current mouse position
   const getMousePos = () => mousePosition.slice()
@@ -337,7 +370,6 @@ const creategraph = (options) => {
 
   let drawLines = createDrawLines(options.regl, attributes, getModel, getProjection, getView)
 
-  let [updateCurves, drawCurves] = createCurves(options.regl, attributes, getModel, getProjection, getView)
 
   const raycast = () => {
     let pointSize = 100; //MAD HACKS
@@ -386,17 +418,11 @@ const creategraph = (options) => {
     // }
   }
 
-  const selectPoint = () => {}
-  const selectSubGraph = () => {}
-  const selectCluster = (n) => {
-    if (state.selectedCluster === n) state.selectedCluster = -n
-    else state.selectedCluster = n
-    drawRaf() // eslint-disable-line no-use-before-define
-  }
 
-  const select = (points ) => {
+  const select = (points) => {
+    console.log(points, pointList[points])
 
-    if (typeof points === 'string') selection = [pointList.findIndex(d => d[2] === points)]
+    if (typeof points === 'number') selection = [points]
     else selection = points
     drawRaf() // eslint-disable-line no-use-before-define
   }
@@ -412,6 +438,7 @@ const creategraph = (options) => {
 
   const mouseDownHandler = event => {
     if (!isInit) return
+    events['mousedown']()
     mouseDown = true
 
     mouseDownPosition = getRelativeMousePosition(event)
@@ -423,12 +450,14 @@ const creategraph = (options) => {
 
   const mouseUpHandler = () => {
     if (!isInit) return
+    events['mouseup']()
 
     mouseDown = false
   }
 
   const mouseClickHandler = event => {
     if (!isInit) return
+    events['click']()
 
     const currentMousePosition = getRelativeMousePosition(event)
     const clickDist = dist(...currentMousePosition, ...mouseDownPosition)
@@ -437,20 +466,30 @@ const creategraph = (options) => {
     if (clostestPoint >= 0) onClick(pointList[clostestPoint], clostestPoint, event)
 
     if (event.shiftKey) {
-      console.log('logl')
       updateCurves(pointList[clostestPoint], clostestPoint)
+    }
   }
-  }
+
+
+  const blurHandler = () => {
+    if (!isInit) return;
+    events['blur']()
+    hoveredPoint = -1;
+    isMouseInCanvas = false;
+    mouseUpHandler();
+    drawRaf(); // eslint-disable-line no-use-before-define
+  };
 
   const mouseMoveHandler = event => {
     if (!isInit) return
+    events['mousemove']()
 
     getRelativeMousePosition(event)
     // Only ray cast if the mouse cursor is inside
-    //if (isMouseInCanvas && !mouseDownShift) {
+    if (isMouseInCanvas && !mouseDownShift) {
       const clostestPoint = raycast()
       hover(clostestPoint) // eslint-disable-line no-use-before-define
-    //}
+    }
     // Always redraw when mouse as the user might have panned
     if (mouseDown) drawRaf() // eslint-disable-line no-use-before-define
   }
@@ -459,7 +498,6 @@ const creategraph = (options) => {
     viewAspectRatio = width / height
     state.projection = mat4.fromScaling([], [1 / viewAspectRatio, 1, 1])
     state.model = mat4.fromScaling([], [dataAspectRatio, 1, 1])
-    //console.log('updating model', model)
   }
 
   const setHeight = newHeight => {
@@ -473,6 +511,24 @@ const creategraph = (options) => {
     width = +newWidth
     canvas.width = width * window.devicePixelRatio
   }
+
+
+
+  var emptyTexture = regl.texture({
+    shape: [16, 16]
+  })
+
+  let textures = [emptyTexture, emptyTexture]
+
+  circleImg.onload = () => {
+    textures[0] = regl.texture(circleImg)
+  }
+  if (circleImg.complete) circleImg.onload()
+
+  starImg.onload = () => {
+    textures[1] = regl.texture(starImg)
+  }
+  if (starImg.complete) starImg.onload()
 
 
 
@@ -512,7 +568,9 @@ const creategraph = (options) => {
         pointSizeExtra: getPointSizeExtra,
         sizeAttenuation: regl.prop('sizeAttenuation'),
         flatSize: regl.prop('flatSize'),
-        sentimentFilter: regl.prop('sentimentFilter')
+        sentimentFilter: regl.prop('sentimentFilter'),
+        texture: () => textures[0],
+        texture2: () => textures[1]
       },
       count: getNormalNumPoints,
       primitive: 'points'
@@ -526,15 +584,15 @@ const creategraph = (options) => {
     )
 
   window.tooltip = (x, y) => {
-
-    let v = [x, y, 0, 1]
-    mat4.multiply(
-      scratch,
-        state.projection,
-      mat4.multiply(scratch, camera.view, state.model)
-    )
-
-    vec4.transformMat4(v, v, scratch)
+    //
+    // let v = [x, y, 0, 1]
+    // mat4.multiply(
+    //   scratch,
+    //     state.projection,
+    //   mat4.multiply(scratch, camera.view, state.model)
+    // )
+    //
+    // vec4.transformMat4(v, v, scratch)
   }
 
   const drawRecticle = (state) => {
@@ -588,7 +646,8 @@ const creategraph = (options) => {
     //drawEdges(state)
     drawRecticle(state);
 
-    if (state.showNodes) drawPointBodies(state);
+    //if (state.showNodes)
+    drawPointBodies(state);
     drawCurves()
   }
 
@@ -611,12 +670,12 @@ const creategraph = (options) => {
     camera.refresh()
   }
 
-  const set = ({
-    height: newHeight = null,
-    width: newWidth = null
-  } = {}) => {
-    setHeight(newHeight)
-    setWidth(newWidth)
+  const setSize = (width, height) => {
+    canvas.width = width;
+     canvas.height = height;
+
+    setHeight(height)
+    setWidth(width)
 
     updateViewAspectRatio()
     camera.refresh()
@@ -631,11 +690,10 @@ const creategraph = (options) => {
       needsRedraw = true
       const newHoveredPoint = point !== hoveredPoint
       hoveredPoint = point
-      onHover(point)
+      events['hover'](point)
     } else {
-      // needsRedraw = hoveredPoint
-      // hoveredPoint = undefined
-      //ADNAN MODE
+      needsRedraw = hoveredPoint
+      hoveredPoint = -1
       //if (+needsRedraw >= 0) options.deselect()
     }
 
@@ -648,15 +706,18 @@ const creategraph = (options) => {
   }
 
   const mouseEnterCanvasHandler = () => {
+    events['mouseenter']()
     isMouseInCanvas = true
   }
 
   const mouseLeaveCanvasHandler = () => {
+    events['mouseleave']()
     hover()
     isMouseInCanvas = false
     drawRaf()
   }
   const wheelHandler = () => {
+    events['wheel']()
     drawRaf();
     refresh()
   };
@@ -678,8 +739,9 @@ const creategraph = (options) => {
     })
 
     // Set dimensions
-    set({ width, height })
+    setSize( width, height )
 
+    window.addEventListener('blur', blurHandler, false);
     window.addEventListener('mousedown', mouseDownHandler, false)
     window.addEventListener('mouseup', mouseUpHandler, false)
     window.addEventListener('mousemove', mouseMoveHandler, false)
@@ -697,8 +759,6 @@ const creategraph = (options) => {
   }
 
   init(canvas)
-  console.log('myvalues',attributes.colorValues)
-
 
   const setState = (options) => {
     drawRaf()
@@ -708,13 +768,12 @@ const creategraph = (options) => {
     if (options.color) {
       let val = options.color
       attributes.color = attributes.colorTypes[val] || attributes.colorTypes['merge']
-      console.log(options.color, attributes.colorTypes)
+      //onsole.log(options.color, attributes.colorTypes)
     }
 
     if (options.showCluster) {
       let showing = options.showCluster
       attributes.stateIndex.forEach(pair => {
-        console.log(pair[0])
         pair[1] = parseInt(options.showCluster[pair[0]] ? 1 : 0)
       })
 
@@ -728,13 +787,100 @@ const creategraph = (options) => {
 
   }
 
+  let parseColor = (rgb) => {
+    let c = d3.rgb(rgb)
+    return [c.r /255 , c.g /255 , c.b /255];
+  }
+
+  let setNodeProps = (indices, property, value, offset) => {
+    indices.forEach(idx => {
+      attributes[property][idx+offset] = parseInt(idx)
+    })
+    drawRaf()
+  }
+
+  let setNodeColor = (indices, color) => {
+
+    indices.forEach(idx => {
+
+      attributes.color[idx] = parseColor(color)
+    })
+    drawRaf()
+  }
+
+  let setNodeVisibility = (indices, color) => {
+    indices.forEach(idx => {
+      attributes.stateIndex[idx][1] = 0
+    })
+
+    drawRaf()
+
+  }
+
+  let setNodeSize = (indices, size) => {
+    indices.forEach(idx => {
+      attributes.position[idx][2] = size
+    })
+
+    drawRaf()
+
+  }
+
+  let setNodeShape = (indices, shape) => {
+    indices.forEach(idx => {
+      attributes.stateIndex[idx][2] = - shape
+    })
+
+    drawRaf()
+
+  }
+
+  let noop = () => {}
+  let events = {
+    'blur' :noop,
+    'mousedown' :noop,
+    'mouseup' :noop,
+    'mousemove' :noop,
+    'mouseenter' :noop,
+    'mouseleave' :noop,
+    'click' :noop,
+    'wheel': noop,
+    hover: noop,
+  }
+  let on = (event, listener) => {
+    events[event] = listener
+
+  }
 
 
 
   return {
+    resetView: () => {
+      camera.setView(mat4.clone(initialView))
+      draw()
+
+
+    },
+    zoomToNode: (id) => {
+      let pos = attributes.position[id]
+      let xy = pos.slice(0,2)
+      camera.lookAt(xy)
+      draw()
+      //camera.setView(mat4.clone(initialView))
+    },
+
+
+
+    setSize,
+    camera: camera,
+    setNodeColor,
+    setNodeSize,
+    setNodeShape,
+    setNodeVisibility,
 
     deselect,
     destroy,
+    on: on,
 
     draw: drawRaf,
     repaint: () => {
@@ -754,6 +900,7 @@ const creategraph = (options) => {
 
 
 const init = (props) => {
+
   props.attributes = processData(props.data)
   props.regl = createRegl(props.canvas)
   let graph = creategraph(props)

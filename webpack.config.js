@@ -19,7 +19,13 @@ module.exports = (env, argv) => ({
         test: /\.(js|fs|vs)$/,
         exclude: /node_modules/,
         use: ['babel-loader']
-      }
+      },
+            {
+         test: /\.(png|svg|jpg|gif)$/,
+         use: [
+           'file-loader',
+         ],
+       },
     ]
   },
   resolve: {

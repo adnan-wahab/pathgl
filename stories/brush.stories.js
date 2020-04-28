@@ -15,10 +15,15 @@ export const brushSelection = () => {
   })
 
   const container = d3.create('div')
-  //container.append(canvas)
+  container.node().appendChild(canvas)
+
   const svg = container.append("svg")
       .attr("viewBox", [0, 0, width, height])
-      .property("value", []);
+      .property("value", [])
+      svg.style(
+        'position', 'absolute'
+      )
+      svg.style('top', '50')
 
   const brush = d3.brush()
       .on("start brush", brushed)
@@ -48,9 +53,8 @@ export const brushSelection = () => {
     svg.selectAll('.selection').attr('opacity', 1).attr('fill', 'none')
 
     let value = [];
-    console.log('hi')
     if (d3.event.selection) {
-      const [[x0, y0], [x1, y1]] = d3.event.selection;
+      graph.brush(d3.event.selection)
       //value = data.filter(d => x0 <= x(d.x) && x(d.x) < x1 && y0 <= y(d.y) && y(d.y) < y1);
     }
     //svg.property("value", value).dispatch("input");

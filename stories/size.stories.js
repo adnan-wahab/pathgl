@@ -3,7 +3,28 @@ import GraphRenderer from '../src';
 export default { title: 'size Test' };
 
 import createGraphOnce from './singleton'
+import _ from 'lodash'
 let favorites = []
+
+export const rebalanceSizeAttenuation = () => {
+  let [graph, canvas] = createGraphOnce()
+
+  graph.setState({flatSize: true})
+
+  let i = 0
+
+  let bounce  = _.debounce((e) => {
+    console.log('rebalance', i)
+    graph.setState({sizeAttenuation: (i+=.3)});
+  }, 1000)
+
+  graph.on('wheel', bounce)
+
+  return canvas
+};
+
+
+
 export const inDegreeSizing = () => {
   let [graph, canvas] = createGraphOnce()
 

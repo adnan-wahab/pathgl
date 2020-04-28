@@ -106,6 +106,7 @@ const BG_COLOR = [    0.1411764705882353,
 
   attribute vec4 pos;
   attribute vec3 color;
+  //cluster, visiblity, texture
   attribute vec3 stateIndex;
   attribute float dates;
   attribute float sentiment;
@@ -855,6 +856,26 @@ const creategraph = (options) => {
 
 
   return {
+    brush: (selection) => {
+      let [[x0, y0], [x1,  y1]] = selection;
+      attributes.stateIndex.forEach((trip, i) => {
+        let [x, y] = attributes.position[i].slice(0, 2)
+        x0 = x0 / 1000
+        x1 = x1 / 1000
+        y0 = y0 / 1000
+        y1 = y1 / 1000
+
+
+        trip[1] = x0 <= x && x <= x1
+            && y0 <= y && y <= y1
+            ? 1 : 0;
+            //console.log(trip[1])
+      })
+      draw()
+
+
+    },
+
     resetView: () => {
       camera.setView(mat4.clone(initialView))
       draw()

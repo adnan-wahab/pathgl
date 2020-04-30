@@ -12,6 +12,16 @@ let init = _.once(function () {
   let graph = GraphRenderer.init({
     data: mbJSON,
     canvas: canvas,
+    containerDimensions:{
+      bottom: 454.3333435058594,
+      height: 404.3333435058594,
+      left: 210,
+      right: 832,
+      top: 50,
+      width: 622,
+      x: 210,
+      y: 50
+    },
     initialState: {
       //showLines: false
     },

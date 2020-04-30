@@ -34,23 +34,33 @@ export const checkReglExtensions = regl => {
  * @return  {function}  New Regl instance
  */
 export const createRegl = canvas => {
-  const gl = canvas.getContext('webgl', {preserveDrawingBuffer: true, antialias: true })
+  // const gl = canvas.getContext('webgl', {preserveDrawingBuffer: true, antialias: false,
+  //   sample: {
+  //      enable: true,
+  //      alpha: true,
+  //      coverage: {
+  //        value: 1,
+  //        invert: false
+  //      }
+  //    },
+  //
+  //  })
   const extensions = []
 
   // Needed to run the tests properly as the headless-gl doesn't support all
   // extensions, which is fine for the functional tests.
+  //
+  // GL_EXTENSIONS.forEach(EXTENSION => {
+  //   if (gl.getExtension(EXTENSION)) {
+  //     extensions.push(EXTENSION)
+  //   } else {
+  //     console.warn(
+  //       `WebGL: ${EXTENSION} extension not supported. Scatterplot might not render properly`
+  //     )
+  //   }
+  // })
 
-  GL_EXTENSIONS.forEach(EXTENSION => {
-    if (gl.getExtension(EXTENSION)) {
-      extensions.push(EXTENSION)
-    } else {
-      console.warn(
-        `WebGL: ${EXTENSION} extension not supported. Scatterplot might not render properly`
-      )
-    }
-  })
-
-  return createOriginalRegl({ gl, extensions })
+  return createOriginalRegl({ canvas, attributes: {premultiplyAlpha: true} })
 }
 
 /**

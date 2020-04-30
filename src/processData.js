@@ -1,5 +1,6 @@
 import * as d3 from 'd3'
 import _ from 'lodash'
+
 const clip = (d) => {
   return d / 3000
 }
@@ -8,10 +9,24 @@ let processData = (data) => {
 
 let colorTypes = {}
 
+let clipspace = (x, y) => {
+  return [
+   2. * (x / innerWidth) - 1.,
+   1. + ((y / innerHeight) * -2.)
+  ]
+}
+
+const getNdcX = x => -1 + (x / innerWidth) * 2
+const getNdcY = y => 1 + (y / innerHeight) * -2
+
+
  let randomColor = data.nodes.map(d => {
    d.size = 0
-   d.x = clip(d.x)
-   d.y = clip(d.y)
+
+   let pos = clipspace(d.x, d.y)
+   d.x = getNdcX(d.x)
+   d.y = getNdcY(d.y)
+
    return [Math.random(), Math.random(), Math.random()]
  })
 

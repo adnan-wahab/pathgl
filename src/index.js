@@ -10,7 +10,7 @@ import createCurves from './curves'
 import dom2dCamera from './camera';
 
 import createDrawLines from './edges'
-import circleSprite from './circle.png'
+import circleSprite from './sprites/circle.png'
 import starSprite from './lmaostar.gif'
 
 import * as d3 from 'd3'
@@ -70,23 +70,25 @@ const BG_COLOR = [    0.1411764705882353,
 
   void main() {
 
-    // float r = 0.0, delta = 0.0, alpha = 1.0;
-    // vec2 cxy = 2.0 * gl_PointCoord - 1.0;
-    // r = dot(cxy, cxy);
-    //
-    // #ifdef GL_OES_standard_derivatives
-    //   delta = fwidth(r);
-    //   alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
-    // #endif
-    //
-    // vec3 color =   (r < 0.75) ? vColor.rgb : borderColor;
-    // if (r > .95) discard;
-    // gl_FragColor = vec4(color, alpha * vColor.a);
+
     if (uv == 0.)
     gl_FragColor = texture2D(texture, gl_PointCoord) * vColor;
     else
     gl_FragColor = texture2D(texture2, gl_PointCoord) * vColor;
 
+    float r = 0.0, delta = 0.0, alpha = 1.0;
+    vec2 cxy = 2.0 * gl_PointCoord - 1.0;
+    r = dot(cxy, cxy);
+
+    #ifdef GL_OES_standard_derivatives
+      delta = fwidth(r);
+      alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
+    #endif
+
+    vec3 color =   (r < 0.75) ? vColor.rgb : borderColor;
+    if (r > .8) discard;
+    gl_FragColor.a = vColor.a;
+    //gl_FragColor.a -= r;
 
   }
   `
@@ -149,15 +151,9 @@ const BG_COLOR = [    0.1411764705882353,
     if (flatSize) finalScaling = 4. + pow(pointSize, sizeAttenuation);
 
 
-        if (pos.w == hoveredPoint) finalScaling = 20.;
-        if (pos.w == hoveredPoint) borderColor = vec3(1);
-        else borderColor = vec3(0.1411764705882353, 0.15294117647058825, 0.18823529411764706);
-
-        if (pos.w == selectedPoint) finalScaling = 30.;
-        if (pos.w == selectedPoint) vColor = vec4(1);
-
-        if (pos.w == hoveredPoint) gl_Position.z -= .1;
-        if (pos.w == selectedPoint) gl_Position.z -= .2;
+        //if (pos.w == hoveredPoint) finalScaling += 20.;
+        //if (pos.w == hoveredPoint) borderColor = vec3(0);
+      //else borderColor = vec3(0.1411764705882353, 0.15294117647058825, 0.18823529411764706);
 
             if (sentimentFilter == 1) { //only show positive
               if (sentiment < .25) finalScaling = 0.;
@@ -171,7 +167,14 @@ const BG_COLOR = [    0.1411764705882353,
 
             if (! (stateIndex[1] == 1.)) finalScaling = 0.;
 
-finalScaling += pos.z;
+    finalScaling += pow(pos.z, 1.5);
+
+    if (pos.w == hoveredPoint) gl_Position.z -= .5;
+    if (pos.w == selectedPoint) gl_Position.z -= .4;
+    if (pos.w == hoveredPoint) finalScaling += 20.;
+
+    if (pos.w == selectedPoint) finalScaling += 30.;
+    if (pos.w == selectedPoint) borderColor = vec3(0);
     gl_PointSize = finalScaling + pointSizeExtra;
 
   }
@@ -216,6 +219,15 @@ const creategraph = (options) => {
   onHover = options.onHover || NOOP,
   onClick = options.onClick || NOOP,
   attributes = options.attributes;
+
+  // (document.body).addEventListener('resize', (e) => {
+  //   console.log(e)
+  // })
+  let containerDimensions = options.containerDimensions || (initialCanvas).getBoundingClientRect()
+  console.log(containerDimensions)
+  initialCanvas.width = containerDimensions.width
+  initialCanvas.height = containerDimensions.height
+
   const scratch = new Float32Array(16);
   let mousePosition  = [0, 0];
   let pointList = []
@@ -270,8 +282,10 @@ const creategraph = (options) => {
     dateFilter: [0,Infinity],
     camera:null,
     projection:  new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
-    model: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+    model: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
+    hoveredPoint: -1
   };
+  window.state = state
 
   const getPointSize = () => pointSize * window.devicePixelRatio
   const getNormalPointSizeExtra = () => 0
@@ -301,7 +315,7 @@ const creategraph = (options) => {
   const pointSize = initialPointSize
   const pointSizeSelected = initialPointSizeSelected
   const pointOutlineWidth = initialPointOutlineWidth
-  let regl = initialRegl || createRegl(initialCanvas, {premultipliedAlpha: false})
+  let regl = initialRegl || createRegl(initialCanvas)
   let camera
   let scroll
   let mouseDown = false
@@ -323,7 +337,6 @@ const creategraph = (options) => {
 
   const opacity = 1
 
-  let hoveredPoint = -1
   let isMouseInCanvas = false
 
   const initCamera = () => {
@@ -373,9 +386,10 @@ const creategraph = (options) => {
 
 
   const raycast = () => {
-    let pointSize = 100; //MAD HACKS
+    let pointSize = 100; //scale to zoom level
     const [mouseX, mouseY] = getScatterGlPos()
     const scaling = 1 || camera.scaling
+    console.log(camera.scaling)
 
     const scaledPointSize =
       2 *
@@ -409,6 +423,8 @@ const creategraph = (options) => {
     if (minDist < (pointSize / width) * 2) {
       return clostestPoint
     };
+
+
     return -1
   }
 
@@ -421,8 +437,6 @@ const creategraph = (options) => {
 
 
   const select = (points) => {
-    console.log(points, pointList[points])
-
     if (typeof points === 'number') selection = [points]
     else selection = points
     drawRaf() // eslint-disable-line no-use-before-define
@@ -475,7 +489,7 @@ const creategraph = (options) => {
   const blurHandler = () => {
     if (!isInit) return;
     events['blur']()
-    hoveredPoint = -1;
+    state.hoveredPoint = -1;
     isMouseInCanvas = false;
     mouseUpHandler();
     drawRaf(); // eslint-disable-line no-use-before-define
@@ -487,9 +501,10 @@ const creategraph = (options) => {
 
     getRelativeMousePosition(event)
     // Only ray cast if the mouse cursor is inside
-    if (isMouseInCanvas && !mouseDownShift) {
+    if (!mouseDownShift) {
       const clostestPoint = raycast()
-      hover(clostestPoint) // eslint-disable-line no-use-before-define
+      hover(clostestPoint)
+      events.hover(clostestPoint, pointList[clostestPoint]) // eslint-disable-line no-use-before-define
     }
     // Always redraw when mouse as the user might have panned
     if (mouseDown) drawRaf() // eslint-disable-line no-use-before-define
@@ -515,14 +530,17 @@ const creategraph = (options) => {
 
 
 
+
+
   var emptyTexture = regl.texture({
     shape: [16, 16]
   })
 
+
   let textures = [emptyTexture, emptyTexture]
 
   circleImg.onload = () => {
-    textures[0] = regl.texture(circleImg)
+    textures[0] = regl.texture({premultiplyAlpha: true, data: circleImg})
   }
   if (circleImg.complete) circleImg.onload()
 
@@ -540,22 +558,22 @@ const creategraph = (options) => {
       frag: POINT_FS,
       vert: POINT_VS,
 
-      blend: {
-        enable: true,
-        func: {
-          srcRGB: 'src alpha',
-          srcAlpha: 'one',
-          dstRGB: 'one minus src alpha',
-          dstAlpha: 'one minus src alpha'
-        }
-      },
+      // blend: {
+      //   enable: true,
+      //   func: {
+      //     srcRGB: 'src alpha',
+      //     srcAlpha: 'one',
+      //     dstRGB: 'one minus src alpha',
+      //     dstAlpha: 'one minus src alpha'
+      //   }
+      // },
 
 
 
       attributes: schema.attributes,
 
       uniforms: {
-        hoveredPoint: () => hoveredPoint,
+        hoveredPoint: () => state.hoveredPoint,
         selectedPoint: () => selection[0] || -1,
         dimensions: [window.innerWidth, window.innerHeight],
         projection: getProjection,
@@ -597,9 +615,9 @@ const creategraph = (options) => {
   }
 
   const drawRecticle = (state) => {
-    if (!(hoveredPoint >= 0)) return
+    if (!(state.hoveredPoint >= 0)) return
 
-    const {x, y} = searchIndex.points[hoveredPoint]
+    const {x, y} = searchIndex.points[state.hoveredPoint]
     // Normalized device coordinate of the point
     const v = [x, y, 0, 1]
 
@@ -618,9 +636,11 @@ const creategraph = (options) => {
     recticleHLine.setPoints([-1, v[1], 1, v[1]])
     recticleVLine.setPoints([v[0], 1, v[0], -1])
 
+    options.tooltip && options.tooltip()
+
+    if (! options.drawRecticle) return
     recticleHLine.draw()
     recticleVLine.draw()
-
   }
 
   const setPoints = newPoints => {
@@ -636,7 +656,7 @@ const creategraph = (options) => {
     if (!isInit) return
 
     regl.clear({
-      color: BG_COLOR,
+      color: [1,1,1,1],
       depth: 1
     })
 
@@ -689,16 +709,19 @@ const creategraph = (options) => {
 
     if (point >= 0) {
       needsRedraw = true
-      const newHoveredPoint = point !== hoveredPoint
-      hoveredPoint = point
-      events['hover'](point)
+      const newHoveredPoint = point !== state.hoveredPoint
+      state.hoveredPoint = point
+      //console.log('found one!!')
+      //events['hover'](point)
     } else {
-      needsRedraw = hoveredPoint
-      hoveredPoint = -1
+      needsRedraw = state.hoveredPoint
+      state.hoveredPoint = -1
+
       //if (+needsRedraw >= 0) options.deselect()
     }
-
-    if (needsRedraw) drawRaf(null)
+    //console.log(state.hoveredPoint)
+    drawRaf()
+    //if (needsRedraw) drawRaf(console.log(null))
   }
 
   const reset = () => {
@@ -857,13 +880,16 @@ const creategraph = (options) => {
 
   return {
     brush: (selection) => {
+       let clipspace = (pos) => {
+         pos[0] =  2. * (pos[0] / containerDimensions.width) - 1.,
+         pos[1] = 1. - ((pos[1] / containerDimensions.height) * 2.)
+       }
+       selection.map(clipspace)
       let [[x0, y0], [x1,  y1]] = selection;
+
       attributes.stateIndex.forEach((trip, i) => {
         let [x, y] = attributes.position[i].slice(0, 2)
-        x0 = x0 / 1000
-        x1 = x1 / 1000
-        y0 = y0 / 1000
-        y1 = y1 / 1000
+        if (Math.random() > .5) console.log(x0, x, x1, y0, y, y1)
 
 
         trip[1] = x0 <= x && x <= x1
@@ -908,7 +934,7 @@ const creategraph = (options) => {
       withDraw(reset)();
     },
     hoverPoint: (uuid) => {
-      hoveredPoint = pointList.findIndex(d => d.uuid === uuid)
+      state.hoveredPoint = pointList.findIndex(d => d.uuid === uuid)
       draw()
     },
     refresh,

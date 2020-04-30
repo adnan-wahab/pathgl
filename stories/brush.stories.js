@@ -54,7 +54,7 @@ export const brushSelection = () => {
 
     let value = [];
     if (d3.event.selection) {
-      graph.brush(d3.event.selection)
+      graph.brush(d3.event.selection, svg.node())
       //value = data.filter(d => x0 <= x(d.x) && x(d.x) < x1 && y0 <= y(d.y) && y(d.y) < y1);
     }
     //svg.property("value", value).dispatch("input");

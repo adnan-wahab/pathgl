@@ -10,7 +10,7 @@ import createCurves from './curves'
 import dom2dCamera from './camera';
 
 import createDrawLines from './edges'
-import circleSprite from './sprites/circle.png'
+import circleSprite from './sprites/circle-border.png'
 import starSprite from './lmaostar.gif'
 
 import * as d3 from 'd3'
@@ -86,8 +86,8 @@ const BG_COLOR = [    0.1411764705882353,
     #endif
 
     vec3 color =   (r < 0.75) ? vColor.rgb : borderColor;
-    if (r > .8) discard;
-    gl_FragColor.a = vColor.a;
+    //if (r > .8) discard;
+    gl_FragColor.a = .5;
     //gl_FragColor.a -= r;
 
   }
@@ -166,15 +166,17 @@ const BG_COLOR = [    0.1411764705882353,
             }
 
             if (! (stateIndex[1] == 1.)) finalScaling = 0.;
+    if ( (stateIndex[1] == -10.)) vColor.a = .5;
 
     finalScaling += pow(pos.z, 1.5);
 
     if (pos.w == hoveredPoint) gl_Position.z -= .5;
     if (pos.w == selectedPoint) gl_Position.z -= .4;
-    if (pos.w == hoveredPoint) finalScaling += 20.;
 
-    if (pos.w == selectedPoint) finalScaling += 30.;
+    if (pos.w == hoveredPoint) vColor += .1;
+    if (pos.w == selectedPoint) vColor += .2;
     if (pos.w == selectedPoint) borderColor = vec3(0);
+    gl_Position.z = pos.z / 100.;
     gl_PointSize = finalScaling + pointSizeExtra;
 
   }
@@ -386,16 +388,16 @@ const creategraph = (options) => {
 
 
   const raycast = () => {
-    let pointSize = 100; //scale to zoom level
+    let pointSize = 1000; //scale to zoom level
     const [mouseX, mouseY] = getScatterGlPos()
     const scaling = 1 || camera.scaling
-    console.log(camera.scaling)
+    //console.log(camera.scaling)
 
     const scaledPointSize =
       2 *
       pointSize *
       (min(1.0, scaling) + Math.log2(max(1.0, scaling))) *
-      window.devicePixelRatio
+      1//window.devicePixelRatio
 
     const xNormalizedScaledPointSize = scaledPointSize / width
     const yNormalizedScaledPointSize = scaledPointSize / height
@@ -445,8 +447,8 @@ const creategraph = (options) => {
   const getRelativeMousePosition = event => {
     const rect = canvas.getBoundingClientRect()
 
-    mousePosition[0] = event.clientX - rect.left
-    mousePosition[1] = event.clientY - rect.top
+    mousePosition[0] = (event.clientX - rect.left ) / devicePixelRatio
+    mousePosition[1] = (event.clientY - rect.top)  / devicePixelRatio
 
     return [...mousePosition]
   }
@@ -558,15 +560,15 @@ const creategraph = (options) => {
       frag: POINT_FS,
       vert: POINT_VS,
 
-      // blend: {
-      //   enable: true,
-      //   func: {
-      //     srcRGB: 'src alpha',
-      //     srcAlpha: 'one',
-      //     dstRGB: 'one minus src alpha',
-      //     dstAlpha: 'one minus src alpha'
-      //   }
-      // },
+      blend: {
+        enable: true,
+        func: {
+          srcRGB: 'src alpha',
+          srcAlpha: 'one',
+          dstRGB: 'one minus src alpha',
+          dstAlpha: 'one minus src alpha'
+        }
+      },
 
 
 
@@ -638,7 +640,7 @@ const creategraph = (options) => {
 
     options.tooltip && options.tooltip()
 
-    if (! options.drawRecticle) return
+    //if (! options.drawRecticle) return
     recticleHLine.draw()
     recticleVLine.draw()
   }
@@ -879,8 +881,19 @@ const creategraph = (options) => {
 
 
   return {
-    brush: (selection) => {
+    brush: (selection, svg) => {
+      function svgPoint(element, x, y) {
+        var pt = svg.createSVGPoint();
+
+        pt.x = x;
+        pt.y = y;
+
+        return pt.matrixTransform(element.getScreenCTM().inverse());
+      }
+
        let clipspace = (pos) => {
+         let x = svgPoint(canvas, pos[0], pos[1])
+         console.log(x)
          pos[0] =  2. * (pos[0] / containerDimensions.width) - 1.,
          pos[1] = 1. - ((pos[1] / containerDimensions.height) * 2.)
        }
@@ -894,7 +907,7 @@ const creategraph = (options) => {
 
         trip[1] = x0 <= x && x <= x1
             && y0 <= y && y <= y1
-            ? 1 : 0;
+            ? 10 : -10;
             //console.log(trip[1])
       })
       draw()

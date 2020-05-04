@@ -86,8 +86,14 @@ const BG_COLOR = [    0.1411764705882353,
     #endif
 
     vec3 color =   (r < 0.75) ? vColor.rgb : borderColor;
-    //if (r > .8) discard;
-    gl_FragColor.a = .5;
+    if (r > .9) discard;
+
+    //if (gl_FragColor.a < .9) gl_FragColor.a = 0.;
+    gl_FragColor.a = .9;
+    if (r > .75) gl_FragColor.a = alpha;
+    //if (r > .75) gl_FragColor = vec4(1, 1,1,alpha);
+    //if (r > .75) gl_FragColor = vec4(0,0,0,alpha);
+
     //gl_FragColor.a -= r;
 
   }
@@ -165,19 +171,25 @@ const BG_COLOR = [    0.1411764705882353,
               if (! (sentiment < .25 && sentiment > -.25))  finalScaling = 0.;
             }
 
-            if (! (stateIndex[1] == 1.)) finalScaling = 0.;
+  //if (! (stateIndex[1] == 1.)) finalScaling = 0.;
     if ( (stateIndex[1] == -10.)) vColor.a = .5;
 
     finalScaling += pow(pos.z, 1.5);
 
-    if (pos.w == hoveredPoint) gl_Position.z -= .5;
-    if (pos.w == selectedPoint) gl_Position.z -= .4;
+    //if (pos.w == hoveredPoint) gl_Position.z -= .5;
+    //if (pos.w == selectedPoint) gl_Position.z -= .4;
 
-    if (pos.w == hoveredPoint) vColor += .1;
-    if (pos.w == selectedPoint) vColor += .2;
-    if (pos.w == selectedPoint) borderColor = vec3(0);
+    if (pos.w == hoveredPoint) vColor.xyz -= .2;
+    if (pos.w == selectedPoint) vColor.xyz -= .3;
+
+    //if (pos.w == selectedPoint) borderColor = vec3(0);
+
+
     gl_Position.z = pos.z / 100.;
     gl_PointSize = finalScaling + pointSizeExtra;
+
+    if (stateIndex.y == 0.) gl_PointSize = 0.;
+
 
   }
   `
@@ -222,11 +234,9 @@ const creategraph = (options) => {
   onClick = options.onClick || NOOP,
   attributes = options.attributes;
 
-  // (document.body).addEventListener('resize', (e) => {
-  //   console.log(e)
-  // })
+
   let containerDimensions = options.containerDimensions || (initialCanvas).getBoundingClientRect()
-  console.log(containerDimensions)
+
   initialCanvas.width = containerDimensions.width
   initialCanvas.height = containerDimensions.height
 
@@ -360,8 +370,9 @@ const creategraph = (options) => {
     getNdcY(mousePosition[1])
   ]
 
-  const getScatterGlPos = () => {
-    const [xGl, yGl] = getMouseGlPos()
+  const getScatterGlPos = (pos=getMouseGlPos()) => {
+    const [xGl, yGl] = pos
+
 
     // Homogeneous vector
     const v = [xGl, yGl, 1, 1]
@@ -391,13 +402,12 @@ const creategraph = (options) => {
     let pointSize = 1000; //scale to zoom level
     const [mouseX, mouseY] = getScatterGlPos()
     const scaling = 1 || camera.scaling
-    //console.log(camera.scaling)
 
     const scaledPointSize =
       2 *
       pointSize *
       (min(1.0, scaling) + Math.log2(max(1.0, scaling))) *
-      1//window.devicePixelRatio
+      window.devicePixelRatio
 
     const xNormalizedScaledPointSize = scaledPointSize / width
     const yNormalizedScaledPointSize = scaledPointSize / height
@@ -442,6 +452,14 @@ const creategraph = (options) => {
     if (typeof points === 'number') selection = [points]
     else selection = points
     drawRaf() // eslint-disable-line no-use-before-define
+  }
+
+  let getRelativePosition = (pos) => {
+    const rect = canvas.getBoundingClientRect()
+
+    pos[0] = (pos[0] - rect.left ) / devicePixelRatio
+    pos[1] = (pos[1] - rect.top)  / devicePixelRatio
+    return [...pos]
   }
 
   const getRelativeMousePosition = event => {
@@ -501,12 +519,15 @@ const creategraph = (options) => {
     if (!isInit) return
     events['mousemove']()
 
-    getRelativeMousePosition(event)
+    let coordinates = getRelativeMousePosition(event)
     // Only ray cast if the mouse cursor is inside
     if (!mouseDownShift) {
       const clostestPoint = raycast()
       hover(clostestPoint)
-      events.hover(clostestPoint, pointList[clostestPoint]) // eslint-disable-line no-use-before-define
+      if (clostestPoint)
+      events.hover(clostestPoint, pointList[clostestPoint], event, coordinates) // eslint-disable-line no-use-before-define
+      else
+      events.hoverOff()
     }
     // Always redraw when mouse as the user might have panned
     if (mouseDown) drawRaf() // eslint-disable-line no-use-before-define
@@ -563,11 +584,11 @@ const creategraph = (options) => {
       blend: {
         enable: true,
         func: {
-          srcRGB: 'src alpha',
-          srcAlpha: 'one',
-          dstRGB: 'one minus src alpha',
-          dstAlpha: 'one minus src alpha'
-        }
+          srcRGB:   'src alpha',
+        srcAlpha: 'src alpha',
+        dstRGB:   'one minus src alpha',
+        dstAlpha: 'one minus src alpha'
+        },
       },
 
 
@@ -659,7 +680,7 @@ const creategraph = (options) => {
 
     regl.clear({
       color: [1,1,1,1],
-      depth: 1
+      //depth: 1
     })
 
     // Update camera
@@ -709,12 +730,12 @@ const creategraph = (options) => {
   const hover = (point) => {
     let needsRedraw = false
 
+
     if (point >= 0) {
       needsRedraw = true
       const newHoveredPoint = point !== state.hoveredPoint
       state.hoveredPoint = point
-      //console.log('found one!!')
-      //events['hover'](point)
+
     } else {
       needsRedraw = state.hoveredPoint
       state.hoveredPoint = -1
@@ -818,9 +839,9 @@ const creategraph = (options) => {
     return [c.r /255 , c.g /255 , c.b /255];
   }
 
-  let setNodeProps = (indices, property, value, offset) => {
+  let eachNode = (indices, property, fn) => {
     indices.forEach(idx => {
-      attributes[property][idx+offset] = parseInt(idx)
+      fn(attributes[property][idx], attributes.nodes[idx])
     })
     drawRaf()
   }
@@ -834,10 +855,11 @@ const creategraph = (options) => {
     drawRaf()
   }
 
-  let setNodeVisibility = (indices, color) => {
+  let setNodeVisibility = (indices, val) => {
     indices.forEach(idx => {
       attributes.stateIndex[idx][1] = 0
     })
+    console.log(attributes.stateIndex)
 
     drawRaf()
 
@@ -869,10 +891,12 @@ const creategraph = (options) => {
     'mousemove' :noop,
     'mouseenter' :noop,
     'mouseleave' :noop,
+    'hoverOff': noop,
     'click' :noop,
     'wheel': noop,
     hover: noop,
   }
+
   let on = (event, listener) => {
     events[event] = listener
 
@@ -881,30 +905,44 @@ const creategraph = (options) => {
 
 
   return {
+    eachNode: eachNode,
     brush: (selection, svg) => {
-      function svgPoint(element, x, y) {
-        var pt = svg.createSVGPoint();
-
-        pt.x = x;
-        pt.y = y;
-
-        return pt.matrixTransform(element.getScreenCTM().inverse());
+      let clipspace = function (pos) {
+        return [(2. * (pos[0] / width) - 1.,
+        1. - ((pos[1] / height) * 2.))]
       }
+      // getNdcX(mousePosition[0]),
+      // getNdcY(mousePosition[1])
+      // debugger
+      // function svgPoint(element, x, y) {
+      //   var pt = svg.createSVGPoint();
+      //
+      //   pt.x = x;
+      //   pt.y = y;
+      //
+      //   return pt.matrixTransform(element.getScreenCTM().inverse());
+      // }
+      //getRelativePosition
 
-       let clipspace = (pos) => {
-         let x = svgPoint(canvas, pos[0], pos[1])
-         console.log(x)
-         pos[0] =  2. * (pos[0] / containerDimensions.width) - 1.,
-         pos[1] = 1. - ((pos[1] / containerDimensions.height) * 2.)
-       }
-       selection.map(clipspace)
+       // let clipspace = (pos) => {
+       //   let x = svgPoint(svg, pos[0], pos[1])
+       //   //console.log(x);
+       //   if (Math.random() > .9) console.log(x)
+       //
+       //   pos[0] =  2. * (x.x / containerDimensions.width) - 1.;
+       //   pos[1] = 1. - (x.y / containerDimensions.height) * 2.;
+       // }
+
+       let p = selection.map(clipspace).map(getScatterGlPos)
+       console.log('what', p)
+       //console.log(clipspace)
       let [[x0, y0], [x1,  y1]] = selection;
-
+      //console.log(attributes)
       attributes.stateIndex.forEach((trip, i) => {
         let [x, y] = attributes.position[i].slice(0, 2)
-        if (Math.random() > .5) console.log(x0, x, x1, y0, y, y1)
+        //if (Math.random() > .9) console.log(x0, x, x1, y0, y, y1)
 
-
+       //console.log(x0, x, x1, y0, y, y1)
         trip[1] = x0 <= x && x <= x1
             && y0 <= y && y <= y1
             ? 10 : -10;

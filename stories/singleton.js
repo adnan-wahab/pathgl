@@ -30,6 +30,9 @@ let init = _.once(function () {
     }
   })
 
+
+  graph.setSize(1000, 720)
+
   return [graph, canvas]
 
 })

@@ -296,7 +296,7 @@ const dom2dCamera = (
 
   const refresh = () => {
     const bBox = element.getBoundingClientRect();
-    console.log(bBox)
+    //console.log(bBox)
     top = bBox.top;
     left = bBox.left;
     width = bBox.width;

@@ -90,9 +90,9 @@ const BG_COLOR = [    0.1411764705882353,
 
     //if (gl_FragColor.a < .9) gl_FragColor.a = 0.;
     gl_FragColor.a = .9;
-    if (r > .75) gl_FragColor.a = alpha;
+    //if (r > .75) gl_FragColor.a = alpha;
     //if (r > .75) gl_FragColor = vec4(1, 1,1,alpha);
-    //if (r > .75) gl_FragColor = vec4(0,0,0,alpha);
+    if (r > .75) gl_FragColor = vec4(0,0,0,alpha);
 
     //gl_FragColor.a -= r;
 
@@ -148,7 +148,7 @@ const BG_COLOR = [    0.1411764705882353,
 
     vColor = vec4(color, 1);
 
-    float finalScaling = pow(sizeAttenuation, scaling);
+    float finalScaling = pow(sizeAttenuation * 10., scaling);
 
     finalScaling = 10.;
 
@@ -186,7 +186,7 @@ const BG_COLOR = [    0.1411764705882353,
 
 
     //gl_Position.z = pos.z / 100.;
-    gl_PointSize = min(finalScaling + pointSizeExtra, 30.);
+    gl_PointSize = min(finalScaling, 20.);
 
     if (stateIndex.y == 0.) gl_Position = vec4(100.);
 
@@ -767,8 +767,10 @@ const creategraph = (options) => {
     isMouseInCanvas = false
     drawRaf()
   }
-  const wheelHandler = () => {
-    events['wheel']()
+  let wheelDelta= 0;
+  const wheelHandler = (e) => {
+    console.log(e)
+    events['wheel'](wheelDelta += e.wheelDelta)
     drawRaf();
     refresh()
   };
@@ -844,15 +846,18 @@ const creategraph = (options) => {
   }
 
   let eachNode = (indices, property, fn) => {
-    indices.forEach(idx => {
+    let list = Array.isArray(indices) ? indices: attributes.nodes.map((d,i) => i)
+
+    list.forEach(idx => {
       fn(attributes[property][idx], attributes.nodes[idx])
     })
     drawRaf()
   }
 
   let setNodeColor = (indices, color) => {
+    let list = Array.isArray(indices) ? indices: attributes.nodes.map((d,i) => i)
 
-    indices.forEach(idx => {
+    list.forEach(idx => {
 
       attributes.color[idx] = parseColor(color)
     })
@@ -860,10 +865,7 @@ const creategraph = (options) => {
   }
 
   let setNodeVisibility = (indices, val) => {
-    //debugger
     let list = Array.isArray(indices) ? indices: attributes.nodes.map((d,i) => i)
-    console.log(list)
-    //console.log(typeof indices)
     list.forEach(idx => {
       let show = 'function' == typeof val ? val(attributes.nodes[idx]) : val
       attributes.stateIndex[idx][1] = show

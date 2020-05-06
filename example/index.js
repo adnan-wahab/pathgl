@@ -33,6 +33,10 @@ let load = (url) => {
         })
         // graph.setState({flatSize: false})
          graph.setState({'color': 'specific'})
+
+         graph.on('wheel', (e) => {
+           console.log(e)
+         })
         // graph.setState({sizeAttenuation: 1})
 
         //graph.on('hover', (d) => {console.log(d)})

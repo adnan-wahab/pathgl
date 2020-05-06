@@ -1,5 +1,6 @@
 import GraphRenderer from '../src';
 import * as d3 from 'd3'
+import _ from 'lodash'
 
 let canvas = document.createElement('canvas')
 
@@ -10,7 +11,7 @@ let main = () => {
   //canvas.style.paddingTop = '100px'
   canvas.height = innerHeight
   canvas.width = innerWidth
-  load('nestle.json')
+  load('./data/thecut1.json')
 
   document.title = 'REGL NETWORK VIS'
 }
@@ -34,8 +35,8 @@ let load = (url) => {
         // graph.setState({flatSize: false})
          graph.setState({'color': 'specific'})
 
-         graph.on('wheel', (e) => {
-           console.log(e)
+         graph.on('wheel', (delta) => {
+           graph.setState({sizeAttenuation: delta})
          })
         // graph.setState({sizeAttenuation: 1})
 

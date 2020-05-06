@@ -298,10 +298,12 @@ const creategraph = (options) => {
     hoveredPoint: -1
   };
   window.state = state
+  window.projection = state.projection
 
   const getPointSize = () => pointSize * window.devicePixelRatio
   const getNormalPointSizeExtra = () => 0
   let getProjection = () => {
+    console.log(state.projection)
     return state.projection }
 
   const getView = () => {

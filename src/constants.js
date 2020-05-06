@@ -4,7 +4,7 @@ export const COLOR_HOVER_IDX = 2
 export const COLOR_NORMAL_IDX = 0
 export const COLOR_NUM_STATES = 4
 export const FLOAT_BYTES = Float32Array.BYTES_PER_ELEMENT
-export const GL_EXTENSIONS = ['OES_standard_derivatives', 'OES_texture_float', 'ANGLE_instanced_arrays']
+export const GL_EXTENSIONS = [ 'ANGLE_instanced_arrays']
 
 // Default attribute
 export const DEFAULT_DATA_ASPECT_RATIO = 1
@@ -37,7 +37,7 @@ export const DEFAULT_DISTANCE = 100000.5
 export const DEFAULT_ROTATION = 0
 // prettier-ignore
 
-// export const DEFAULT_VIEW =
+// export const // DEBUG: FAULT_VIEW =
 //
 //
 // new //Float32Array([5.554607391357422, 0, 0, 0, 0, 5.554607391357422, 0, 0, 0, 0, 1, 0, -0.527761697769165, 0.8586031794548035, 0, 1])

@@ -292,10 +292,10 @@ const creategraph = (options) => {
     selectedCluster: -1,
     favorites: [],
     dateFilter: [0,Infinity],
-    camera:null,
+    camera: {view: () => {}},
     projection:  new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
     model: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
-    hoveredPoint: -1
+    hoveredPoint: -1,
   };
   window.state = state
   window.projection = state.projection
@@ -307,7 +307,7 @@ const creategraph = (options) => {
     return state.projection }
 
   const getView = () => {
-    return camera.view}
+    return state.camera.view}
 
   const getPositionBuffer = () => {
     return attributes.position
@@ -354,9 +354,9 @@ const creategraph = (options) => {
   let isMouseInCanvas = false
 
   const initCamera = () => {
-    camera = dom2dCamera(canvas)
-    if (initialView) camera.setView(mat4.clone(initialView))
-    else camera.lookAt([...initialTarget], initialDistance, initialRotation)
+    state.camera = dom2dCamera(canvas)
+    if (initialView) state.camera.setView(mat4.clone(initialView))
+    else state.camera.lookAt([...initialTarget], initialDistance, initialRotation)
   }
   initCamera()
   let [updateCurves, drawCurves] = createCurves(options.regl, attributes, getModel, getProjection, getView)
@@ -386,7 +386,7 @@ const creategraph = (options) => {
       mat4.multiply(
         scratch,
           state.projection,
-        mat4.multiply(scratch, camera.view, state.model)
+        mat4.multiply(scratch, state.camera.view, state.model)
       )
     )
 
@@ -403,7 +403,7 @@ const creategraph = (options) => {
   const raycast = () => {
     let pointSize = 1000; //scale to zoom level
     const [mouseX, mouseY] = getScatterGlPos()
-    const scaling = 1 || camera.scaling
+    const scaling = 1 || state.camera.scaling
 
     const scaledPointSize =
       2 *
@@ -653,7 +653,7 @@ const creategraph = (options) => {
     mat4.multiply(
       scratch,
         state.projection,
-      mat4.multiply(scratch, camera.view, state.model)
+      mat4.multiply(scratch, state.camera.view, state.model)
     )
 
     vec4.transformMat4(v, v, scratch)
@@ -682,21 +682,25 @@ const creategraph = (options) => {
 
 
     regl.clear({
-      color: [1,1,1,1],
-      //depth: 1
+      //color: [1,1,1,1],
+      color: BG_COLOR,
+
+      depth: 1
     })
 
 
     // Update camera
-    isViewChanged = camera.tick()
+    isViewChanged = state.camera.tick()
 
     //if (state.showLines) drawLines(state)
     //drawEdges(state)
-    drawRecticle(state);
+    //drawRecticle(state);
 
     //if (state.showNodes)
+    //
+    drawCurves(state)
+
     drawPointBodies(state);
-    drawCurves()
     state.screenshot = canvas.toDataURL("image/png", 1);
 
   }
@@ -717,7 +721,7 @@ const creategraph = (options) => {
    */
   const refresh = () => {
     regl.poll()
-    camera.refresh()
+    state.camera.refresh()
   }
 
   const setSize = (width, height) => {
@@ -728,7 +732,7 @@ const creategraph = (options) => {
     setWidth(width)
 
     updateViewAspectRatio()
-    camera.refresh()
+    state.camera.refresh()
     refresh()
     drawRaf()
   }
@@ -754,8 +758,8 @@ const creategraph = (options) => {
   }
 
   const reset = () => {
-    if (initialView) camera.set(mat4.clone(initialView))
-    else camera.lookAt([...initialTarget], initialDistance, initialRotation)
+    if (initialView) state.camera.set(mat4.clone(initialView))
+    else state.camera.lookAt([...initialTarget], initialDistance, initialRotation)
   }
 
   const mouseEnterCanvasHandler = () => {
@@ -809,7 +813,7 @@ const creategraph = (options) => {
 
   const destroy = () => {
     canvas = undefined
-    camera = undefined
+    state.camera = undefined
     regl = undefined
   }
 
@@ -967,7 +971,7 @@ const creategraph = (options) => {
     },
 
     resetView: () => {
-      camera.setView(mat4.clone(initialView))
+      state.camera.setView(mat4.clone(initialView))
       draw()
 
 
@@ -983,7 +987,6 @@ const creategraph = (options) => {
 
 
     setSize,
-    camera: camera,
     setNodeColor,
     setNodeSize,
     setNodeShape,

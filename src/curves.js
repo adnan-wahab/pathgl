@@ -12,12 +12,19 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
   );
 
   let positions = []
-
+  let getQuadraticControlPoint = function(x1, y1, x2, y2) {
+     return {
+       x: (x1 + x2) / 2 + (y2 - y1) / 4,
+       y: (y1 + y2) / 2 + (x1 - x2) / 4
+     };
+   };
   let fillPosition = (d) => {
-    var curve = new Bezier(d.x1, d.y1 , d.x2, d.y1 , d.x2, d.y2);
+    let cp = getQuadraticControlPoint(d.x1, d.y1 , d.x2, d.y2)
+    var curve = new Bezier(d.x1, d.y1 , cp.x, cp.y , d.x2, d.y2);
     var LUT = curve.getLUT(50);
-    LUT.forEach(function(p) { positions.push([p.x, p.y, 0]) });
-    //LUT.forEach(function(p) { positions.push(Math.random(), Math.random()) });
+    LUT.forEach(function(p) { positions.push([p.x, p.y, .1]) });
+    window.LUT = LUT
+    positions.push(0,0,0)
   }
 
   attributes.edges.curves.forEach(fillPosition)
@@ -31,7 +38,6 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
   let color = regl.buffer()
 
   let update =  (node, id) => {
-    console.log('WHY',getProjection())
       let connections = attributes.edges.edges.filter(edge => {
 
         return edge.source == id || edge.target == id
@@ -52,7 +58,7 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
 
       segments=positions.length
 
-      let colors = positions.map( d => [Math.random(),Math.random(),Math.random()] )
+      let colors = positions.map( d => [Math.random(),Math.random(),Math.random()]  )
       pos({data: positions})
       color({data: colors})
 
@@ -60,14 +66,14 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
       // color.subdata(color)
     }
 
-    let draw = () => {
+    let draw = (state) => {
     if (segments) interleavedStripRoundCapJoin3DDEMO({
       points: pos,
       color: color,
-      width: 1,
-      model: getModel,
-      view: view, //view,
-      projection: () => window.projection,
+      width: 2,
+      model: state.model,
+      view: state.camera.view, //view,
+      projection: state.projection,
       resolution: [window.innerWidth, window.innerHeight],
       segments: segments - 1,
       viewport: { x: 0, y: 0, width: innerWidth, height: innerHeight },

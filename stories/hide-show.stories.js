@@ -20,8 +20,12 @@ export const cluster = () => {
 
   div.addEventListener('change', (e) => {
     let showing = Array.from(div.querySelectorAll('input')).map(e => e.checked)
+    //console.log(graph._data.data.cluster_events[0].clusters)
+    console.log(showing)
+    graph._data.data.cluster_events[0].clusters.forEach((data, index) => {
 
-    graph.setState({showCluster: showing})
+      graph.setNodeVisibility(data.nodes, showing[index])
+    })
   })
 
   graph.setState({color:'general'})

@@ -61,7 +61,7 @@ export const createRegl = canvas => {
   // })
 
   return createOriginalRegl({
-    canvas, attributes: {premultiplyAlpha: false} })
+    canvas, attributes: { preserveDrawingBuffer: false} })
 }
 
 /**

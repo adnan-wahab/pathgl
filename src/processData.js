@@ -131,7 +131,7 @@ let edgeColors = new Array(data.edges.length * 3).fill(0);
 
 
     let dates = data.nodes.map((d, idx) => {
-      return d.create_time || + (new Date(+(new Date()) - Math.floor(Math.random()*10000000000))
+      return d.create_time || (d.create_time = (+(new Date()) - Math.floor(Math.random()*10000000000))
 );
     })
     let color = (data.nodes.map((d) => {

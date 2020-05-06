@@ -13,19 +13,28 @@ export const dateFilter = () => {
   div.innerHTML = `
 
   <label>start
-    <input type="date" id='#start'>
+    <input type="date" id='start' value="2020-01-05">
   </label>
 
   <label>end
-    <input type="date" id='#end'>
+    <input type="date" id='end' value="2020-05-05">
   </label>
   `
-  let filter = [-1, Infinity]
+
   div.addEventListener('change', (e) => {
-    let idx = e.target.id == '#start' ? 0 : 1
-    filter[idx] = + new Date(e.target.value)
-    console.log(filter, e.target.id)
-    graph.setState({dateFilter: filter})
+    let start = new Date(div.querySelector('#start').value)
+    let end = new Date(div.querySelector('#end').value)
+
+    graph.setNodeVisibility(true, (node) => {
+      return start < node.create_time && end > node.create_time;
+    })
+
+
+
+    // let idx = e.target.id == '#start' ? 0 : 1
+    // filter[idx] = + new Date(e.target.value)
+    // console.log(filter, e.target.id)
+    // graph.setState({dateFilter: filter})
   })
 
 
@@ -44,30 +53,40 @@ export const sentimentFilter = () => {
   let div = document.createElement('div')
   div.innerHTML = `<form>
   <div>
-    <input type="radio" id="huey" name="drone" value="1"
+    <input type="radio" id="huey" name="drone" value="positive"
            checked>
     <label for="huey">Positive</label>
   </div>
 
   <div>
-    <input type="radio" id="dewey" name="drone" value="2">
+    <input type="radio" id="dewey" name="drone" value="negative">
     <label for="dewey">Negative</label>
   </div>
 
   <div>
-    <input type="radio" id="louie" name="drone" value="3">
+    <input type="radio" id="louie" name="drone" value="neutral">
     <label for="louie">Neutral</label>
   </div>
 
   <div>
-    <input type="radio" id="louie" name="drone" value="0">
+    <input type="radio" id="louie" name="drone" value="all">
     <label for="louie">All</label>
   </div>
   </form>
   `
   div.querySelector('form').addEventListener('change', (e) => {
-    console.log(e.target.value)
-    graph.setState({sentimentFilter: + e.target.value})
+
+    graph.setNodeVisibility(true, (node) => {
+      if (e.target.value == 'all') return true
+
+      if (e.target.value == 'neutral') return node.sentiment < .75 && node.sentiment > .25
+
+      if (e.target.value == 'negative') return node.sentiment < .25
+
+      if (e.target.value == 'positive') return node.sentiment > .75
+
+    })
+
   })
 
 
@@ -86,7 +105,7 @@ export const sourceFilter = () => {
   let div = document.createElement('div')
   div.innerHTML = `<form>
   <div>
-    <input type="radio" id="huey" name="drone" value="thecut"
+    <input type="radio" id="huey" name="drone" value="theCut Dataset"
            checked>
     <label for="huey">thecut</label>
   </div>
@@ -104,8 +123,12 @@ export const sourceFilter = () => {
   </form>
   `
   div.querySelector('form').addEventListener('change', (e) => {
+    graph.setNodeVisibility(true, (node) => {
+      if (e.target.value == 'all') return true
 
-    graph.setState({sourceFilter: e.target.value})
+      return node.source == e.target.value
+    })
+
   })
 
 

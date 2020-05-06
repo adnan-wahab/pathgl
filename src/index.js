@@ -185,10 +185,10 @@ const BG_COLOR = [    0.1411764705882353,
     //if (pos.w == selectedPoint) borderColor = vec3(0);
 
 
-    gl_Position.z = pos.z / 100.;
-    gl_PointSize = finalScaling + pointSizeExtra;
+    //gl_Position.z = pos.z / 100.;
+    gl_PointSize = min(finalScaling + pointSizeExtra, 30.);
 
-    if (stateIndex.y == 0.) gl_PointSize = 0.;
+    if (stateIndex.y == 0.) gl_Position = vec4(100.);
 
 
   }
@@ -426,7 +426,7 @@ const creategraph = (options) => {
     pointsInBBox.forEach(idx => {
       const {x, y} = searchIndex.points[idx]
       const d = dist(x, y, mouseX, mouseY)
-      if (d < minDist) {
+      if (d < minDist && attributes.stateIndex[1] !== 0) {
         minDist = d
         clostestPoint = idx
       }
@@ -678,10 +678,12 @@ const creategraph = (options) => {
   const draw = () => {
     if (!isInit) return
 
+
     regl.clear({
       color: [1,1,1,1],
       //depth: 1
     })
+
 
     // Update camera
     isViewChanged = camera.tick()
@@ -693,6 +695,8 @@ const creategraph = (options) => {
     //if (state.showNodes)
     drawPointBodies(state);
     drawCurves()
+    state.screenshot = canvas.toDataURL("image/png", 1);
+
   }
 
   const drawRaf = withRaf(draw)
@@ -856,10 +860,15 @@ const creategraph = (options) => {
   }
 
   let setNodeVisibility = (indices, val) => {
-    indices.forEach(idx => {
-      attributes.stateIndex[idx][1] = 0
+    //debugger
+    let list = Array.isArray(indices) ? indices: attributes.nodes.map((d,i) => i)
+    console.log(list)
+    //console.log(typeof indices)
+    list.forEach(idx => {
+      let show = 'function' == typeof val ? val(attributes.nodes[idx]) : val
+      attributes.stateIndex[idx][1] = show
     })
-    console.log(attributes.stateIndex)
+    //console.log(attributes.stateIndex)
 
     drawRaf()
 
@@ -905,6 +914,7 @@ const creategraph = (options) => {
 
 
   return {
+    state: state,
     eachNode: eachNode,
     brush: (selection, svg) => {
       let clipspace = function (pos) {
@@ -934,7 +944,6 @@ const creategraph = (options) => {
        // }
 
        let p = selection.map(clipspace).map(getScatterGlPos)
-       console.log('what', p)
        //console.log(clipspace)
       let [[x0, y0], [x1,  y1]] = selection;
       //console.log(attributes)

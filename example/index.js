@@ -8,9 +8,7 @@ let main = () => {
 
 
   document.body.appendChild(canvas)
-  //canvas.style.marginTop = '100px'
-  canvas.height = innerHeight
-  canvas.width = innerWidth
+
   load('./data/thecut1.json')
 
   document.title = 'REGL NETWORK VIS'
@@ -25,6 +23,8 @@ let load = (url) => {
         window.graph = GraphRenderer.init({
           data: json,
           canvas: canvas,
+          width: innerWidth,
+          height: innerHeight,
 
           // onClick: (point, idx, events) => {
           //   if (events.shiftKey)favorites = favorites.concat(idx)

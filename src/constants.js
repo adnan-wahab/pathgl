@@ -4,7 +4,7 @@ export const COLOR_HOVER_IDX = 2
 export const COLOR_NORMAL_IDX = 0
 export const COLOR_NUM_STATES = 4
 export const FLOAT_BYTES = Float32Array.BYTES_PER_ELEMENT
-export const GL_EXTENSIONS = [ 'ANGLE_instanced_arrays']
+export const GL_EXTENSIONS = [ 'ANGLE_instanced_arrays', 'OES_standard_derivatives']
 
 // Default attribute
 export const DEFAULT_DATA_ASPECT_RATIO = 1

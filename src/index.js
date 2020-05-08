@@ -5,13 +5,11 @@ import { mat4, vec4 } from 'gl-matrix'
 import _ from 'lodash'
 
 import processData from './processData';
-import createLine from './lines'
 import createCurves from './curves'
 import dom2dCamera from './camera';
 
-import createDrawLines from './edges'
-import circleSprite from './sprites/circle-border.png'
-import starSprite from './lmaostar.gif'
+import circleSprite from './sprites/border.png'
+import starSprite from './sprites/lol.jpg'
 
 import * as d3 from 'd3'
 
@@ -67,35 +65,78 @@ const BG_COLOR = [    0.1411764705882353,
   varying vec4 vColor;
   varying vec3 borderColor;
   varying float uv;
+  uniform vec2 resolution;
+uniform float time;
+
+  float aastep(float threshold, float value) {
+    #ifdef GL_OES_standard_derivatives
+      float afwidth = length(vec2(dFdx(value), dFdy(value))) * 0.70710678118654757;
+      return smoothstep(threshold-afwidth, threshold+afwidth, value);
+    #else
+      return step(threshold, value);
+    #endif
+  }
 
   void main() {
 
 
-    if (uv == 0.)
-    gl_FragColor = texture2D(texture, gl_PointCoord) * vColor;
-    else
-    gl_FragColor = texture2D(texture2, gl_PointCoord) * vColor;
+    // vec2 uv = vec2(gl_FragCoord.xy / resolution.xy) - 0.5;
+    //
+    // //correct aspect
+    // uv.x *= resolution.x / resolution.y;
+    //
+    // //animate zoom
+    // uv /= 1. ;//;sin(time * .2);
+    //
+    // //radial distance
+    // float len = length(uv);
+    //
+    // //anti-alias
+    // len = aastep(0.5, len);
+    //
+    // gl_FragColor.rgb = vec3(len) + .50;
+    // gl_FragColor.a   = 1.0;
+
+
+    // //
+    // if (uv == 0.)
+    // gl_FragColor = vColor;
+    // else
+    // gl_FragColor = texture2D(texture2, gl_PointCoord) * vColor;
 
     float r = 0.0, delta = 0.0, alpha = 1.0;
     vec2 cxy = 2.0 * gl_PointCoord - 1.0;
     r = dot(cxy, cxy);
 
     #ifdef GL_OES_standard_derivatives
-      delta = fwidth(r);
+      delta = fwidth( r);
       alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
     #endif
 
-    vec3 color =   (r < 0.75) ? vColor.rgb : borderColor;
-    if (r > .9) discard;
+      //vec3 color = vColor.rgb;
+    //vec3 color =   (delta > 0.75) ? vColor.rgb : borderColor;
+    gl_FragColor = texture2D(texture, gl_PointCoord) * vColor;
+    //gl_FragColor.a = alpha;
 
-    //if (gl_FragColor.a < .9) gl_FragColor.a = 0.;
-    gl_FragColor.a = .9;
-    //if (r > .75) gl_FragColor.a = alpha;
-    //if (r > .75) gl_FragColor = vec4(1, 1,1,alpha);
-    if (r > .75) gl_FragColor = vec4(0,0,0,alpha);
+    float vSize = 1.0;
+    float uEdgeSize = 2.;
+    float distance = length(2.0 * gl_PointCoord - 1.0);
 
-    //gl_FragColor.a -= r;
 
+    float sEdge = smoothstep(
+        vSize - uEdgeSize - 2.0,
+        vSize - uEdgeSize,
+        distance * (vSize + uEdgeSize)
+    );
+    gl_FragColor = vColor;
+    //distance = aastep(.5, distance);
+    if (distance > .8) gl_FragColor.rgb = vec3(0.);
+
+    if (distance > 1.0) {
+        discard;
+    }
+    //gl_FragColor.rgb = (vec3(.3) * sEdge) + ((1.0 - sEdge) * gl_FragColor.rgb);
+    //gl_FragColor.a = .7;
   }
   `
   const POINT_VS = `
@@ -131,6 +172,9 @@ const BG_COLOR = [    0.1411764705882353,
   varying float uv;
 
 
+
+
+
   void main() {
     vec2 position = pos.xy;
     uv = stateIndex.z < 0. ? 100. : 0.;
@@ -151,6 +195,9 @@ const BG_COLOR = [    0.1411764705882353,
 
     if (pos.w == hoveredPoint) vColor.xyz -= .2;
     if (pos.w == selectedPoint) vColor.xyz -= .3;
+
+    vColor.a = .7;
+    if (pos.w == selectedPoint) vColor.a = 1.;
 
     gl_PointSize = min(finalScaling, 20.);
 
@@ -187,8 +234,8 @@ const creategraph = (options) => {
   initialPointSize = DEFAULT_POINT_SIZE,
   initialPointSizeSelected = DEFAULT_POINT_SIZE_SELECTED,
   initialPointOutlineWidth = 2,
-  initialWidth = DEFAULT_WIDTH,
-  initialHeight = DEFAULT_HEIGHT,
+  initialWidth = options.width || DEFAULT_WIDTH,
+  initialHeight = options.Height || DEFAULT_HEIGHT,
   initialTarget = DEFAULT_TARGET,
   initialDistance = DEFAULT_DISTANCE,
   initialRotation = DEFAULT_ROTATION,
@@ -196,9 +243,10 @@ const creategraph = (options) => {
   drawNodes = options.createDrawNodes || NOOP,
   onHover = options.onHover || NOOP,
   onClick = options.onClick || NOOP,
+
   attributes = options.attributes;
-  let size = [canvas.width, canvas.height]
-  console.log(size)
+  let size = [initialWidth, initialHeight]
+
 
   const scratch = new Float32Array(16);
   let mousePosition  = [0, 0];
@@ -529,20 +577,31 @@ const creategraph = (options) => {
     const drawPointBodies = regl({
       frag: POINT_FS,
       vert: POINT_VS,
+      depth: {
+   enable: false,
 
-      blend: {
-        enable: true,
-        func: {
-          srcRGB:   'src alpha',
-        srcAlpha: 'src alpha',
-        dstRGB:   'one minus src alpha',
-        dstAlpha: 'one minus src alpha'
-        },
-      },
+ },
+
+ blend: {
+   enable: true,
+   func: {
+     srcRGB: 'src alpha',
+     srcAlpha: 1,
+     dstRGB: 'one minus src alpha',
+     dstAlpha: 1
+   },
+   equation: {
+     rgb: 'add',
+     alpha: 'add'
+   },
+   color: [0, 0, 0, 0]
+ },
 
       attributes: schema.attributes,
 
       uniforms: {
+        time: (context) => { return console.log(context.time) || context.time },
+        resolution: [innerWidth, innerHeight],
         hoveredPoint: () => state.hoveredPoint,
         selectedPoint: () => selection[0] || -1,
         dimensions: [window.innerWidth, window.innerHeight],
@@ -617,9 +676,15 @@ const creategraph = (options) => {
   }
 
   const setSize = (width, height) => {
-    canvas.width = width;
-     canvas.height = height;
+    let dpi = window.devicePixelRatio
 
+    canvas.width =  dpi * width
+    canvas.height = dpi *  height
+
+    canvas.style.width = width + 'px'
+    canvas.style.height = height + 'px'
+
+     console.log(width,height)
     setHeight(height)
     setWidth(width)
 
@@ -677,17 +742,6 @@ const creategraph = (options) => {
 
   const init = () => {
     updateViewAspectRatio()
-
-    recticleHLine = createLine(regl, {
-      color: recticleColor,
-      width: 1,
-      is2d: true
-    })
-    recticleVLine = createLine(regl, {
-      color: recticleColor,
-      width: 1,
-      is2d: true
-    })
 
     // Set dimensions
     setSize( width, height )

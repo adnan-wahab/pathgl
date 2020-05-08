@@ -9,20 +9,37 @@ uniform vec2 selection;
 varying vec4 vColor;
 varying vec3 borderColor;
 
+unfiorm vec2 resolution;
+uniform float time;
+
+
+
+
+
 void main() {
-
-  float r = 0.0, delta = 0.0, alpha = 1.0;
-  vec2 cxy = 2.0 * gl_PointCoord - 1.0;
-  r = dot(cxy, cxy);
-
-  #ifdef GL_OES_standard_derivatives
-    delta = fwidth(r);
-    alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
-  #endif
-
-  vec3 color =   (r < 0.75) ? vColor.rgb : borderColor;
-  if (r > .95) discard;
-  gl_FragColor = vec4(color, alpha * vColor.a);
+  vec2 uv = vec2(gl_FragCoord.xy / iResolution.xy) - 0.5;
+  //correct aspect
+  uv.x *= iResolution.x / iResolution.y;
+  //animate zoom
+  uv /= sin(time * 0.2);
+  //radial distance
+  float len = length(uv);
+  //anti-alias
+  len = aastep(0.5, len);
+  gl_FragColor.rgb = vec3(len);
+  gl_FragColor.a   = 1.0;
+  // float r = 0.0, delta = 0.0, alpha = 1.0;
+  // vec2 cxy = 2.0 * gl_PointCoord - 1.0;
+  // r = dot(cxy, cxy);
+  //
+  // #ifdef GL_OES_standard_derivatives
+  //   delta = fwidth(r);
+  //   alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
+  // #endif
+  //
+  // vec3 color =   (r < 0.75) ? vColor.rgb : borderColor;
+  // if (r > .95) discard;
+  // gl_FragColor = vec4(color, alpha * vColor.a);
 }
 `
 const POINT_VS = `
@@ -121,7 +138,7 @@ const drawAllPoints = (
       selectedPoint: () => selection[0] || -1,
       dimensions: [window.innerWidth, window.innerHeight],
       projection: getProjection,
-      time: (ctx) => {console.log(ctx.time, ctx.tick); return ctx.time },
+      time: (ctx) => { return ctx.time },
       dateFilter: regl.prop('dateFilter'),
       selectedCluster: () => (attributes.position.length < 1 ? state.selectedCluster : -100 ),
       model: getModel,

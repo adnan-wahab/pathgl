@@ -12,6 +12,9 @@ let init = _.once(function () {
   let graph = GraphRenderer.init({
     data: mbJSON,
     canvas: canvas,
+    width: 500,
+    height: 500,
+
     containerDimensions:{
       bottom: 454.3333435058594,
       height: 404.3333435058594,
@@ -31,7 +34,7 @@ let init = _.once(function () {
   })
 
 
-  graph.setSize(1000, 720)
+  //graph.setSize(1000, 720)
 
   return [graph, canvas]
 

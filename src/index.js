@@ -109,9 +109,6 @@ const BG_COLOR = [    0.1411764705882353,
   uniform mat4 model;
   uniform mat4 view;
 
-  uniform vec2 dateFilter;
-  uniform int sentimentFilter;
-
   attribute vec4 pos;
   attribute vec3 color;
   //cluster, visiblity, texture
@@ -136,15 +133,9 @@ const BG_COLOR = [    0.1411764705882353,
 
   void main() {
     vec2 position = pos.xy;
-    // position.x = position.x / dimensions.x;
-    // position.y = position.y / dimensions.y;
     uv = stateIndex.z < 0. ? 100. : 0.;
 
-
-    if (! (dates > dateFilter.x && dates < dateFilter.y)) return;
-
     gl_Position = projection * view * vec4(position.xy, 0.0, 1.);
-
 
     vColor = vec4(color, 1);
 
@@ -152,45 +143,18 @@ const BG_COLOR = [    0.1411764705882353,
 
     finalScaling = 10.;
 
-
-
     if (flatSize) finalScaling = 4. + pow(pointSize, sizeAttenuation);
 
-
-        //if (pos.w == hoveredPoint) finalScaling += 20.;
-        //if (pos.w == hoveredPoint) borderColor = vec3(0);
-      //else borderColor = vec3(0.1411764705882353, 0.15294117647058825, 0.18823529411764706);
-
-            if (sentimentFilter == 1) { //only show positive
-              if (sentiment < .25) finalScaling = 0.;
-            }
-            if (sentimentFilter == 2) {  //only show negative
-              if (sentiment > -.25) finalScaling = 0.;
-            }
-            if (sentimentFilter == 3) { //only show neutral
-              if (! (sentiment < .25 && sentiment > -.25))  finalScaling = 0.;
-            }
-
-  //if (! (stateIndex[1] == 1.)) finalScaling = 0.;
     if ( (stateIndex[1] == -10.)) vColor.a = .5;
 
     finalScaling += pow(pos.z, 1.5);
 
-    //if (pos.w == hoveredPoint) gl_Position.z -= .5;
-    //if (pos.w == selectedPoint) gl_Position.z -= .4;
-
     if (pos.w == hoveredPoint) vColor.xyz -= .2;
     if (pos.w == selectedPoint) vColor.xyz -= .3;
 
-    //if (pos.w == selectedPoint) borderColor = vec3(0);
-
-
-    //gl_Position.z = pos.z / 100.;
     gl_PointSize = min(finalScaling, 20.);
 
     if (stateIndex.y == 0.) gl_Position = vec4(100.);
-
-
   }
   `
 
@@ -217,7 +181,7 @@ const NOOP = () => {}
 const creategraph = (options) => {
   let initialRegl = options.regl,
 
-  initialCanvas = options.canvas,
+  canvas = options.canvas,
   initialShowRecticle = DEFAULT_SHOW_RECTICLE,
   initialRecticleColor = DEFAULT_RECTICLE_COLOR,
   initialPointSize = DEFAULT_POINT_SIZE,
@@ -233,12 +197,8 @@ const creategraph = (options) => {
   onHover = options.onHover || NOOP,
   onClick = options.onClick || NOOP,
   attributes = options.attributes;
-
-
-  let containerDimensions = options.containerDimensions || (initialCanvas).getBoundingClientRect()
-
-  initialCanvas.width = containerDimensions.width
-  initialCanvas.height = containerDimensions.height
+  let size = [canvas.width, canvas.height]
+  console.log(size)
 
   const scratch = new Float32Array(16);
   let mousePosition  = [0, 0];
@@ -296,15 +256,14 @@ const creategraph = (options) => {
     projection:  new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
     model: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
     hoveredPoint: -1,
+    containerDimensions: options.containerDimensions || (canvas).getBoundingClientRect(),
+    size: size
   };
   window.state = state
   window.projection = state.projection
 
   const getPointSize = () => pointSize * window.devicePixelRatio
   const getNormalPointSizeExtra = () => 0
-  let getProjection = () => {
-    console.log(state.projection)
-    return state.projection }
 
   const getView = () => {
     return state.camera.view}
@@ -316,20 +275,14 @@ const creategraph = (options) => {
   const getScaling = () => state.scaling
   const getNormalNumPoints = () => numPoints
 
-
   _.extend(state, options.initialState)
 
-
-
-  checkReglExtensions(initialRegl)
-
-  let canvas = initialCanvas
   let width = initialWidth
   let height = initialHeight
   const pointSize = initialPointSize
   const pointSizeSelected = initialPointSizeSelected
   const pointOutlineWidth = initialPointOutlineWidth
-  let regl = initialRegl || createRegl(initialCanvas)
+  let regl = initialRegl || createRegl(canvas)
   let camera
   let scroll
   let mouseDown = false
@@ -359,7 +312,7 @@ const creategraph = (options) => {
     else state.camera.lookAt([...initialTarget], initialDistance, initialRotation)
   }
   initCamera()
-  let [updateCurves, drawCurves] = createCurves(options.regl, attributes, getModel, getProjection, getView)
+  let [updateCurves, drawCurves] = createCurves(options.regl, attributes)
 
   // Get a copy of the current mouse position
   const getMousePos = () => mousePosition.slice()
@@ -396,9 +349,6 @@ const creategraph = (options) => {
 
     return v.slice(0, 2)
   }
-
-  let drawLines = createDrawLines(options.regl, attributes, getModel, getProjection, getView)
-
 
   const raycast = () => {
     let pointSize = 1000; //scale to zoom level
@@ -503,8 +453,10 @@ const creategraph = (options) => {
     if (clostestPoint >= 0) onClick(pointList[clostestPoint], clostestPoint, event)
 
     if (event.shiftKey) {
-      updateCurves(pointList[clostestPoint], clostestPoint)
-    }
+      updateCurves(pointList)
+    }else
+    clostestPoint && updateCurves(pointList[clostestPoint], clostestPoint)
+
   }
 
 
@@ -574,12 +526,7 @@ const creategraph = (options) => {
   }
   if (starImg.complete) starImg.onload()
 
-
-
-  const drawAllPoints = (
-    getPointSizeExtra,
-  ) =>
-    regl({
+    const drawPointBodies = regl({
       frag: POINT_FS,
       vert: POINT_VS,
 
@@ -593,26 +540,20 @@ const creategraph = (options) => {
         },
       },
 
-
-
       attributes: schema.attributes,
 
       uniforms: {
         hoveredPoint: () => state.hoveredPoint,
         selectedPoint: () => selection[0] || -1,
         dimensions: [window.innerWidth, window.innerHeight],
-        projection: getProjection,
-        //time: (ctx) => {return ctx.time },
-        dateFilter: regl.prop('dateFilter'),
-        selectedCluster: () => (attributes.position.length < 1 ? state.selectedCluster : -100 ),
-        model: getModel,
-        view: getView,
-        scaling: getScaling,
+        projection:  regl.prop('projection'),
+        model: regl.prop('model'),
+        view: () => state.camera.view,
+        scaling: regl.prop('scaling'),
         pointSize: getPointSize,
-        pointSizeExtra: getPointSizeExtra,
+        pointSizeExtra: () => 1,
         sizeAttenuation: regl.prop('sizeAttenuation'),
         flatSize: regl.prop('flatSize'),
-        sentimentFilter: regl.prop('sentimentFilter'),
         texture: () => textures[0],
         texture2: () => textures[1]
       },
@@ -620,53 +561,6 @@ const creategraph = (options) => {
       primitive: 'points'
     })
 
-
-
-  const drawPointBodies = drawAllPoints(
-    getNormalPointSizeExtra,
-    getNormalNumPoints
-    )
-
-  window.tooltip = (x, y) => {
-    //
-    // let v = [x, y, 0, 1]
-    // mat4.multiply(
-    //   scratch,
-    //     state.projection,
-    //   mat4.multiply(scratch, camera.view, state.model)
-    // )
-    //
-    // vec4.transformMat4(v, v, scratch)
-  }
-
-  const drawRecticle = (state) => {
-    if (!(state.hoveredPoint >= 0)) return
-
-    const {x, y} = searchIndex.points[state.hoveredPoint]
-    // Normalized device coordinate of the point
-    const v = [x, y, 0, 1]
-
-    // We have to calculate the model-view-projection matrix outside of the
-    // shader as we actually don't want the mode, view, or projection of the
-    // line view space to change such that the recticle is visualized across the
-    // entire view container and not within the view of the graph
-    mat4.multiply(
-      scratch,
-        state.projection,
-      mat4.multiply(scratch, state.camera.view, state.model)
-    )
-
-    vec4.transformMat4(v, v, scratch)
-
-    recticleHLine.setPoints([-1, v[1], 1, v[1]])
-    recticleVLine.setPoints([v[0], 1, v[0], -1])
-
-    options.tooltip && options.tooltip()
-
-    //if (! options.drawRecticle) return
-    recticleHLine.draw()
-    recticleVLine.draw()
-  }
 
   const setPoints = newPoints => {
     isInit = false
@@ -680,13 +574,11 @@ const creategraph = (options) => {
   const draw = () => {
     if (!isInit) return
 
-
-    regl.clear({
+    //regl.clear({
       //color: [1,1,1,1],
-      color: BG_COLOR,
-
-      depth: 1
-    })
+      // color: BG_COLOR,
+      //depth: 1
+    //})
 
 
     // Update camera

@@ -8,7 +8,7 @@ let main = () => {
 
 
   document.body.appendChild(canvas)
-  //canvas.style.paddingTop = '100px'
+  //canvas.style.marginTop = '100px'
   canvas.height = innerHeight
   canvas.width = innerWidth
   load('./data/thecut1.json')
@@ -22,7 +22,6 @@ let load = (url) => {
   fetch(url)
     .then((body)=>{ return body.json() })
     .then((json)=>{
-      console.log(json)
         window.graph = GraphRenderer.init({
           data: json,
           canvas: canvas,

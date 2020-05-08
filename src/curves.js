@@ -23,15 +23,11 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
     var curve = new Bezier(d.x1, d.y1 , cp.x, cp.y , d.x2, d.y2);
     var LUT = curve.getLUT(50);
     LUT.forEach(function(p) { positions.push([p.x, p.y, .1]) });
-    window.LUT = LUT
     positions.push(0,0,0)
   }
 
   attributes.edges.curves.forEach(fillPosition)
   let segments = 0
-  let view = new Float64Array([5.554607391357422, 0, 0, 0, 0, 5.554607391357422, 0, 0, 0, 0, 1, 0, -0.527761697769165, 0.8586031794548035, 0, 1])
-
-  view = getView()
   let colors = positions.map( d => [Math.random(),Math.random(),Math.random()] )
 
   let pos = regl.buffer()
@@ -39,7 +35,7 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
 
   let update =  (node, id) => {
       let connections = attributes.edges.edges.filter(edge => {
-
+        if (! id) return true
         return edge.source == id || edge.target == id
       }).map(d => {
         let source = attributes.nodes[d.source], target = attributes.nodes[d.target];
@@ -54,31 +50,29 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
       positions = []
 
       connections.forEach(fillPosition)
-      console.log(positions)
 
       segments=positions.length
 
-      let colors = positions.map( d => [Math.random(),Math.random(),Math.random()]  )
+      let colors = positions.map( d => [.3, .3, .3]  )
       pos({data: positions})
       color({data: colors})
-
-      // pos.subdata(positions)
-      // color.subdata(color)
     }
 
     let draw = (state) => {
-    if (segments) interleavedStripRoundCapJoin3DDEMO({
-      points: pos,
-      color: color,
-      width: 2,
-      model: state.model,
-      view: state.camera.view, //view,
-      projection: state.projection,
-      resolution: [window.innerWidth, window.innerHeight],
-      segments: segments - 1,
-      viewport: { x: 0, y: 0, width: innerWidth, height: innerHeight },
-    })
-  }
+      let dim = state.containerDimensions
+      console.log(state.camera.view)
+      if (segments) interleavedStripRoundCapJoin3DDEMO({
+        points: pos,
+        color: color,
+        width: 1,
+        model: state.model,
+        view: state.camera.view, //view,
+        projection: state.projection,
+        resolution: [dim.width, dim.height],
+        segments: segments - 1,
+        viewport: { x: dim.x, y: dim.y, width: dim.width, height: dim.height },
+      })
+    }
     return [update, draw]
 }
 

@@ -11,7 +11,8 @@ module.exports = (env, argv) => ({
     publicPath: argv.mode === 'production' ? './' : '/'
   },
   devServer: {
-    host: '192.168.5.129',
+    ////host: '192.168.5.129',
+    host: 'localhost',
     contentBase: './example'
   },
   module: {

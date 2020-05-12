@@ -457,16 +457,16 @@ const creategraph = (options) => {
   let getRelativePosition = (pos) => {
     const rect = canvas.getBoundingClientRect()
 
-    pos[0] = (pos[0] - rect.left ) / devicePixelRatio
-    pos[1] = (pos[1] - rect.top)  / devicePixelRatio
+    pos[0] = (pos[0] - rect.left ) /// devicePixelRatio
+    pos[1] = (pos[1] - rect.top)  /// devicePixelRatio
     return [...pos]
   }
 
   const getRelativeMousePosition = event => {
     const rect = canvas.getBoundingClientRect()
 
-    mousePosition[0] = (event.clientX - rect.left ) / devicePixelRatio
-    mousePosition[1] = (event.clientY - rect.top)  / devicePixelRatio
+    mousePosition[0] = (event.clientX - rect.left )// / devicePixelRatio
+    mousePosition[1] = (event.clientY - rect.top)  /// devicePixelRatio
 
     return [...mousePosition]
   }
@@ -552,10 +552,6 @@ const creategraph = (options) => {
     width = +newWidth
     canvas.width = width * window.devicePixelRatio
   }
-
-
-
-
 
   var emptyTexture = regl.texture({
     shape: [16, 16]

@@ -21,7 +21,7 @@ const getNdcY = y => 1 + (y / innerHeight) * -2
 
 
  let randomColor = data.nodes.map(d => {
-   d.size = 0
+   d.size = 2
 
    let pos = clipspace(d.x, d.y)
    d.x = getNdcX(d.x)
@@ -49,8 +49,8 @@ const getNdcY = y => 1 + (y / innerHeight) * -2
 
   data.edges.forEach(d => {
     //if (! data.nodes[d.target] ) debugger
-    data.nodes[d.target].size += 1
-    data.nodes[d.source].size += 1
+    data.nodes[d.target].size += .1
+    data.nodes[d.source].size += .1
   })
   let position =
   (data.nodes.map((d, id) => [(d.x), (d.y), d.size, id]))
@@ -87,32 +87,32 @@ let edgeColors = new Array(data.edges.length * 3).fill(0);
   }
     let clusters = {}
     let colorValues = {}
-    data.cluster_events.forEach((c) => {
-      let stuff = clusters[c.type] = []
-      let val = colorValues[c.type] = []
-      c.clusters.forEach((cluster, clusterIndex) => {
-        val[clusterIndex] = parseColor(cluster.color)
-        cluster.nodes.forEach(id => {
-          stuff[id] = parseColor(cluster.color)
-
-        })
-      })
-
-    })
+    // data.cluster_events.forEach((c) => {
+    //   let stuff = clusters[c.type] = []
+    //   let val = colorValues[c.type] = []
+    //   c.clusters.forEach((cluster, clusterIndex) => {
+    //     val[clusterIndex] = parseColor(cluster.color)
+    //     cluster.nodes.forEach(id => {
+    //       stuff[id] = parseColor(cluster.color)
+    //
+    //     })
+    //   })
+    //
+    // })
 
 
     let stateIndex = new Array(data.nodes.length).fill(0);
 
     //data.cluster_events.forEach(c => {
-    let c = data.cluster_events[0]
-      c.clusters.forEach(cluster => {
-        //console.log('wat', cluster)
-
-        cluster.nodes.forEach(id => {
-          stateIndex[id] = [cluster.cluster_id, 1, 2]
-        })
-      })
-    //})
+    // let c = data.cluster_events[0]
+    //   c.clusters.forEach(cluster => {
+    //     //console.log('wat', cluster)
+    //
+    //     cluster.nodes.forEach(id => {
+    //       stateIndex[id] = [cluster.cluster_id, 1, 2]
+    //     })
+    //   })
+    // //})
 
     //console.log(stateIndex)
 
@@ -139,26 +139,13 @@ let edgeColors = new Array(data.edges.length * 3).fill(0);
       let c = d3.color(d.color || 'pink');
       return [c.r /255 , c.g /255 , c.b /255];
     }));
-
+    console.log(position)
     return {
       nodes: data.nodes,
-      colorValues: colorValues,
-      colorTypes: _.extend(colorTypes, {
-          general: clusters.general,
-          specific: clusters.specific,
-          sentiment: sentimentColor,
-          random: randomColor,
-          merge: clusters.general.map(d => [.9, .3, .5])
-
-      }),
       position,
       edges,
-      edgeColors,
       color,
-      dates,
-      sentiment,
       stateIndex
-
   }
 }
 

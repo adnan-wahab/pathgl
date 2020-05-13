@@ -129,14 +129,14 @@ uniform float time;
         distance * (vSize + uEdgeSize)
     );
     gl_FragColor = vColor;
-    //distance = aastep(.5, distance);
-    if (distance > .8) gl_FragColor.rgb = vec3(0.);
+    distance = aastep(.5, distance);
 
-    if (distance > 1.0) {
-        discard;
-    }
+    // if (distance > 1.0) {
+    //     discard;
+    // }
     //gl_FragColor.rgb = (vec3(.3) * sEdge) + ((1.0 - sEdge) * gl_FragColor.rgb);
-    //gl_FragColor.a = .7;
+    //if (distance > .6) gl_FragColor.rgb = vec3(0.);
+    gl_FragColor.a *=  1. - distance;
   }
   `
   const POINT_VS = `
@@ -171,37 +171,31 @@ uniform float time;
   varying vec3 borderColor;
   varying float uv;
 
-
-
-
-
   void main() {
     vec2 position = pos.xy;
-    uv = stateIndex.z < 0. ? 100. : 0.;
+    //uv = stateIndex.z < 0. ? 100. : 0.;
 
     gl_Position = projection * view * vec4(position.xy, 0.0, 1.);
 
     vColor = vec4(color, 1);
 
-    float finalScaling = pow(sizeAttenuation * 10., scaling);
+    float finalScaling = 2.;
 
-    finalScaling = 10.;
+    //if (flatSize) finalScaling = 4. + pow(pointSize, sizeAttenuation);
 
-    if (flatSize) finalScaling = 4. + pow(pointSize, sizeAttenuation);
+    //if ( (stateIndex[1] == -10.)) vColor.a = .5;
 
-    if ( (stateIndex[1] == -10.)) vColor.a = .5;
+    finalScaling += pow(pos.z, sizeAttenuation);
 
-    finalScaling += pow(pos.z, 1.5);
-
-    if (pos.w == hoveredPoint) vColor.xyz -= .2;
-    if (pos.w == selectedPoint) vColor.xyz -= .3;
+    //if (pos.w == hoveredPoint) vColor.xyz -= .2;
+    //if (pos.w == selectedPoint) vColor.xyz -= .3;
 
     vColor.a = .7;
-    if (pos.w == selectedPoint) vColor.a = 1.;
+    //if (pos.w == selectedPoint) vColor.a = 1.;
 
-    gl_PointSize = min(finalScaling, 20.);
+    gl_PointSize = 10.;//4.0 * (exp(log(finalScaling)*0.5));
 
-    if (stateIndex.y == 0.) gl_Position = vec4(100.);
+    //if (stateIndex.y == 0.) gl_Position = vec4(100.);
   }
   `
 
@@ -254,6 +248,8 @@ const creategraph = (options) => {
 
   let schema = {}
 
+  window.attributes = attributes
+
   schema.attributes = {
         pos: {
           //xy size
@@ -266,24 +262,9 @@ const creategraph = (options) => {
 
         },
         stateIndex: {
-          //cluster,
           buffer: () => attributes.stateIndex,
           size: 3
         },
-        dates: {
-          buffer: () => attributes.dates,
-          size: 1
-        },
-        sentiment: {
-          buffer: () => attributes.sentiment,
-          size: 1
-        },
-        offset: {buffer: [
-          [-1, -1], [1, -1], [-1, 1], [-1, 1], [1, -1], [1, 1],
-
-
-    ], normalized: true},
-
       }
 
 
@@ -463,7 +444,11 @@ const creategraph = (options) => {
   }
 
   const getRelativeMousePosition = event => {
-    const rect = canvas.getBoundingClientRect()
+    // if (! canvas.getBoundingClientRect) {
+    //   console.log(canvas)
+    //   return []
+    // }
+    const rect = event.target.getBoundingClientRect()
 
     mousePosition[0] = (event.clientX - rect.left )// / devicePixelRatio
     mousePosition[1] = (event.clientY - rect.top)  /// devicePixelRatio
@@ -648,7 +633,7 @@ const creategraph = (options) => {
     drawCurves(state)
 
     drawPointBodies(state);
-    state.screenshot = canvas.toDataURL("image/png", 1);
+    //state.screenshot = canvas.toDataURL("image/png", 1);
 
   }
 
@@ -726,6 +711,7 @@ const creategraph = (options) => {
     isMouseInCanvas = false
     drawRaf()
   }
+
   let wheelDelta= 0;
   const wheelHandler = (e) => {
     console.log(e)
@@ -735,6 +721,10 @@ const creategraph = (options) => {
   };
 
 
+
+  let resizeHandler = () => {
+    size = [innerWidth, innerHeight]
+  }
 
   const init = () => {
     updateViewAspectRatio()
@@ -750,6 +740,7 @@ const creategraph = (options) => {
     canvas.addEventListener('mouseleave', mouseLeaveCanvasHandler, false)
     canvas.addEventListener('click', mouseClickHandler, false)
     canvas.addEventListener('wheel', wheelHandler);
+    canvas.addEventListener('resize', resizeHandler);
     setPoints(attributes.nodes) //create Index
   }
 
@@ -764,28 +755,6 @@ const creategraph = (options) => {
   const setState = (options) => {
     drawRaf()
     _.each(options, (k,v) => { state[v] = k })
-
-
-    if (options.color) {
-      let val = options.color
-      attributes.color = attributes.colorTypes[val] || attributes.colorTypes['merge']
-      //onsole.log(options.color, attributes.colorTypes)
-    }
-
-    if (options.showCluster) {
-      let showing = options.showCluster
-      attributes.stateIndex.forEach(pair => {
-        pair[1] = parseInt(options.showCluster[pair[0]] ? 1 : 0)
-      })
-
-    }
-    if (options.sourceFilter) {
-      attributes.stateIndex.forEach((pair, idx) => {
-        let show = attributes.nodes[idx].source === options.sourceFilter ? 1 : 0
-        pair[1] = options.sourceFilter == 'all' ? 1 : show
-      })
-    }
-
   }
 
   let parseColor = (rgb) => {

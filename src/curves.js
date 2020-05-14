@@ -48,6 +48,7 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
       })
 
       positions = []
+      console.log(positions)
 
       connections.forEach(fillPosition)
 
@@ -60,7 +61,7 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
 
     let draw = (state) => {
       let dim = state.containerDimensions
-      console.log(state.size)
+      //console.log(state.size)
       let dpi = window.devicePixelRatio
       if (segments) interleavedStripRoundCapJoin3DDEMO({
         points: pos,
@@ -71,7 +72,7 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
         projection: state.projection,
         resolution: [state.size[0] / dpi, state.size[1] / dpi ],
         segments: segments - 1,
-        viewport: { x: dim.x / dpi, y: dim.y / dpi, width: state.size[0] * dpi, height: state.size[1] * dpi  },
+        viewport: { x: 0, y: 0, width: state.size[0] * dpi, height: state.size[1] * dpi  },
       })
     }
     return [update, draw]

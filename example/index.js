@@ -9,7 +9,7 @@ let main = () => {
 
   document.body.appendChild(canvas)
 
-  load('./data/theCut.json')
+  load('./data/nestle-network.json')
 
   document.title = 'REGL NETWORK VIS'
 }
@@ -51,8 +51,8 @@ let load = (url) => {
         window.graph = GraphRenderer.init({
           data: json,
           canvas: canvas,
-          width: innerWidth,
-          height: innerHeight,
+          // width: innerWidth,
+          // height: innerHeight,
 
           // onClick: (point, idx, events) => {
           //   if (events.shiftKey)favorites = favorites.concat(idx)
@@ -60,11 +60,30 @@ let load = (url) => {
           // }
         })
         // graph.setState({flatSize: false})
-         graph.setState({'color': 'specific'})
+        let parseColor = (rgb) => {
+          let c = d3.rgb(rgb)
+          return [c.r /255 , c.g /255 , c.b /255];
+        }
+          json.cluster_events.forEach((c) => {
+            c.clusters.forEach((cluster, clusterIndex) => {
+              graph.setNodeColor(cluster.nodes, cluster.color)
+            })
+          })
 
-         graph.on('wheel', (delta) => {
-           graph.setState({sizeAttenuation: delta / 1000})
-         })
+        Array.from(document.body.querySelectorAll('input')).forEach(el => {
+          el.addEventListener('change', (e) => {
+            let x = {}
+            x[el.id] = + e.target.value
+            graph.setState(x)
+            console.log(x
+
+            )
+          })
+        })
+         //
+         // graph.on('wheel', (delta) => {
+         //   graph.setState({sizeAttenuation: delta / 1000})
+         // })
         // graph.setState({sizeAttenuation: 1})
 
         //graph.on('hover', (d) => {console.log(d)})

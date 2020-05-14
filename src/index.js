@@ -141,14 +141,14 @@ uniform float time;
   `
   const POINT_VS = `
   precision mediump float;
-  uniform float pointSize;
-  uniform float pointSizeExtra;
-  uniform float numNodes;
-  uniform float scaling;
-  uniform float sizeAttenuation;
   uniform mat4 projection;
   uniform mat4 model;
   uniform mat4 view;
+
+
+  uniform float pointSize;
+  uniform float scaling;
+  uniform float sizeAttenuation;
 
   attribute vec4 pos;
   attribute vec3 color;
@@ -157,6 +157,8 @@ uniform float time;
   attribute float dates;
   attribute float sentiment;
   attribute vec2 offset;
+
+  uniform float ceiling;
 
   uniform float hoveredPoint;
   uniform float selectedPoint;
@@ -181,19 +183,17 @@ uniform float time;
 
     float finalScaling = 2.;
 
-    //if (flatSize) finalScaling = 4. + pow(pointSize, sizeAttenuation);
-
     //if ( (stateIndex[1] == -10.)) vColor.a = .5;
 
-    finalScaling += pow(pos.z, sizeAttenuation);
+    finalScaling += .1 + pow(pos.z, scaling * 1.);
 
-    //if (pos.w == hoveredPoint) vColor.xyz -= .2;
-    //if (pos.w == selectedPoint) vColor.xyz -= .3;
-
-    vColor.a = .7;
+    if (pos.w == hoveredPoint) vColor.xyz -= .2;
+    if (pos.w == selectedPoint) vColor.xyz -= .3;
     //if (pos.w == selectedPoint) vColor.a = 1.;
 
-    gl_PointSize = 10.;//4.0 * (exp(log(finalScaling)*0.5));
+    vColor.a = .7;
+
+    gl_PointSize = min(pointSize + (exp(log(finalScaling)*sizeAttenuation * .01)), ceiling);
 
     //if (stateIndex.y == 0.) gl_Position = vec4(100.);
   }
@@ -270,9 +270,12 @@ const creategraph = (options) => {
 
   //props schema - make external
   let state = {
-    sizeAttenuation: .1,
-    sentimentFilter: 0,
+    ceiling: 40,
+    pointSize: 10,
     scaling: .4,
+    sizeAttenuation: .1,
+
+    sentimentFilter: 0,
     numNodes: 1,
     showLines: true,
     showNodes: true,
@@ -285,13 +288,13 @@ const creategraph = (options) => {
     projection:  new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
     model: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
     hoveredPoint: -1,
-    containerDimensions: options.containerDimensions || (canvas).getBoundingClientRect(),
+    containerDimensions: (canvas).getBoundingClientRect(),
     size: size
   };
   window.state = state
   window.projection = state.projection
 
-  const getPointSize = () => pointSize * window.devicePixelRatio
+  const getPointSize = () => state.pointSize * window.devicePixelRatio
   const getNormalPointSizeExtra = () => 0
 
   const getView = () => {
@@ -581,6 +584,7 @@ const creategraph = (options) => {
       attributes: schema.attributes,
 
       uniforms: {
+        ceiling: () => state.ceiling,
         time: (context) => { return console.log(context.time) || context.time },
         resolution: [innerWidth, innerHeight],
         hoveredPoint: () => state.hoveredPoint,
@@ -665,7 +669,6 @@ const creategraph = (options) => {
     canvas.style.width = width + 'px'
     canvas.style.height = height + 'px'
 
-     console.log(width,height)
     setHeight(height)
     setWidth(width)
 
@@ -677,7 +680,6 @@ const creategraph = (options) => {
 
   const hover = (point) => {
     let needsRedraw = false
-
 
     if (point >= 0) {
       needsRedraw = true
@@ -714,7 +716,6 @@ const creategraph = (options) => {
 
   let wheelDelta= 0;
   const wheelHandler = (e) => {
-    console.log(e)
     events['wheel'](wheelDelta += e.wheelDelta)
     drawRaf();
     refresh()
@@ -723,7 +724,18 @@ const creategraph = (options) => {
 
 
   let resizeHandler = () => {
-    size = [innerWidth, innerHeight]
+    console.log('RESIZING', options.canvas)
+
+    state.containerDimensions = (options.canvas).getBoundingClientRect()
+
+    let rect = options.canvas.getBoundingClientRect()
+    console.log(rect)
+    size[0] = rect.width
+    size[1] = rect.height
+    setHeight(height)
+    setWidth(width)
+    updateViewAspectRatio()
+    state.camera.refresh()
   }
 
   const init = () => {
@@ -740,7 +752,7 @@ const creategraph = (options) => {
     canvas.addEventListener('mouseleave', mouseLeaveCanvasHandler, false)
     canvas.addEventListener('click', mouseClickHandler, false)
     canvas.addEventListener('wheel', wheelHandler);
-    canvas.addEventListener('resize', resizeHandler);
+    window.addEventListener('resize', resizeHandler);
     setPoints(attributes.nodes) //create Index
   }
 

@@ -80,41 +80,9 @@ const getNdcY = y => 1 + (y / innerHeight) * -2
 
 let edgeColors = new Array(data.edges.length * 3).fill(0);
 
-
-  let parseColor = (rgb) => {
-    let c = d3.rgb(rgb)
-    return [c.r /255 , c.g /255 , c.b /255];
-  }
-    let clusters = {}
-    let colorValues = {}
-    // data.cluster_events.forEach((c) => {
-    //   let stuff = clusters[c.type] = []
-    //   let val = colorValues[c.type] = []
-    //   c.clusters.forEach((cluster, clusterIndex) => {
-    //     val[clusterIndex] = parseColor(cluster.color)
-    //     cluster.nodes.forEach(id => {
-    //       stuff[id] = parseColor(cluster.color)
-    //
-    //     })
-    //   })
-    //
-    // })
-
-
-    let stateIndex = new Array(data.nodes.length).fill(0);
-
-    //data.cluster_events.forEach(c => {
-    // let c = data.cluster_events[0]
-    //   c.clusters.forEach(cluster => {
-    //     //console.log('wat', cluster)
-    //
-    //     cluster.nodes.forEach(id => {
-    //       stateIndex[id] = [cluster.cluster_id, 1, 2]
-    //     })
-    //   })
-    // //})
-
-    //console.log(stateIndex)
+  let stateIndex = new Array(data.nodes.length).fill(0).map((d, i) => {
+    return [0, 1, i]
+  })
 
       data.edges.forEach((edge, idx) => {
         //console.log(`%c ${edge.target}`, 'background: green;');
@@ -124,11 +92,6 @@ let edgeColors = new Array(data.edges.length * 3).fill(0);
         edgeColors[idx*3+1] = c.g / 255
         edgeColors[idx*3+2] = c.b / 255
     });
-
-
-
-
-
 
     let dates = data.nodes.map((d, idx) => {
       return d.create_time || (d.create_time = (+(new Date()) - Math.floor(Math.random()*10000000000))

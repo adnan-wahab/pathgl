@@ -34,7 +34,7 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
   let color = regl.buffer()
 
   let update =  (node, id) => {
-      let connections = attributes.edges.edges.filter(edge => {
+      let connections = node ? attributes.edges.edges.filter(edge => {
         if (! id) return true
         return edge.source == id || edge.target == id
       }).map(d => {
@@ -45,10 +45,10 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
           x2: (target.x),
           y2: (target.y),
         }
-      })
-
+      }) : []
+      console.log('wow', connections)
       positions = []
-      console.log(positions)
+      //console.log(positions)
 
       connections.forEach(fillPosition)
 
@@ -61,7 +61,6 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
 
     let draw = (state) => {
       let dim = state.containerDimensions
-      //console.log(state.size)
       let dpi = window.devicePixelRatio
       if (segments) interleavedStripRoundCapJoin3DDEMO({
         points: pos,

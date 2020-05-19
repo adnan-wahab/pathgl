@@ -9,7 +9,7 @@ import createCurves from './curves'
 import dom2dCamera from './camera';
 
 import circleSprite from './sprites/border.png'
-import starSprite from './sprites/lol.jpg'
+import starSprite from './sprites/binky.png'
 
 import * as d3 from 'd3'
 
@@ -21,7 +21,54 @@ starImg.src = starSprite;
 
 circleImg.src = circleSprite;
 
+let createBrush = (container, graph, size) => {
+  container = document.querySelector('.container')
+  let width = size[0], height = size[1]
 
+  const svg = d3.select(container).append("svg")
+      .attr("viewBox", [0, 0, width, height])
+      .property("value", [])
+      svg.style(
+        'position', 'absolute'
+      )
+      //svg.style('top', '50')
+      svg.style('left', '0')
+
+
+  const brush = d3.brush()
+      .on("end", brushed)
+      // .on('end', ()=> {
+      //
+      //   svg.selectAll('.selection')
+      //   .transition().duration(500)
+      //   .ease(d3.easeLinear)
+      //   .attr('opacity', 0)
+      //
+      // })
+
+  // const dot = svg.append("g")
+  //     .attr("fill", "none")
+  //     .attr("stroke", "steelblue")
+  //     .attr("stroke-width", 1.5)
+  //   .selectAll("g")
+  //   .data(data)
+  //   .join("circle")
+  //     .attr("transform", d => `translate(${x(d.x)},${y(d.y)})`)
+  //     .attr("r", 3);
+
+  svg.call(brush);
+  svg.selectAll('.selection').attr('stroke', 'green')//.attr('fill', 'dark-green').attr('fill-opacity', .3)
+
+  function brushed() {
+    svg.selectAll('.selection').attr('opacity', 1).attr('fill', 'none')
+
+    if (d3.event.selection) {
+      graph.brush(d3.event.selection)
+      //value = data.filter(d => x0 <= x(d.x) && x(d.x) < x1 && y0 <= y(d.y) && y(d.y) < y1);
+    }
+    //svg.property("value", value).dispatch("input");
+  }
+}
 
 import {
   COLOR_ACTIVE_IDX,
@@ -98,11 +145,7 @@ uniform float time;
     // gl_FragColor.a   = 1.0;
 
 
-    // //
-    // if (uv == 0.)
-    // gl_FragColor = vColor;
-    // else
-    // gl_FragColor = texture2D(texture2, gl_PointCoord) * vColor;
+
 
     float r = 0.0, delta = 0.0, alpha = 1.0;
     vec2 cxy = 2.0 * gl_PointCoord - 1.0;
@@ -115,7 +158,7 @@ uniform float time;
 
       //vec3 color = vColor.rgb;
     //vec3 color =   (delta > 0.75) ? vColor.rgb : borderColor;
-    gl_FragColor = texture2D(texture, gl_PointCoord) * vColor;
+    //gl_FragColor = texture2D(texture, gl_PointCoord) * vColor;
     //gl_FragColor.a = alpha;
 
     float vSize = 1.0;
@@ -136,6 +179,14 @@ uniform float time;
     // }
     //gl_FragColor.rgb = (vec3(.3) * sEdge) + ((1.0 - sEdge) * gl_FragColor.rgb);
     //if (distance > .6) gl_FragColor.rgb = vec3(0.);
+
+    // //
+    //
+    // gl_FragColor = vColor;
+    // else
+    if (uv == -1.)
+      gl_FragColor = texture2D(texture2, gl_PointCoord);
+    else
     gl_FragColor.a *=  1. - distance;
   }
   `
@@ -161,7 +212,6 @@ uniform float time;
   uniform float ceiling;
 
   uniform float hoveredPoint;
-  uniform float selectedPoint;
   uniform vec2 dimensions;
 
   uniform float selectedCluster;
@@ -174,8 +224,8 @@ uniform float time;
   varying float uv;
 
   void main() {
-    vec2 position = pos.xy;
-    //uv = stateIndex.z < 0. ? 100. : 0.;
+    vec2 position = pos.xy ;/// dimensions;
+    uv = stateIndex.z < 0. ? -1. : 0.;
 
     gl_Position = projection * view * vec4(position.xy, 0.0, 1.);
 
@@ -184,18 +234,21 @@ uniform float time;
     float finalScaling = 2.;
 
     //if ( (stateIndex[1] == -10.)) vColor.a = .5;
-
     finalScaling += .1 + pow(pos.z, scaling * 1.);
 
-    if (pos.w == hoveredPoint) vColor.xyz -= .2;
-    if (pos.w == selectedPoint) vColor.xyz -= .3;
-    //if (pos.w == selectedPoint) vColor.a = 1.;
-
-    vColor.a = .7;
-
     gl_PointSize = min(pointSize + (exp(log(finalScaling)*sizeAttenuation * .01)), ceiling);
+    if (uv == -1.) gl_PointSize = 50.;
 
     //if (stateIndex.y == 0.) gl_Position = vec4(100.);
+    vColor.a = .3;
+    if ( (stateIndex[1] == -20.)) vColor.a = .05;
+    if ( (stateIndex[1] == -10.)) vColor.a = .1;
+    if ( (stateIndex[1] == 10.)) vColor.a = 1.;
+    if ( (stateIndex[1] == 0.)) vColor.a = .0;
+
+    if (pos.w == hoveredPoint) vColor.a = 1.;
+
+
   }
   `
 
@@ -229,7 +282,7 @@ const creategraph = (options) => {
   initialPointSizeSelected = DEFAULT_POINT_SIZE_SELECTED,
   initialPointOutlineWidth = 2,
   initialWidth = options.width || DEFAULT_WIDTH,
-  initialHeight = options.Height || DEFAULT_HEIGHT,
+  initialHeight = options.height || DEFAULT_HEIGHT,
   initialTarget = DEFAULT_TARGET,
   initialDistance = DEFAULT_DISTANCE,
   initialRotation = DEFAULT_ROTATION,
@@ -249,6 +302,7 @@ const creategraph = (options) => {
   let schema = {}
 
   window.attributes = attributes
+
 
   schema.attributes = {
         pos: {
@@ -360,7 +414,7 @@ const creategraph = (options) => {
   const getScatterGlPos = (pos=getMouseGlPos()) => {
     const [xGl, yGl] = pos
 
-
+    //console.log(xGl, yGl)
     // Homogeneous vector
     const v = [xGl, yGl, 1, 1]
 
@@ -433,8 +487,22 @@ const creategraph = (options) => {
 
 
   const select = (points) => {
-    if (typeof points === 'number') selection = [points]
-    else selection = points
+    //console.log(points)
+    if (typeof points === 'number') {
+      // let connections = attributes.edges.edges.filter(edge => {
+      //   return edge.source == points || edge.target == points
+      // }).map(edge => edge.source)
+      // points = [points].concat(connections).flat(
+      //console.log(points)
+      console.log('who am i ', points, pointList[points])
+      updateCurves(pointList[points], points)
+      points = [points]
+    }
+    if (! Array.isArray(points)) throw new Error('points must be a number or array')
+
+    // attributes.stateIndex.forEach((trip, i) => {
+    //   trip[1] = points.includes(i) ? 10 : -10;
+    // })
     drawRaf() // eslint-disable-line no-use-before-define
   }
 
@@ -467,6 +535,7 @@ const creategraph = (options) => {
     mouseDownPosition = getRelativeMousePosition(event)
     mouseDownShift = event.shiftKey
 
+
     // fix camera
     //if (mouseDownShift) camera.config({ isFixed: true })
   }
@@ -485,7 +554,7 @@ const creategraph = (options) => {
     const currentMousePosition = getRelativeMousePosition(event)
     const clickDist = dist(...currentMousePosition, ...mouseDownPosition)
     const clostestPoint = raycast()
-    if (clostestPoint >= 0) select([clostestPoint])
+    if (clostestPoint >= 0) select(clostestPoint)
     if (clostestPoint >= 0) onClick(pointList[clostestPoint], clostestPoint, event)
 
     if (event.shiftKey) {
@@ -744,6 +813,7 @@ const creategraph = (options) => {
     // Set dimensions
     setSize( width, height )
 
+
     window.addEventListener('blur', blurHandler, false);
     window.addEventListener('mousedown', mouseDownHandler, false)
     window.addEventListener('mouseup', mouseUpHandler, false)
@@ -794,12 +864,12 @@ const creategraph = (options) => {
   }
 
   let setNodeVisibility = (indices, val) => {
+    updateCurves(0)
     let list = Array.isArray(indices) ? indices: attributes.nodes.map((d,i) => i)
     list.forEach(idx => {
-      let show = 'function' == typeof val ? val(attributes.nodes[idx]) : val
+      let show = 'function' == typeof val ? val(attributes.nodes[idx], idx) : val
       attributes.stateIndex[idx][1] = show
     })
-    //console.log(attributes.stateIndex)
 
     drawRaf()
 
@@ -816,7 +886,7 @@ const creategraph = (options) => {
 
   let setNodeShape = (indices, shape) => {
     indices.forEach(idx => {
-      attributes.stateIndex[idx][2] = - shape
+      attributes.stateIndex[idx][2] = -shape
     })
 
     drawRaf()
@@ -844,15 +914,19 @@ const creategraph = (options) => {
 
 
 
-  return {
+  let graph = {
     state: state,
     eachNode: eachNode,
+    toggleBrush: (bool) => {
+      d3.select('svg').style('display', (! bool) ? 'none' : 'unset')
+    },
     brush: (selection, svg) => {
+      console.log('wow wtf')
       let clipspace = function (pos) {
-        return [(2. * (pos[0] / width) - 1.,
-        1. - ((pos[1] / height) * 2.))]
+        return [2. * (pos[0] / width) - 1.,
+        1. - ((pos[1] / height) * 2.)]
       }
-      // getNdcX(mousePosition[0]),
+      // getNdcX(mousePosition[0])
       // getNdcY(mousePosition[1])
       // debugger
       // function svgPoint(element, x, y) {
@@ -875,19 +949,26 @@ const creategraph = (options) => {
        // }
 
        let p = selection.map(clipspace).map(getScatterGlPos)
-       //console.log(clipspace)
-      let [[x0, y0], [x1,  y1]] = selection;
-      //console.log(attributes)
-      attributes.stateIndex.forEach((trip, i) => {
-        let [x, y] = attributes.position[i].slice(0, 2)
-        //if (Math.random() > .9) console.log(x0, x, x1, y0, y, y1)
+       console.log(p[0], p[1])
 
-       //console.log(x0, x, x1, y0, y, y1)
-        trip[1] = x0 <= x && x <= x1
-            && y0 <= y && y <= y1
-            ? 10 : -10;
-            //console.log(trip[1])
+       console.log(p)
+      let [[x0, y0], [x1,  y1]] = p;
+      //console.log(attributes)
+      let poop
+      let c = 0
+      attributes.stateIndex.forEach((trip, idx) => {
+        let {clipX, clipY} = searchIndex.points[idx];
+        let inbox =  clipX > Math.min(x0, x1) &&
+         clipX < Math.max(x1, x0) &&
+          clipY > Math.min(y1, y0) &&
+           clipY < Math.max(y1, y0)
+        //isPointInPolygon([clipX, clipY], p)
+        if (inbox) c++
+        poop =  [x0 ,clipX ,  x1 ,    y0, clipY, y1]
+        trip[1] = inbox ? 10 : -20;
       })
+      console.log(window.poop = poop)
+      console.log(c)
       draw()
 
 
@@ -933,6 +1014,9 @@ const creategraph = (options) => {
     setState,
     getView,
   }
+
+  if (options.brush) createBrush(document.body, graph, size)
+  return graph
 }
 
 

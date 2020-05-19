@@ -2,12 +2,10 @@ import GraphRenderer from '../src';
 import * as d3 from 'd3'
 import _ from 'lodash'
 
-let canvas = document.createElement('canvas')
-
 let main = () => {
 
 
-  document.body.appendChild(canvas)
+  //document.body.appendChild(canvas)
 
   load('./data/nestle-network.json')
 
@@ -50,9 +48,10 @@ let load = (url) => {
     .then((json)=>{
         window.graph = GraphRenderer.init({
           data: json,
-          canvas: canvas,
-          // width: innerWidth,
-          // height: innerHeight,
+          canvas: document.querySelector('canvas'),
+          brush: true,
+          width: innerWidth * 1,
+          height: innerHeight * .9,
 
           // onClick: (point, idx, events) => {
           //   if (events.shiftKey)favorites = favorites.concat(idx)
@@ -88,6 +87,9 @@ let load = (url) => {
 
         //graph.on('hover', (d) => {console.log(d)})
 
+
+
+
         let tip = d3.select('body').append('div')
 
         _.each(styles, (key, value) => { tip.style(value, key)})
@@ -106,6 +108,30 @@ let load = (url) => {
           tip.style('display', 'none')
         })
 
+
+        let [starRandom, selectRandom, showFavorites, toggleBrush] = document.querySelectorAll('button')
+        starRandom.addEventListener('click', () => {
+          graph.setNodeShape([Math.random() * 1000 | 0], 1)
+        })
+
+        selectRandom.addEventListener('click', () => {
+          let choice = Math.random() * 1000 | 0
+          graph.setNodeVisibility(true, (d, i) => {
+            return (i == choice) ? 10 : -20
+          })
+          graph.select(choice)
+
+        })
+
+        showFavorites.addEventListener('click', () =>{
+          console.log('show favorites');
+          graph.setNodeVisibility(true, (d, i) => { return Math.random() > .99 ? 10 : 0 })
+        })
+
+        let state = true
+        toggleBrush.addEventListener('click', () =>{
+          graph.toggleBrush(state = ! state)
+        })
 
     })
 }

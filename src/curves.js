@@ -46,7 +46,7 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
           y2: (target.y),
         }
       }) : []
-      console.log('wow', connections)
+      //console.log('wow', connections)
       positions = []
       //console.log(positions)
 

@@ -1,3 +1,15 @@
+
+import circleSprite from './sprites/border.png'
+import starSprite from './sprites/binky.png'
+
+let circleImg = new Image(
+)
+
+let starImg = new Image()
+starImg.src = starSprite;
+
+circleImg.src = circleSprite;
+
 const POINT_FS = `
 #ifdef GL_OES_standard_derivatives
 #extension GL_OES_standard_derivatives : enable
@@ -5,67 +17,86 @@ const POINT_FS = `
 precision mediump float;
 
 uniform vec2 selection;
+uniform sampler2D texture;
+uniform sampler2D texture2;
+
 
 varying vec4 vColor;
 varying vec3 borderColor;
-
-unfiorm vec2 resolution;
+varying float uv;
+uniform vec2 resolution;
 uniform float time;
 
-
-
-
+float aastep(float threshold, float value) {
+  #ifdef GL_OES_standard_derivatives
+    float afwidth = length(vec2(dFdx(value), dFdy(value))) * 0.70710678118654757;
+    return smoothstep(threshold-afwidth, threshold+afwidth, value);
+  #else
+    return step(threshold, value);
+  #endif
+}
 
 void main() {
-  vec2 uv = vec2(gl_FragCoord.xy / iResolution.xy) - 0.5;
-  //correct aspect
-  uv.x *= iResolution.x / iResolution.y;
-  //animate zoom
-  uv /= sin(time * 0.2);
-  //radial distance
-  float len = length(uv);
-  //anti-alias
-  len = aastep(0.5, len);
-  gl_FragColor.rgb = vec3(len);
-  gl_FragColor.a   = 1.0;
-  // float r = 0.0, delta = 0.0, alpha = 1.0;
-  // vec2 cxy = 2.0 * gl_PointCoord - 1.0;
-  // r = dot(cxy, cxy);
-  //
-  // #ifdef GL_OES_standard_derivatives
-  //   delta = fwidth(r);
-  //   alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
-  // #endif
-  //
-  // vec3 color =   (r < 0.75) ? vColor.rgb : borderColor;
-  // if (r > .95) discard;
-  // gl_FragColor = vec4(color, alpha * vColor.a);
+  float r = 0.0, delta = 0.0, alpha = 1.0;
+  vec2 cxy = 2.0 * gl_PointCoord - 1.0;
+  r = dot(cxy, cxy);
+
+  #ifdef GL_OES_standard_derivatives
+    delta = fwidth( r);
+    alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
+  #endif
+
+  float vSize = 1.0;
+  float uEdgeSize = 2.;
+  float distance = length(2.0 * gl_PointCoord - 1.0);
+
+
+  float sEdge = smoothstep(
+      vSize - uEdgeSize - 2.0,
+      vSize - uEdgeSize,
+      distance * (vSize + uEdgeSize)
+  );
+  gl_FragColor = vColor;
+  distance = aastep(.5, distance);
+
+
+
+  if (uv == -1.)
+    gl_FragColor = texture2D(texture2, gl_PointCoord);
+  else
+  gl_FragColor.a *=  1. - distance;
+
+  if (uv == -2.) {
+    //gl_FragColor.rgb = distance;
+
+    gl_FragColor.a *=  1. - distance;
+  }
+
 }
 `
 const POINT_VS = `
 precision mediump float;
-uniform float pointSize;
-uniform float pointSizeExtra;
-uniform float numNodes;
-uniform float scaling;
-uniform float sizeAttenuation;
 uniform mat4 projection;
 uniform mat4 model;
 uniform mat4 view;
 
-uniform vec2 dateFilter;
+
+uniform float pointSize;
+uniform float scaling;
+uniform float sizeAttenuation;
 
 attribute vec4 pos;
 attribute vec3 color;
-attribute vec2 stateIndex;
+//cluster, visiblity, texture
+attribute vec3 stateIndex;
 attribute float dates;
+attribute float sentiment;
+attribute vec2 offset;
+
+uniform float ceiling;
 
 uniform float hoveredPoint;
-uniform float selectedPoint;
 uniform vec2 dimensions;
-
-
-
 
 uniform float selectedCluster;
 
@@ -74,81 +105,118 @@ uniform bool flatSize;
 // variables to send to the fragment shader
 varying vec4 vColor;
 varying vec3 borderColor;
+varying float uv;
 
 void main() {
-  vec2 position = pos.xy;
-  // position.x = position.x / dimensions.x;
-  // position.y = position.y / dimensions.y;
+  vec2 position = pos.xy ;/// dimensions;
+  uv = stateIndex.z < 0. ? stateIndex.z : 0.;
 
+  gl_Position = projection * view * vec4(position.xy, 0.0, 1.);
 
-  //if (! (dates > dateFilter.x && dates < dateFilter.y)) return;
+  vColor = vec4(color, 1);
 
-  gl_Position = projection * view * model * vec4(position.xy, 0.0, 1.);
+  float finalScaling = 2.;
 
-  vColor = vec4(color, 1.);
+  //if ( (stateIndex[1] == -10.)) vColor.a = .5;
+  finalScaling += .1 + pow(pos.z, scaling * 1.);
 
-  float finalScaling = pow(sizeAttenuation, scaling);
-  finalScaling = 4. + pow(pointSize, sizeAttenuation);
+  gl_PointSize = min(pointSize + (exp(log(finalScaling)*sizeAttenuation * .01)), ceiling);
+  if (uv == -1.) gl_PointSize = 50.;
 
-  //if (selectedCluster > -.1 && selectedCluster != stateIndex.x) finalScaling = 0.;
+  //if (stateIndex.y == 0.) gl_Position = vec4(100.);
+  vColor.a = .3;
+  if ( (stateIndex[1] == -20.)) vColor.a = .05;
+  if ( (stateIndex[1] == -10.)) vColor.a = .1;
+  if ( (stateIndex[1] == 10.)) vColor.a = 1.;
+  if ( (stateIndex[1] == 0.)) vColor.a = .0;
 
-
-  finalScaling = 10.;
-
-  if (pos.w == hoveredPoint) finalScaling = 20.;
-  if (pos.w == hoveredPoint) borderColor = vec3(1);
-  else borderColor = vec3(0.1411764705882353, 0.15294117647058825, 0.18823529411764706);
-
-  if (pos.w == selectedPoint) finalScaling = 30.;
-  if (pos.w == selectedPoint) vColor = vec4(1);
-
-  if (pos.w == hoveredPoint) gl_Position.z -= .1;
-  if (pos.w == selectedPoint) gl_Position.z -= .2;
-
-  finalScaling += pos.z;
-  gl_PointSize = finalScaling + pointSizeExtra;
-
+  if (pos.w == hoveredPoint) vColor.a = 1.;
+  if (pos.w == hoveredPoint) gl_Position.z = .5;
+  if (pos.w == hoveredPoint) gl_PointSize *= 3.;
+  else if ( (stateIndex[1] == 10.)) gl_PointSize *= 3.;
 }
 `
 
-
-const drawAllPoints = (
-  getPointSizeExtra,
-) =>
-  regl({
-    frag: POINT_FS,
-    vert: POINT_VS,
-
-    blend: {
-      enable: true,
-      func: {
-        srcRGB: 'src alpha',
-        srcAlpha: 'one',
-        dstRGB: 'one minus src alpha',
-        dstAlpha: 'one minus src alpha'
-      }
-    },
-
-
-
-    attributes: schema.attributes,
-
-    uniforms: {
-      hoveredPoint: () => hoveredPoint,
-      selectedPoint: () => selection[0] || -1,
-      dimensions: [window.innerWidth, window.innerHeight],
-      projection: getProjection,
-      time: (ctx) => { return ctx.time },
-      dateFilter: regl.prop('dateFilter'),
-      selectedCluster: () => (attributes.position.length < 1 ? state.selectedCluster : -100 ),
-      model: getModel,
-      view: getView,
-      scaling: getScaling,
-      pointSize: getPointSize,
-      pointSizeExtra: getPointSizeExtra,
-      sizeAttenuation: regl.prop('sizeAttenuation'),
-      flatSize: regl.prop('flatSize')
-    },
-    count: getNormalNumPoints,
-    primitive: 'points'
+export const createDrawPoints = (regl, attributes) => {
+  let schema = {}
+  var emptyTexture = regl.texture({
+    shape: [16, 16]
   })
+
+
+  let textures = [emptyTexture, emptyTexture]
+
+  circleImg.onload = () => {
+    textures[0] = regl.texture({premultiplyAlpha: true, data: circleImg})
+  }
+  if (circleImg.complete) circleImg.onload()
+
+  starImg.onload = () => {
+    textures[1] = regl.texture(starImg)
+  }
+  if (starImg.complete) starImg.onload()
+
+
+  schema.attributes = {
+        pos: {
+          //xy size
+          buffer: () => attributes.position,
+          size: 4
+        },
+        color: {
+          buffer: () => attributes.color,
+          size: 3
+
+        },
+        stateIndex: {
+          buffer: () => attributes.stateIndex,
+          size: 3
+        },
+      }
+  return regl({
+      frag: POINT_FS,
+      vert: POINT_VS,
+      depth: {
+   enable: false,
+
+  },
+
+  blend: {
+   enable: true,
+   func: {
+     srcRGB: 'src alpha',
+     srcAlpha: 1,
+     dstRGB: 'one minus src alpha',
+     dstAlpha: 1
+   },
+   equation: {
+     rgb: 'add',
+     alpha: 'add'
+   },
+   color: [0, 0, 0, 0]
+  },
+
+      attributes: schema.attributes,
+
+      uniforms: {
+        pointSize: regl.prop('pointSize'),
+        ceiling: () => state.ceiling,
+        time: (context) => { return console.log(context.time) || context.time },
+        resolution: [innerWidth, innerHeight],
+        hoveredPoint: () => state.hoveredPoint,
+        selectedPoint: () => selection[0] || -1,
+        dimensions: [window.innerWidth, window.innerHeight],
+        projection:  regl.prop('projection'),
+        model: regl.prop('model'),
+        view: () => state.camera.view,
+        scaling: regl.prop('scaling'),
+        sizeAttenuation: regl.prop('sizeAttenuation'),
+        flatSize: regl.prop('flatSize'),
+        texture: () => textures[0],
+        texture2: () => textures[1]
+      },
+      count: attributes.position.length,
+      primitive: 'points'
+    })
+
+}

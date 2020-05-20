@@ -8,18 +8,10 @@ import processData from './processData';
 import createCurves from './curves'
 import dom2dCamera from './camera';
 
-import circleSprite from './sprites/border.png'
-import starSprite from './sprites/binky.png'
+import {createDrawPoints} from './points';
 
 import * as d3 from 'd3'
 
-let circleImg = new Image(
-)
-
-let starImg = new Image()
-starImg.src = starSprite;
-
-circleImg.src = circleSprite;
 
 let createBrush = (container, graph, size) => {
   container = document.querySelector('.container')
@@ -34,6 +26,11 @@ let createBrush = (container, graph, size) => {
       //svg.style('top', '50')
       svg.style('left', '0')
 
+      layerStack(svg.node(), 1)
+
+container.style.position = "relative";
+ container.style.width = width + 'px';
+ container.style.height = height + 'px';
 
   const brush = d3.brush()
       .on("end", brushed)
@@ -94,165 +91,6 @@ import {
   FLOAT_BYTES
 } from './constants'
 
-const BG_COLOR = [    0.1411764705882353,
-  0.15294117647058825,
-  0.18823529411764706, 1]
-
-  const POINT_FS = `
-  #ifdef GL_OES_standard_derivatives
-  #extension GL_OES_standard_derivatives : enable
-  #endif
-  precision mediump float;
-
-  uniform vec2 selection;
-  uniform sampler2D texture;
-  uniform sampler2D texture2;
-
-
-  varying vec4 vColor;
-  varying vec3 borderColor;
-  varying float uv;
-  uniform vec2 resolution;
-uniform float time;
-
-  float aastep(float threshold, float value) {
-    #ifdef GL_OES_standard_derivatives
-      float afwidth = length(vec2(dFdx(value), dFdy(value))) * 0.70710678118654757;
-      return smoothstep(threshold-afwidth, threshold+afwidth, value);
-    #else
-      return step(threshold, value);
-    #endif
-  }
-
-  void main() {
-
-
-    // vec2 uv = vec2(gl_FragCoord.xy / resolution.xy) - 0.5;
-    //
-    // //correct aspect
-    // uv.x *= resolution.x / resolution.y;
-    //
-    // //animate zoom
-    // uv /= 1. ;//;sin(time * .2);
-    //
-    // //radial distance
-    // float len = length(uv);
-    //
-    // //anti-alias
-    // len = aastep(0.5, len);
-    //
-    // gl_FragColor.rgb = vec3(len) + .50;
-    // gl_FragColor.a   = 1.0;
-
-
-
-
-    float r = 0.0, delta = 0.0, alpha = 1.0;
-    vec2 cxy = 2.0 * gl_PointCoord - 1.0;
-    r = dot(cxy, cxy);
-
-    #ifdef GL_OES_standard_derivatives
-      delta = fwidth( r);
-      alpha = 1.0 - smoothstep(1.0 - delta, 1.0 + delta, r);
-    #endif
-
-      //vec3 color = vColor.rgb;
-    //vec3 color =   (delta > 0.75) ? vColor.rgb : borderColor;
-    //gl_FragColor = texture2D(texture, gl_PointCoord) * vColor;
-    //gl_FragColor.a = alpha;
-
-    float vSize = 1.0;
-    float uEdgeSize = 2.;
-    float distance = length(2.0 * gl_PointCoord - 1.0);
-
-
-    float sEdge = smoothstep(
-        vSize - uEdgeSize - 2.0,
-        vSize - uEdgeSize,
-        distance * (vSize + uEdgeSize)
-    );
-    gl_FragColor = vColor;
-    distance = aastep(.5, distance);
-
-    // if (distance > 1.0) {
-    //     discard;
-    // }
-    //gl_FragColor.rgb = (vec3(.3) * sEdge) + ((1.0 - sEdge) * gl_FragColor.rgb);
-    //if (distance > .6) gl_FragColor.rgb = vec3(0.);
-
-    // //
-    //
-    // gl_FragColor = vColor;
-    // else
-    if (uv == -1.)
-      gl_FragColor = texture2D(texture2, gl_PointCoord);
-    else
-    gl_FragColor.a *=  1. - distance;
-  }
-  `
-  const POINT_VS = `
-  precision mediump float;
-  uniform mat4 projection;
-  uniform mat4 model;
-  uniform mat4 view;
-
-
-  uniform float pointSize;
-  uniform float scaling;
-  uniform float sizeAttenuation;
-
-  attribute vec4 pos;
-  attribute vec3 color;
-  //cluster, visiblity, texture
-  attribute vec3 stateIndex;
-  attribute float dates;
-  attribute float sentiment;
-  attribute vec2 offset;
-
-  uniform float ceiling;
-
-  uniform float hoveredPoint;
-  uniform vec2 dimensions;
-
-  uniform float selectedCluster;
-
-  uniform bool flatSize;
-
-  // variables to send to the fragment shader
-  varying vec4 vColor;
-  varying vec3 borderColor;
-  varying float uv;
-
-  void main() {
-    vec2 position = pos.xy ;/// dimensions;
-    uv = stateIndex.z < 0. ? -1. : 0.;
-
-    gl_Position = projection * view * vec4(position.xy, 0.0, 1.);
-
-    vColor = vec4(color, 1);
-
-    float finalScaling = 2.;
-
-    //if ( (stateIndex[1] == -10.)) vColor.a = .5;
-    finalScaling += .1 + pow(pos.z, scaling * 1.);
-
-    gl_PointSize = min(pointSize + (exp(log(finalScaling)*sizeAttenuation * .01)), ceiling);
-    if (uv == -1.) gl_PointSize = 50.;
-
-    //if (stateIndex.y == 0.) gl_Position = vec4(100.);
-    vColor.a = .3;
-    if ( (stateIndex[1] == -20.)) vColor.a = .05;
-    if ( (stateIndex[1] == -10.)) vColor.a = .1;
-    if ( (stateIndex[1] == 10.)) vColor.a = 1.;
-    if ( (stateIndex[1] == 0.)) vColor.a = .0;
-
-    if (pos.w == hoveredPoint) vColor.a = 1.;
-
-
-  }
-  `
-
-
 import {
   checkReglExtensions,
   createRegl,
@@ -268,13 +106,20 @@ import {
 } from './utils'
 
 
-
+let layerStack = (element, i) => {
+  element.style.position = "absolute";
+  element.style.top = 0
+  element.style.left = 0;
+  element.style.width = '100%';
+  element.style.height = '100%';
+  element.style.zIndex = i;
+}
 
 const NOOP = () => {}
 
 const creategraph = (options) => {
   let initialRegl = options.regl,
-
+  container = options.container,
   canvas = options.canvas,
   initialShowRecticle = DEFAULT_SHOW_RECTICLE,
   initialRecticleColor = DEFAULT_RECTICLE_COLOR,
@@ -292,35 +137,15 @@ const creategraph = (options) => {
   onClick = options.onClick || NOOP,
 
   attributes = options.attributes;
+
+
+
   let size = [initialWidth, initialHeight]
 
 
   const scratch = new Float32Array(16);
   let mousePosition  = [0, 0];
   let pointList = []
-
-  let schema = {}
-
-  window.attributes = attributes
-
-
-  schema.attributes = {
-        pos: {
-          //xy size
-          buffer: () => attributes.position,
-          size: 4
-        },
-        color: {
-          buffer: () => attributes.color,
-          size: 3
-
-        },
-        stateIndex: {
-          buffer: () => attributes.stateIndex,
-          size: 3
-        },
-      }
-
 
   //props schema - make external
   let state = {
@@ -494,7 +319,6 @@ const creategraph = (options) => {
       // }).map(edge => edge.source)
       // points = [points].concat(connections).flat(
       //console.log(points)
-      console.log('who am i ', points, pointList[points])
       updateCurves(pointList[points], points)
       points = [points]
     }
@@ -554,7 +378,11 @@ const creategraph = (options) => {
     const currentMousePosition = getRelativeMousePosition(event)
     const clickDist = dist(...currentMousePosition, ...mouseDownPosition)
     const clostestPoint = raycast()
-    if (clostestPoint >= 0) select(clostestPoint)
+    console.log(clostestPoint)
+    attributes.stateIndex.forEach((trip, i) => {
+      trip[1] = i == clostestPoint ? 10 : -10;
+    })
+    if (clostestPoint >= 0) select([clostestPoint])
     if (clostestPoint >= 0) onClick(pointList[clostestPoint], clostestPoint, event)
 
     if (event.shiftKey) {
@@ -568,8 +396,7 @@ const creategraph = (options) => {
   const blurHandler = () => {
     if (!isInit) return;
     events['blur']()
-    state.hoveredPoint = -1;
-    isMouseInCanvas = false;
+    state.hoveredPoint = -1;  isMouseInCanvas = false;
     mouseUpHandler();
     drawRaf(); // eslint-disable-line no-use-before-define
   };
@@ -610,69 +437,8 @@ const creategraph = (options) => {
     canvas.width = width * window.devicePixelRatio
   }
 
-  var emptyTexture = regl.texture({
-    shape: [16, 16]
-  })
 
-
-  let textures = [emptyTexture, emptyTexture]
-
-  circleImg.onload = () => {
-    textures[0] = regl.texture({premultiplyAlpha: true, data: circleImg})
-  }
-  if (circleImg.complete) circleImg.onload()
-
-  starImg.onload = () => {
-    textures[1] = regl.texture(starImg)
-  }
-  if (starImg.complete) starImg.onload()
-
-    const drawPointBodies = regl({
-      frag: POINT_FS,
-      vert: POINT_VS,
-      depth: {
-   enable: false,
-
- },
-
- blend: {
-   enable: true,
-   func: {
-     srcRGB: 'src alpha',
-     srcAlpha: 1,
-     dstRGB: 'one minus src alpha',
-     dstAlpha: 1
-   },
-   equation: {
-     rgb: 'add',
-     alpha: 'add'
-   },
-   color: [0, 0, 0, 0]
- },
-
-      attributes: schema.attributes,
-
-      uniforms: {
-        ceiling: () => state.ceiling,
-        time: (context) => { return console.log(context.time) || context.time },
-        resolution: [innerWidth, innerHeight],
-        hoveredPoint: () => state.hoveredPoint,
-        selectedPoint: () => selection[0] || -1,
-        dimensions: [window.innerWidth, window.innerHeight],
-        projection:  regl.prop('projection'),
-        model: regl.prop('model'),
-        view: () => state.camera.view,
-        scaling: regl.prop('scaling'),
-        pointSize: getPointSize,
-        pointSizeExtra: () => 1,
-        sizeAttenuation: regl.prop('sizeAttenuation'),
-        flatSize: regl.prop('flatSize'),
-        texture: () => textures[0],
-        texture2: () => textures[1]
-      },
-      count: getNormalNumPoints,
-      primitive: 'points'
-    })
+    const drawPointBodies = createDrawPoints(regl, attributes)
 
 
   const setPoints = newPoints => {
@@ -703,7 +469,7 @@ const creategraph = (options) => {
 
     //if (state.showNodes)
     //
-    drawCurves(state)
+    if (options.drawCurves) drawCurves(state)
 
     drawPointBodies(state);
     //state.screenshot = canvas.toDataURL("image/png", 1);
@@ -876,7 +642,9 @@ const creategraph = (options) => {
   }
 
   let setNodeSize = (indices, size) => {
+    let list = Array.isArray(indices) ? indices: attributes.nodes.map((d,i) => i)
     indices.forEach(idx => {
+      let show = 'function' == typeof val ? val(attributes.nodes[idx], idx) : val
       attributes.position[idx][2] = size
     })
 
@@ -885,7 +653,9 @@ const creategraph = (options) => {
   }
 
   let setNodeShape = (indices, shape) => {
-    indices.forEach(idx => {
+    let list = Array.isArray(indices) ? indices: attributes.nodes.map((d,i) => i)
+    console.log(indices, shape)
+    list.forEach(idx => {
       attributes.stateIndex[idx][2] = -shape
     })
 
@@ -957,14 +727,14 @@ const creategraph = (options) => {
       let poop
       let c = 0
       attributes.stateIndex.forEach((trip, idx) => {
-        let {clipX, clipY} = searchIndex.points[idx];
-        let inbox =  clipX > Math.min(x0, x1) &&
-         clipX < Math.max(x1, x0) &&
-          clipY > Math.min(y1, y0) &&
-           clipY < Math.max(y1, y0)
+        let {x, y} = searchIndex.points[idx];
+        let inbox =  x > Math.min(x0, x1) &&
+         x < Math.max(x1, x0) &&
+          y > Math.min(y1, y0) &&
+           y < Math.max(y1, y0)
         //isPointInPolygon([clipX, clipY], p)
         if (inbox) c++
-        poop =  [x0 ,clipX ,  x1 ,    y0, clipY, y1]
+        poop =  [x0 ,x ,  x1 ,    y0, y, y1]
         trip[1] = inbox ? 10 : -20;
       })
       console.log(window.poop = poop)

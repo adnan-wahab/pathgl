@@ -15,7 +15,7 @@ const getNdcY = y => 1 + (y / innerHeight) * -2
 
    d.clipX = (d.x)
    d.clipY = (d.y)
-   
+
    d.x = getNdcX(d.x)
    d.y = getNdcY(d.y)
 
@@ -96,7 +96,7 @@ let edgeColors = new Array(data.edges.length * 3).fill(0);
       let c = d3.color(d.color || 'pink');
       return [c.r /255 , c.g /255 , c.b /255];
     }));
-    console.log(position)
+
     return {
       nodes: data.nodes,
       position,

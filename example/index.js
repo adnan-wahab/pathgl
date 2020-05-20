@@ -52,7 +52,7 @@ let load = (url) => {
           brush: true,
           width: innerWidth * 1,
           height: innerHeight * .9,
-
+          drawCurves: 0,
           // onClick: (point, idx, events) => {
           //   if (events.shiftKey)favorites = favorites.concat(idx)
           //   graph.setState({favorites})
@@ -109,7 +109,13 @@ let load = (url) => {
         })
 
 
-        let [starRandom, selectRandom, showFavorites, toggleBrush] = document.querySelectorAll('button')
+        let [drawBorder, starRandom, selectRandom, showFavorites, toggleBrush] = document.querySelectorAll('button')
+
+        drawBorder.addEventListener('click', () => {
+          graph.setNodeShape(true, 2)
+        })
+
+
         starRandom.addEventListener('click', () => {
           graph.setNodeShape([Math.random() * 1000 | 0], 1)
         })
@@ -132,6 +138,8 @@ let load = (url) => {
         toggleBrush.addEventListener('click', () =>{
           graph.toggleBrush(state = ! state)
         })
+
+        toggleBrush.click()
 
     })
 }

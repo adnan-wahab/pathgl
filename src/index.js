@@ -160,6 +160,7 @@ const creategraph = (options) => {
 
   //props schema - make external
   let state = {
+    showFavorites: false,
     ceiling: 40,
     pointSize: 10,
     scaling: .4,
@@ -397,11 +398,12 @@ const creategraph = (options) => {
 
   const mouseMoveHandler = event => {
     if (!isInit) return
-    events['mousemove']()
 
-    let coordinates = getRelativeMousePosition(event)
     // Only ray cast if the mouse cursor is inside
-    if (!mouseDownShift) {
+    if (!mouseDown) {
+      events['mousemove']()
+      let coordinates = getRelativeMousePosition(event)
+
       const clostestPoint = raycast()
       hover(clostestPoint)
       if (clostestPoint)
@@ -693,7 +695,14 @@ const creategraph = (options) => {
   }
 
   let saveScreenShot = () => {
-    window.open(graph.state.screenshot.replace("image/png", "image/octet-stream"))
+    let img = document.createElement('img')
+    let image = graph.state.screenshot.replace("image/png", "image/octet-stream");
+
+    //window.location.href=image;
+    img.src = image
+    a.href = image
+    a.download = 'download.png'
+    window.open(image)
   }
 
   let graph = {

@@ -49,7 +49,7 @@ const createCamera = (
     scratch0[0] = x;
     scratch0[1] = y;
     scratch0[2] = 0;
-
+    console.log(1)
     const t = mat4.fromTranslation(scratch1, scratch0);
 
     // Translate about the viewport center

@@ -26,6 +26,7 @@ varying vec3 borderColor;
 varying float uv;
 uniform vec2 resolution;
 uniform float time;
+uniform bool showFavorites;
 
 float aastep(float threshold, float value) {
   #ifdef GL_OES_standard_derivatives
@@ -61,7 +62,7 @@ void main() {
 
 
 
-  if (uv == -1.)
+  if (uv == -1. && showFavorites)
     gl_FragColor = texture2D(texture2, gl_PointCoord);
   else
   gl_FragColor.a *=  1. - distance;
@@ -116,8 +117,6 @@ void main() {
   vColor = vec4(color, 1);
 
   float finalScaling = 2.;
-
-  //if ( (stateIndex[1] == -10.)) vColor.a = .5;
   finalScaling += 2. + pow(pos.z, scaling * 1.);
 
   gl_PointSize = min(pointSize + (exp(log(finalScaling)*sizeAttenuation * .01)), ceiling);
@@ -126,12 +125,12 @@ void main() {
   //if (stateIndex.y == 0.) gl_Position = vec4(100.);
   vColor.a = .5;
   if ( (stateIndex[1] == -20.)) vColor.a = .05;
-  if ( (stateIndex[1] == -10.)) vColor.a = .1;
+  if ( (stateIndex[1] == -10.)) vColor.a = .75;
   if ( (stateIndex[1] == 10.)) vColor.a = 1.;
   if ( (stateIndex[1] == 0.)) vColor.a = .0;
 
   if (pos.w == hoveredPoint) vColor.a = 1.;
-  //if (pos.w == hoveredPoint) gl_Position.z = -1.; // reset depth buffer
+  if (pos.w == hoveredPoint) gl_Position.z = -1.; // reset depth buffer
   if (pos.w == hoveredPoint) gl_PointSize *= 5.;
   else if ( (stateIndex[1] == 10.)) gl_PointSize *= 3.;
 }

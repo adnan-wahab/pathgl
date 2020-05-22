@@ -118,21 +118,21 @@ void main() {
   float finalScaling = 2.;
 
   //if ( (stateIndex[1] == -10.)) vColor.a = .5;
-  finalScaling += .1 + pow(pos.z, scaling * 1.);
+  finalScaling += 2. + pow(pos.z, scaling * 1.);
 
   gl_PointSize = min(pointSize + (exp(log(finalScaling)*sizeAttenuation * .01)), ceiling);
   if (uv == -1.) gl_PointSize = 50.;
 
   //if (stateIndex.y == 0.) gl_Position = vec4(100.);
-  vColor.a = .3;
+  vColor.a = .5;
   if ( (stateIndex[1] == -20.)) vColor.a = .05;
   if ( (stateIndex[1] == -10.)) vColor.a = .1;
   if ( (stateIndex[1] == 10.)) vColor.a = 1.;
   if ( (stateIndex[1] == 0.)) vColor.a = .0;
 
   if (pos.w == hoveredPoint) vColor.a = 1.;
-  if (pos.w == hoveredPoint) gl_Position.z = .5;
-  if (pos.w == hoveredPoint) gl_PointSize *= 3.;
+  if (pos.w == hoveredPoint) gl_Position.z = -1; // reset depth buffer
+  if (pos.w == hoveredPoint) gl_PointSize *= 5.;
   else if ( (stateIndex[1] == 10.)) gl_PointSize *= 3.;
 }
 `

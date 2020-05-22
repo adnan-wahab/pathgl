@@ -8,8 +8,10 @@ let colorTypes = {}
 const getNdcX = x => -1 + (x / innerWidth) * 2
 const getNdcY = y => 1 + (y / innerHeight) * -2
 
+let uuids = {}
 
  let randomColor = data.nodes.map((d,index) => {
+   uuids[d.uuid] = index
    d.size = 2
    d.index = index
 
@@ -98,7 +100,9 @@ let edgeColors = new Array(data.edges.length * 3).fill(0);
       return [c.r /255 , c.g /255 , c.b /255];
     }));
 
+
     return {
+      uuids: uuids,
       nodes: data.nodes,
       position,
       edges,

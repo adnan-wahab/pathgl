@@ -314,30 +314,13 @@ const creategraph = (options) => {
     return -1
   }
 
-  const deselect = () => {
-    // if (selection.length) {
-    //   selection = []
-    //   drawRaf() // eslint-disable-line no-use-before-define
-    // }
-  }
-
-
   const select = (points) => {
-    //console.log(points)
     if (typeof points === 'number') {
-      // let connections = attributes.edges.edges.filter(edge => {
-      //   return edge.source == points || edge.target == points
-      // }).map(edge => edge.source)
-      // points = [points].concat(connections).flat(
-      //console.log(points)
       updateCurves(pointList[points], points)
       points = [points]
     }
     if (! Array.isArray(points)) throw new Error('points must be a number or array')
 
-    // attributes.stateIndex.forEach((trip, i) => {
-    //   trip[1] = points.includes(i) ? 10 : -10;
-    // })
     drawRaf() // eslint-disable-line no-use-before-define
   }
 
@@ -483,7 +466,7 @@ const creategraph = (options) => {
     if (options.drawCurves) drawCurves(state)
 
     drawPointBodies(state);
-    //state.screenshot = canvas.toDataURL("image/png", 1);
+    state.screenshot = canvas.toDataURL("image/png", 1);
 
   }
 
@@ -623,6 +606,10 @@ const creategraph = (options) => {
     _.each(options, (k,v) => { state[v] = k })
   }
 
+  let getNodeIndex = (uuid) => {
+    return attributes.uuids[uuid]
+  }
+
   let parseColor = (rgb) => {
     let c = d3.rgb(rgb)
     return [c.r /255 , c.g /255 , c.b /255];
@@ -642,6 +629,7 @@ const creategraph = (options) => {
 
     list.forEach(idx => {
       let color = 'function' == typeof val ? val(attributes.nodes[idx], idx) : val
+      idx = typeof idx == 'number' ? idx : getNodeIndex(idx)
       attributes.color[idx] = parseColor(color)
     })
     drawRaf()
@@ -652,6 +640,7 @@ const creategraph = (options) => {
     let list = Array.isArray(indices) ? indices: attributes.nodes.map((d,i) => i)
     list.forEach(idx => {
       let show = 'function' == typeof val ? val(attributes.nodes[idx], idx) : val
+      idx = typeof idx == 'number' ? idx : getNodeIndex(idx)
       attributes.stateIndex[idx][1] = show
     })
 
@@ -663,6 +652,8 @@ const creategraph = (options) => {
     let list = Array.isArray(indices) ? indices: attributes.nodes.map((d,i) => i)
     indices.forEach(idx => {
       let show = 'function' == typeof val ? val(attributes.nodes[idx], idx) : val
+      idx = typeof idx == 'number' ? idx : getNodeIndex(idx)
+
       attributes.position[idx][2] = size
     })
 
@@ -673,6 +664,7 @@ const creategraph = (options) => {
   let setNodeShape = (indices, shape) => {
     let list = Array.isArray(indices) ? indices: [indices]
     list.forEach(idx => {
+      idx = typeof idx == 'number' ? idx : getNodeIndex(idx)
       attributes.stateIndex[idx][2] = -shape
     })
 
@@ -700,10 +692,13 @@ const creategraph = (options) => {
 
   }
 
-
+  let saveScreenShot = () => {
+    window.open(graph.state.screenshot.replace("image/png", "image/octet-stream"))
+  }
 
   let graph = {
     state: state,
+    saveScreenShot,
     eachNode: eachNode,
     toggleBrush: (bool) => {
       d3.select('svg').style('display', (! bool) ? 'none' : 'unset')
@@ -714,34 +709,10 @@ const creategraph = (options) => {
         return [2. * (pos[0] / width) - 1.,
         1. - ((pos[1] / height) * 2.)]
       }
-      // getNdcX(mousePosition[0])
-      // getNdcY(mousePosition[1])
-      // debugger
-      // function svgPoint(element, x, y) {
-      //   var pt = svg.createSVGPoint();
-      //
-      //   pt.x = x;
-      //   pt.y = y;
-      //
-      //   return pt.matrixTransform(element.getScreenCTM().inverse());
-      // }
-      //getRelativePosition
-
-       // let clipspace = (pos) => {
-       //   let x = svgPoint(svg, pos[0], pos[1])
-       //   //console.log(x);
-       //   if (Math.random() > .9) console.log(x)
-       //
-       //   pos[0] =  2. * (x.x / containerDimensions.width) - 1.;
-       //   pos[1] = 1. - (x.y / containerDimensions.height) * 2.;
-       // }
 
        let p = selection.map(clipspace).map(getScatterGlPos)
-       console.log(p[0], p[1])
 
-       console.log(p)
       let [[x0, y0], [x1,  y1]] = p;
-      //console.log(attributes)
       let poop
       let c = 0
       attributes.stateIndex.forEach((trip, idx) => {
@@ -783,18 +754,10 @@ const creategraph = (options) => {
     setNodeSize,
     setNodeShape,
     setNodeVisibility,
-
-    deselect,
     destroy,
     on: on,
-
-    draw: drawRaf,
     repaint: () => {
       withDraw(reset)();
-    },
-    hoverPoint: (uuid) => {
-      state.hoveredPoint = pointList.findIndex(d => d.uuid === uuid)
-      draw()
     },
     refresh,
     reset: withDraw(reset),
@@ -802,7 +765,7 @@ const creategraph = (options) => {
     setState,
     getView,
   }
-  console.log('WOWOWOWOW')
+  window.graph = graph
   if (options.brush) createBrush(document.body, graph, size)
   return graph
 }

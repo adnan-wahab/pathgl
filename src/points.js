@@ -26,7 +26,6 @@ varying vec3 borderColor;
 varying float uv;
 uniform vec2 resolution;
 uniform float time;
-uniform bool showFavorites;
 
 float aastep(float threshold, float value) {
   #ifdef GL_OES_standard_derivatives
@@ -62,7 +61,7 @@ void main() {
 
 
 
-  if (uv == -1. && showFavorites)
+  if (uv == -1.)
     gl_FragColor = texture2D(texture2, gl_PointCoord);
   else
   gl_FragColor.a *=  1. - distance;

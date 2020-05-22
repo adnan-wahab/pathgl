@@ -160,7 +160,7 @@ const creategraph = (options) => {
 
   //props schema - make external
   let state = {
-    showFavorites: false,
+    showFavorites: 0,
     ceiling: 40,
     pointSize: 10,
     scaling: .4,
@@ -663,6 +663,15 @@ const creategraph = (options) => {
 
   }
 
+  let setFavorites = (indices) => {
+    let list = Array.isArray(indices) ? indices: [indices]
+    list.forEach(idx => {
+      idx = typeof idx == 'number' ? idx : getNodeIndex(idx)
+      attributes.stateIndex[idx][2] = -1
+    })
+
+  }
+
   let setNodeShape = (indices, shape) => {
     let list = Array.isArray(indices) ? indices: [indices]
     list.forEach(idx => {
@@ -706,6 +715,7 @@ const creategraph = (options) => {
   }
 
   let graph = {
+    setFavorites,
     state: state,
     saveScreenShot,
     eachNode: eachNode,

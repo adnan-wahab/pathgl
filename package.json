@@ -1,6 +1,6 @@
 {
   "name": "regl-network-vis",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "A reusable component for rendering Graphs in Regl",
   "license": "Apache-2.0",
   "author": "Adnan Wahab",

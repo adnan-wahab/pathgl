@@ -131,7 +131,7 @@ void main() {
   if ( (stateIndex[1] == 0.)) vColor.a = .0;
 
   if (pos.w == hoveredPoint) vColor.a = 1.;
-  if (pos.w == hoveredPoint) gl_Position.z = -1; // reset depth buffer
+  //if (pos.w == hoveredPoint) gl_Position.z = -1.; // reset depth buffer
   if (pos.w == hoveredPoint) gl_PointSize *= 5.;
   else if ( (stateIndex[1] == 10.)) gl_PointSize *= 3.;
 }

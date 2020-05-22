@@ -9,8 +9,9 @@ const getNdcX = x => -1 + (x / innerWidth) * 2
 const getNdcY = y => 1 + (y / innerHeight) * -2
 
 
- let randomColor = data.nodes.map(d => {
+ let randomColor = data.nodes.map((d,index) => {
    d.size = 2
+   d.index = index
 
 
    d.clipX = (d.x)

@@ -43,12 +43,13 @@ let styles = {
 
 let favorites = []
 let load = (url) => {
+
   fetch(url)
     .then((body)=>{ return body.json() })
     .then((json)=>{
         window.graph = GraphRenderer.init({
           data: json,
-          canvas: document.querySelector('canvas'),
+          container: document.querySelector('.container'),
           brush: true,
           width: innerWidth * 1,
           height: innerHeight * .9,

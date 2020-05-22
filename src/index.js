@@ -14,7 +14,6 @@ import * as d3 from 'd3'
 
 
 let createBrush = (container, graph, size) => {
-  container = document.querySelector('.container')
   let width = size[0], height = size[1]
 
   const svg = d3.select(container).append("svg")
@@ -23,6 +22,7 @@ let createBrush = (container, graph, size) => {
       svg.style(
         'position', 'absolute'
       )
+      console.log(container, 'container')
       //svg.style('top', '50')
       svg.style('left', '0')
 
@@ -107,6 +107,7 @@ import {
 
 
 let layerStack = (element, i) => {
+  if (! element) return console.log('element is null!')
   element.style.position = "absolute";
   element.style.top = 0
   element.style.left = 0;
@@ -115,12 +116,22 @@ let layerStack = (element, i) => {
   element.style.zIndex = i;
 }
 
+let createCanvas = (container) => {
+  let canvas = document.createElement('canvas')
+  console.log('add canvas', container)
+  container.appendChild(canvas)
+  return canvas
+}
+
 const NOOP = () => {}
 
 const creategraph = (options) => {
-  let initialRegl = options.regl,
-  container = options.container,
-  canvas = options.canvas,
+
+  let container = options.container || document.body,
+    canvas = createCanvas(container),
+    initialRegl = createRegl(canvas),
+
+
   initialShowRecticle = DEFAULT_SHOW_RECTICLE,
   initialRecticleColor = DEFAULT_RECTICLE_COLOR,
   initialPointSize = DEFAULT_POINT_SIZE,
@@ -167,7 +178,7 @@ const creategraph = (options) => {
     projection:  new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
     model: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
     hoveredPoint: -1,
-    containerDimensions: (canvas).getBoundingClientRect(),
+    containerDimensions: { x: 0, y: 0, width: size[0], height: size[1]  },
     size: size
   };
   window.state = state
@@ -223,7 +234,7 @@ const creategraph = (options) => {
     else state.camera.lookAt([...initialTarget], initialDistance, initialRotation)
   }
   initCamera()
-  let [updateCurves, drawCurves] = createCurves(options.regl, attributes)
+  let [updateCurves, drawCurves] = createCurves(initialRegl, attributes)
 
   // Get a copy of the current mouse position
   const getMousePos = () => mousePosition.slice()
@@ -383,12 +394,12 @@ const creategraph = (options) => {
       trip[1] = i == clostestPoint ? 10 : -10;
     })
     if (clostestPoint >= 0) select([clostestPoint])
-    if (clostestPoint >= 0) onClick(pointList[clostestPoint], clostestPoint, event)
-
+    //if (clostestPoint >= 0) onClick(pointList[clostestPoint], clostestPoint, event)
+    if (clostestPoint >= 0) events['nodeSelected'](pointList[clostestPoint], clostestPoint, event)
     if (event.shiftKey) {
-      updateCurves(pointList)
-    }else
-    clostestPoint && updateCurves(pointList[clostestPoint], clostestPoint)
+      //updateCurves(pointList)
+    }else {}
+    //clostestPoint && updateCurves(pointList[clostestPoint], clostestPoint)
 
   }
 
@@ -559,11 +570,9 @@ const creategraph = (options) => {
 
 
   let resizeHandler = () => {
-    console.log('RESIZING', options.canvas)
+    state.containerDimensions = (canvas).getBoundingClientRect()
 
-    state.containerDimensions = (options.canvas).getBoundingClientRect()
-
-    let rect = options.canvas.getBoundingClientRect()
+    let rect = canvas.getBoundingClientRect()
     console.log(rect)
     size[0] = rect.width
     size[1] = rect.height
@@ -593,6 +602,15 @@ const creategraph = (options) => {
   }
 
   const destroy = () => {
+    window.removeEventListener('blur', blurHandler, false);
+    window.removeEventListener('mousedown', mouseDownHandler, false)
+    window.removeEventListener('mouseup', mouseUpHandler, false)
+    window.removeEventListener('mousemove', mouseMoveHandler, false)
+    canvas.removeEventListener('mouseenter', mouseEnterCanvasHandler, false)
+    canvas.removeEventListener('mouseleave', mouseLeaveCanvasHandler, false)
+    canvas.removeEventListener('click', mouseClickHandler, false)
+    canvas.removeEventListener('wheel', wheelHandler);
+    window.removeEventListener('resize', resizeHandler);
     canvas = undefined
     state.camera = undefined
     regl = undefined
@@ -619,11 +637,11 @@ const creategraph = (options) => {
     drawRaf()
   }
 
-  let setNodeColor = (indices, color) => {
+  let setNodeColor = (indices, val) => {
     let list = Array.isArray(indices) ? indices: attributes.nodes.map((d,i) => i)
 
     list.forEach(idx => {
-
+      let color = 'function' == typeof val ? val(attributes.nodes[idx], idx) : val
       attributes.color[idx] = parseColor(color)
     })
     drawRaf()
@@ -653,8 +671,7 @@ const creategraph = (options) => {
   }
 
   let setNodeShape = (indices, shape) => {
-    let list = Array.isArray(indices) ? indices: attributes.nodes.map((d,i) => i)
-    console.log(indices, shape)
+    let list = Array.isArray(indices) ? indices: [indices]
     list.forEach(idx => {
       attributes.stateIndex[idx][2] = -shape
     })
@@ -675,6 +692,7 @@ const creategraph = (options) => {
     'click' :noop,
     'wheel': noop,
     hover: noop,
+    'nodeSelected': noop,
   }
 
   let on = (event, listener) => {
@@ -784,16 +802,15 @@ const creategraph = (options) => {
     setState,
     getView,
   }
-
+  console.log('WOWOWOWOW')
   if (options.brush) createBrush(document.body, graph, size)
   return graph
 }
 
 
 const init = (props) => {
-
+  console.log('INIT okay')
   props.attributes = processData(props.data)
-  props.regl = createRegl(props.canvas)
   let graph = creategraph(props)
   graph._data = props
   return graph

@@ -62,7 +62,7 @@ export const createRegl = canvas => {
 
   return createOriginalRegl({
     extensions: GL_EXTENSIONS,
-    canvas, attributes: { preserveDrawingBuffer: false} })
+    canvas, profile: true, attributes: { preserveDrawingBuffer: false} })
 }
 
 /**

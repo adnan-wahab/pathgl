@@ -172,7 +172,7 @@ const creategraph = (options) => {
     showNodes: true,
     flatSize: true,
     edgeColors: true,
-    selectedCluster: -1,
+    selectedPoint: -1,
     favorites: [],
     dateFilter: [0,Infinity],
     camera: {view: () => {}},
@@ -186,8 +186,6 @@ const creategraph = (options) => {
   window.projection = state.projection
 
   const getPointSize = () => state.pointSize * window.devicePixelRatio
-  const getNormalPointSizeExtra = () => 0
-
   const getView = () => {
     return state.camera.view}
 
@@ -203,11 +201,8 @@ const creategraph = (options) => {
   let width = initialWidth
   let height = initialHeight
   const pointSize = initialPointSize
-  const pointSizeSelected = initialPointSizeSelected
-  const pointOutlineWidth = initialPointOutlineWidth
   let regl = initialRegl || createRegl(canvas)
   let camera
-  let scroll
   let mouseDown = false
   let mouseDownShift = false
   let mouseDownPosition = [0, 0]
@@ -217,10 +212,6 @@ const creategraph = (options) => {
   let searchIndex
   let viewAspectRatio
   const dataAspectRatio = DEFAULT_DATA_ASPECT_RATIO
-  const showRecticle = initialShowRecticle
-  let recticleHLine
-  let recticleVLine
-  const recticleColor = toRgba(initialRecticleColor, true)
 
   let isViewChanged = false
   let isInit = false
@@ -317,9 +308,11 @@ const creategraph = (options) => {
 
   const select = (points) => {
     if (typeof points === 'number') {
-      updateCurves(pointList[points], points)
+      //updateCurves(pointList[points], points)
       points = [points]
     }
+    console.log(state.selectedPoint = points[0])
+
     if (! Array.isArray(points)) throw new Error('points must be a number or array')
 
     drawRaf() // eslint-disable-line no-use-before-define
@@ -373,10 +366,10 @@ const creategraph = (options) => {
     const currentMousePosition = getRelativeMousePosition(event)
     const clickDist = dist(...currentMousePosition, ...mouseDownPosition)
     const clostestPoint = raycast()
-    console.log(clostestPoint)
-    attributes.stateIndex.forEach((trip, i) => {
-      trip[1] = i == clostestPoint ? 10 : -10;
-    })
+    // console.log(clostestPoint)
+    // attributes.stateIndex.forEach((trip, i) => {
+    //   trip[1] = i == clostestPoint ? 10 : -10;
+    // })
     if (clostestPoint >= 0) select([clostestPoint])
     //if (clostestPoint >= 0) onClick(pointList[clostestPoint], clostestPoint, event)
     if (clostestPoint >= 0) events['nodeSelected'](pointList[clostestPoint], clostestPoint, event)
@@ -468,7 +461,10 @@ const creategraph = (options) => {
     if (options.drawCurves) drawCurves(state)
 
     drawPointBodies(state);
-    state.screenshot = canvas.toDataURL("image/png", 1);
+    console.log(drawPointBodies.stats.gpuTime)
+    console.log(drawPointBodies.stats.cpuTime)
+    if (canvas.toDataUrl)
+      state.screenshot = canvas.toDataURL("image/png", 1);
 
   }
 
@@ -555,10 +551,10 @@ const creategraph = (options) => {
 
 
   let resizeHandler = () => {
+    if (canvas.toBoundingClientRect)
     state.containerDimensions = (canvas).getBoundingClientRect()
 
-    let rect = canvas.getBoundingClientRect()
-    console.log(rect)
+    let rect = state.containerDimensions
     size[0] = rect.width
     size[1] = rect.height
     setHeight(height)
@@ -638,7 +634,7 @@ const creategraph = (options) => {
   }
 
   let setNodeVisibility = (indices, val) => {
-    updateCurves(0)
+    //updateCurves(0)
     let list = Array.isArray(indices) ? indices: attributes.nodes.map((d,i) => i)
     list.forEach(idx => {
       let show = 'function' == typeof val ? val(attributes.nodes[idx], idx) : val
@@ -704,13 +700,8 @@ const creategraph = (options) => {
   }
 
   let saveScreenShot = () => {
-    let img = document.createElement('img')
     let image = graph.state.screenshot.replace("image/png", "image/octet-stream");
 
-    //window.location.href=image;
-    img.src = image
-    a.href = image
-    a.download = 'download.png'
     window.open(image)
   }
 

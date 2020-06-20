@@ -1,16 +1,9 @@
 
-<p><code>
+<h1 align="center">deck.gl | <a href="http://defeated-produce.surge.sh/">Website</a></h1>
 
+<h5 align="center"> WebGL2-powered, highly performant large-scale data visualization</h5>
 
-this.canvasRef = React.createRef();
-let graph = createGraphContext()
-graph.init(canvasRef.current) //only needed in projectvis page
-return <canvas ref={this.canvasRef}>
-</code></p>
+[![docs](http://allthingsgraphed.com/public/images/linkedin/linkedin-network.png)](http://defeated-produce.surge.sh/)
 
-
-to use a control
-<p><code>createGraphContext().setState({date: [1962, 2011})
-</code></p>
-
-<p><code>createGraphContext().setState({search: 'potato' })</code></p>
+Created on behalf http://MeetYogi.com
+![](https://static.wixstatic.com/media/d92a4c_40a91511765847b5a6d6d5676a1668e2~mv2.png/v1/fill/w_161,h_69,al_c,q_85,usm_0.66_1.00_0.01/Yogi.webp)

@@ -66,12 +66,6 @@ void main() {
   else
   gl_FragColor.a *=  1. - distance;
 
-  if (uv == -2.) {
-    //gl_FragColor.rgb = distance;
-
-    gl_FragColor.a *=  1. - distance;
-  }
-
 }
 `
 const POINT_VS = `
@@ -101,6 +95,9 @@ uniform vec2 dimensions;
 uniform float selectedCluster;
 
 uniform bool flatSize;
+uniform float showFavorites;
+uniform float selectedPoint;
+
 
 // variables to send to the fragment shader
 varying vec4 vColor;
@@ -109,7 +106,7 @@ varying float uv;
 
 void main() {
   vec2 position = pos.xy ;/// dimensions;
-  uv = stateIndex.z < 0. ? stateIndex.z : 0.;
+  uv = ((stateIndex.z < 0. && showFavorites < 0.) || showFavorites == pos.w)? -1. : 0.;
 
   gl_Position = projection * view * vec4(position.xy, 0.0, 1.);
 
@@ -121,17 +118,19 @@ void main() {
   gl_PointSize = min(pointSize + (exp(log(finalScaling)*sizeAttenuation * .01)), ceiling);
   if (uv == -1.) gl_PointSize = 50.;
 
-  //if (stateIndex.y == 0.) gl_Position = vec4(100.);
   vColor.a = .5;
   if ( (stateIndex[1] == -20.)) vColor.a = .05;
   if ( (stateIndex[1] == -10.)) vColor.a = .75;
-  if ( (stateIndex[1] == 10.)) vColor.a = 1.;
+  if ( (pos.w == selectedPoint)) vColor.a = 1.;
+
   if ( (stateIndex[1] == 0.)) vColor.a = .0;
 
   if (pos.w == hoveredPoint) vColor.a = 1.;
   if (pos.w == hoveredPoint) gl_Position.z = -1.; // reset depth buffer
   if (pos.w == hoveredPoint) gl_PointSize *= 5.;
   else if ( (stateIndex[1] == 10.)) gl_PointSize *= 3.;
+  if ( (pos.w == selectedPoint)) gl_PointSize *= 3.;
+
 }
 `
 
@@ -197,12 +196,12 @@ export const createDrawPoints = (regl, attributes) => {
       attributes: schema.attributes,
 
       uniforms: {
+        showFavorites: () => state.showFavorites || -10,
         pointSize: regl.prop('pointSize'),
         ceiling: () => state.ceiling,
         time: (context) => { return console.log(context.time) || context.time },
         resolution: [innerWidth, innerHeight],
         hoveredPoint: () => state.hoveredPoint,
-        selectedPoint: () => selection[0] || -1,
         dimensions: [window.innerWidth, window.innerHeight],
         projection:  regl.prop('projection'),
         model: regl.prop('model'),
@@ -210,6 +209,7 @@ export const createDrawPoints = (regl, attributes) => {
         scaling: regl.prop('scaling'),
         sizeAttenuation: regl.prop('sizeAttenuation'),
         flatSize: regl.prop('flatSize'),
+        selectedPoint: regl.prop('selectedPoint'),
         texture: () => textures[0],
         texture2: () => textures[1]
       },

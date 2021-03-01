@@ -403,6 +403,8 @@ const creategraph = (options) => {
       events.hover(clostestPoint, pointList[clostestPoint], event, coordinates) // eslint-disable-line no-use-before-define
       else
       events.hoverOff()
+      clostestPoint && updateCurves(pointList[clostestPoint], clostestPoint)
+
     }
     // Always redraw when mouse as the user might have panned
     if (mouseDown) drawRaf() // eslint-disable-line no-use-before-define
@@ -458,11 +460,10 @@ const creategraph = (options) => {
 
     //if (state.showNodes)
     //
-    if (options.drawCurves) drawCurves(state)
+    drawCurves(state)
 
     drawPointBodies(state);
-    console.log(drawPointBodies.stats.gpuTime)
-    console.log(drawPointBodies.stats.cpuTime)
+
     if (canvas.toDataUrl)
       state.screenshot = canvas.toDataURL("image/png", 1);
 

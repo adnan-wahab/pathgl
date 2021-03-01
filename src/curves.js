@@ -53,7 +53,7 @@ function createCurves (regl, attributes, getModel, getProjection, getView) {
       connections.forEach(fillPosition)
 
       segments=positions.length
-
+      console.log('seg',segments)
       let colors = positions.map( d => [.3, .3, .3]  )
       pos({data: positions})
       color({data: colors})

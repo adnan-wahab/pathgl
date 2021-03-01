@@ -53,7 +53,7 @@ let load = (url) => {
           brush: true,
           width: innerWidth * 1,
           height: innerHeight * .9,
-          drawCurves: 0,
+          drawCurves: 1,
           // onClick: (point, idx, events) => {
           //   if (events.shiftKey)favorites = favorites.concat(idx)
           //   graph.setState({favorites})
